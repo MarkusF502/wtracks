@@ -1,0 +1,65 @@
+# Arquivo .gitignore para o projeto WTracks (Nativo C++/JUCE + Flutter)
+
+# ===================================================================
+# Geral e Específico de SO
+# ===================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# ===================================================================
+# IDEs (VSCode, Visual Studio, JetBrains CLion/Android Studio)
+# ===================================================================
+.vscode/
+*.sln
+*.suo
+*.user
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ===================================================================
+# Artefatos de Build do CMake (para a parte nativa)
+# ===================================================================
+# Diretórios de build. O padrão com `*` cobre `build`, `build-android`, etc.
+build/
+build-*/
+Build/
+
+# Arquivos gerados pelo CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+
+# Binários e bibliotecas compiladas
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+*.dylib
+
+# ===================================================================
+# Artefatos de Build do Flutter (para flutter_app)
+# ===================================================================
+flutter_app/build/
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+
+# ===================================================================
+# Dependências (Git Submodules)
+# ===================================================================
+# O JUCE é um submodule, então o conteúdo dele não deve ser versionado
+# no repositório principal. Se você copiou a pasta em vez de usar
+# `git submodule add`, remova a linha abaixo.
+native/JUCE/
