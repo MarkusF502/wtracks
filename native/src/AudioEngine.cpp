@@ -1,4 +1,4 @@
-#include "AudioEngine.h"
+#include "../include/AudioEngine.h"
 
 namespace wtracks
 {
@@ -66,9 +66,16 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         auto* reader = formatManager.createReaderFor(file);
         if (reader == nullptr)
         {
+            DBG("Falha ao criar reader para: " + file.getFileName());
             unloadCurrentTrack();
             return false; // TODO: reportar erro de forma mais explicita para a UI
         }
+
+        DBG("Canal: " + file.getFileName()
+            + " | sampleRate: " + juce::String(reader->sampleRate)
+            + " | lengthInSamples: " + juce::String(reader->lengthInSamples)
+            + " | bitsPerSample: " + juce::String(reader->bitsPerSample)
+            + " | numChannels: " + juce::String(reader->numChannels));
 
         // Valida que todos os canais tem o mesmo sample rate e um comprimento
         // compativel (tolerancia de 50ms) antes de aceitar a musica como
@@ -121,8 +128,11 @@ void AudioEngine::play()
     // O callback de audio (via AudioSourcePlayer, ligado em initialise()) ja
     // esta rodando continuamente -- play() so precisa liberar getNextAudioBlock
     // para de fato produzir som a partir da posicao atual.
-    if (channels.empty())
-        return;
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        if (channels.empty())
+            return;
+    }
 
     playing = true;
 }
@@ -172,6 +182,8 @@ double AudioEngine::getCurrentPositionSeconds() const
 
 double AudioEngine::getTotalLengthSeconds() const
 {
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+
     if (channels.empty() || channels[0].readerSource == nullptr)
         return 0.0;
 
@@ -200,6 +212,7 @@ void AudioEngine::setChannelMuted(int channelIndex, bool muted)
 
 int AudioEngine::getChannelCount() const
 {
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
     return static_cast<int>(channels.size());
 }
 

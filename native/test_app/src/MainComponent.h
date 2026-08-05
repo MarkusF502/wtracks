@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AudioEngine.h"
+#include "../../include/AudioEngine.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
@@ -39,7 +39,7 @@ private:
 
     std::unique_ptr<juce::FileChooser> fileChooser;
 
-    void loadTrackFromFolder(const juce::File& folder);
+    void loadTrackFromFiles(const juce::Array<juce::URL>& wavFileUrls);
     void rebuildChannelControls();
     void timerCallback() override; // atualiza posicao/seek a cada 100ms, como fara o Flutter via polling
 

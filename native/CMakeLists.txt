@@ -4,9 +4,6 @@ project(wtracks_engine VERSION 0.1.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Encontra a biblioteca CURL no sistema
-find_package(CURL REQUIRED)
-
 # JUCE é adicionado como subdiretório (git submodule) ou via find_package
 # Ex: git submodule add https://github.com/juce-framework/JUCE.git native/JUCE
 add_subdirectory(JUCE)
@@ -23,15 +20,17 @@ target_link_libraries(wtracks_engine PRIVATE
     juce::juce_audio_basics
     juce::juce_audio_devices
     juce::juce_audio_formats
-    juce::juce_audio_processors
-    juce::juce_audio_utils
     juce::juce_core
-    CURL::libcurl # Vincula a libcurl
     juce::juce_events
 )
 
 target_compile_definitions(wtracks_engine PRIVATE
     JUCE_STANDALONE_APPLICATION=0
+    # O app nunca faz networking (juce::URL aqui so e usado para ler
+    # content:// URIs no Android, que passa por API nativa, nao por HTTP).
+    # Desligar isso evita que o juce_core exija libcurl -- dependencia que
+    # nao existe pronta pra cross-compilar com o NDK do Android.
+    JUCE_USE_CURL=0
 )
 
 # Necessario para exportar simbolos C corretamente em cada plataforma
@@ -48,7 +47,7 @@ set_target_properties(wtracks_engine PROPERTIES
 # ---------------------------------------------------------------------------
 option(WTRACKS_BUILD_TESTS "Build the wtracks_engine desktop unit tests" ON)
 
-if(WTRACKS_BUILD_TESTS)
+if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
     add_executable(wtracks_engine_tests
         src/AudioEngine.cpp
         tests/AudioEngineTests.cpp
@@ -61,10 +60,7 @@ if(WTRACKS_BUILD_TESTS)
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
-        juce::juce_audio_processors
-        juce::juce_audio_utils
         juce::juce_core
-        CURL::libcurl # Vincula a libcurl
         juce::juce_events
     )
 
@@ -72,6 +68,7 @@ if(WTRACKS_BUILD_TESTS)
         JUCE_STANDALONE_APPLICATION=1
         JUCE_USE_GUI=0 # Desabilita a necessidade de um backend gráfico
         JUCE_WEB_BROWSER=0 # Desabilita o componente de navegador web
+        JUCE_USE_CURL=0
     )
 
     # Facilita achar o executavel e rodar via `ctest` se quiser integrar ao CI depois.

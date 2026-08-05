@@ -77,7 +77,7 @@ private:
     juce::AudioSourcePlayer audioSourcePlayer;
 
     std::vector<Channel> channels;
-    juce::SpinLock channelsLock;
+    mutable juce::SpinLock channelsLock;
 
     // Estado de transporte e sincronizacao blindados com atomics para FFI/UI Thread vs Audio Thread
     std::atomic<bool> playing { false };
@@ -92,14 +92,14 @@ private:
     int preparedBlockSize = 0;
     double preparedSampleRate = 44100.0;
 
-    bool clickEnabled = false;
+    std::atomic<bool> clickEnabled { false };
     double clickBpm = 120.0;
     double currentSampleRate = 44100.0;
 
     juce::AudioBuffer<float> clickBufferAccent; // Bipe mais agudo (Tempo 1)
     juce::AudioBuffer<float> clickBufferNormal; // Bipe padrão (Tempos 2, 3, 4...)
-    
-    int timeSignatureNumerator = 4; // Padrão 4/4
+
+    std::atomic<int> timeSignatureNumerator { 4 }; // Padrão 4/4
     std::atomic<int> currentBeatIndex { 0 };       // Rastreador de qual tempo do compasso estamos
     std::atomic<int64_t> clickReadPosition { -1 }; // -1 significa que o click está mudo agora
 

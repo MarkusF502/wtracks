@@ -2,6 +2,28 @@
 
 MainComponent::MainComponent()
 {
+    // No Android 13+ (API 33+), READ_MEDIA_AUDIO e uma permissao "perigosa"
+    // que precisa ser solicitada em tempo de execucao -- declarar no
+    // AndroidManifest.xml sozinho nao e suficiente. Sem essa solicitacao
+    // explicita, o sistema nega silenciosamente a abertura de streams de
+    // conteudo de midia, mesmo que o FileChooser em si abra normalmente
+    // (foi exatamente o erro "falha ao abrir stream" reportado).
+    if (! juce::RuntimePermissions::isGranted(juce::RuntimePermissions::readExternalStorage))
+    {
+        juce::RuntimePermissions::request(juce::RuntimePermissions::readExternalStorage,
+            [](bool granted)
+            {
+                if (! granted)
+                {
+                    juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
+                        "Permissao necessaria",
+                        "O WTracks precisa de acesso a arquivos de audio para funcionar. "
+                        "Va em Configuracoes > Apps > WTracks Test > Permissoes e habilite "
+                        "o acesso a musica/audio manualmente.");
+                }
+            });
+    }
+
     // Inicializa o motor com valores tipicos -- em Android real, teste tambem
     // com bufferSize menor (ex: 128, 64) para achar o limite de latencia
     // aceitavel de cada aparelho.
@@ -14,16 +36,33 @@ MainComponent::MainComponent()
     addAndMakeVisible(loadButton);
     loadButton.onClick = [this]
     {
-        fileChooser = std::make_unique<juce::FileChooser>(
-            "Selecione a pasta com os arquivos de canal (WAV)",
-            juce::File::getSpecialLocation(juce::File::userMusicDirectory));
+        if (! juce::RuntimePermissions::isGranted(juce::RuntimePermissions::readExternalStorage))
+        {
+            juce::RuntimePermissions::request(juce::RuntimePermissions::readExternalStorage,
+                [this](bool granted)
+                {
+                    if (granted)
+                        loadButton.triggerClick(); // tenta de novo apos conceder
+                });
+            return;
+        }
 
-        fileChooser->launchAsync(juce::FileBrowserComponent::canSelectDirectories,
+        // Selecionar arquivos individuais (em vez de uma pasta inteira) evita
+        // depender de enumeracao de diretorio via content:// URI no Android
+        // (Scoped Storage) -- cada arquivo escolhido no seletor do sistema
+        // ja vem com uma URI resolvida corretamente, sem essa fragilidade.
+        fileChooser = std::make_unique<juce::FileChooser>(
+            "Selecione os arquivos .wav dos canais (segure para selecionar varios)",
+            juce::File::getSpecialLocation(juce::File::userMusicDirectory),
+            "*.wav");
+
+        fileChooser->launchAsync(
+            juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectMultipleItems,
             [this](const juce::FileChooser& fc)
             {
-                auto folder = fc.getResult();
-                if (folder != juce::File())
-                    loadTrackFromFolder(folder);
+                auto urls = fc.getURLResults();
+                if (! urls.isEmpty())
+                    loadTrackFromFiles(urls);
             });
     };
 
@@ -73,25 +112,74 @@ MainComponent::~MainComponent()
     engine.shutdown();
 }
 
-void MainComponent::loadTrackFromFolder(const juce::File& folder)
+void MainComponent::loadTrackFromFiles(const juce::Array<juce::URL>& wavFileUrls)
 {
-    engine.stop();
-
-    juce::Array<juce::File> wavFiles;
-    folder.findChildFiles(wavFiles, juce::File::findFiles, false, "*.wav");
-
-    if (wavFiles.isEmpty())
+    if (wavFileUrls.isEmpty())
     {
         juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
-            "Aviso", "Nenhum arquivo .wav encontrado nessa pasta.");
+            "Aviso", "Nenhum arquivo .wav foi selecionado.");
         return;
     }
 
-    std::vector<juce::File> channelFiles;
-    for (auto& f : wavFiles)
-        channelFiles.push_back(f);
+    engine.stop();
 
-    if (! engine.loadTrack(folder.getFileName(), channelFiles))
+    // No Android, os resultados do FileChooser sao content:// URIs, nao
+    // caminhos de arquivo reais -- por isso usamos juce::URL::createInputStream()
+    // (que sabe abrir esse tipo de URI corretamente via ContentResolver por
+    // baixo dos panos) em vez de tentar tratar como juce::File diretamente.
+    // Copiamos o conteudo para a pasta de cache privada do app, e so entao
+    // trabalhamos com arquivos locais de verdade a partir dali.
+    auto cacheDir = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                        .getChildFile("wtracks_import");
+    cacheDir.createDirectory();
+
+    std::vector<juce::File> channelFiles;
+
+    for (auto& url : wavFileUrls)
+    {
+        auto fileName = url.getFileName();
+        if (fileName.isEmpty())
+            fileName = "canal_" + juce::String(channelFiles.size()) + ".wav";
+
+        auto localCopy = cacheDir.getChildFile(fileName);
+
+        auto inputStream = url.createInputStream(juce::URL::InputStreamOptions(
+            juce::URL::ParameterHandling::inAddress));
+
+        if (inputStream == nullptr)
+        {
+            DBG("FALHA ao abrir stream de leitura para: " + url.toString(false));
+            juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
+                "Erro", "Falha ao abrir o arquivo: " + fileName
+                        + "\nVerifique se a permissao de acesso a midia foi concedida.");
+            return;
+        }
+
+        localCopy.deleteFile();
+        auto outputStream = localCopy.createOutputStream();
+        if (outputStream == nullptr)
+        {
+            DBG("FALHA ao criar arquivo local de destino: " + localCopy.getFullPathName());
+            return;
+        }
+
+        outputStream->writeFromInputStream(*inputStream, -1); // -1 = copiar tudo
+        outputStream.reset(); // garante flush/fechamento antes de ler de volta
+
+        DBG("Copiado para cache local: " + localCopy.getFullPathName()
+            + " | tamanho: " + juce::String(localCopy.getSize()) + " bytes");
+
+        if (localCopy.getSize() == 0)
+        {
+            juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
+                "Erro", "Copia resultou em arquivo vazio: " + fileName);
+            return;
+        }
+
+        channelFiles.push_back(localCopy);
+    }
+
+    if (! engine.loadTrack("teste_manual", channelFiles))
     {
         juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
             "Erro", "Falha ao carregar um ou mais canais -- verifique se todos "
@@ -156,39 +244,39 @@ void MainComponent::timerCallback()
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(10);
+    auto bounds = getLocalBounds().withTrimmedTop(50).reduced(20);
 
-    loadButton.setBounds(area.removeFromTop(30));
-    area.removeFromTop(10);
+    loadButton.setBounds(bounds.removeFromTop(30));
+    bounds.removeFromTop(10);
 
-    auto transportRow = area.removeFromTop(30);
+    auto transportRow = bounds.removeFromTop(30);
     playButton.setBounds(transportRow.removeFromLeft(80));
     transportRow.removeFromLeft(5);
     pauseButton.setBounds(transportRow.removeFromLeft(80));
     transportRow.removeFromLeft(5);
     stopButton.setBounds(transportRow.removeFromLeft(80));
 
-    area.removeFromTop(10);
-    seekSlider.setBounds(area.removeFromTop(24));
-    positionLabel.setBounds(area.removeFromTop(20));
+    bounds.removeFromTop(10);
+    seekSlider.setBounds(bounds.removeFromTop(24));
+    positionLabel.setBounds(bounds.removeFromTop(20));
 
-    area.removeFromTop(10);
-    auto clickRow = area.removeFromTop(24);
+    bounds.removeFromTop(10);
+    auto clickRow = bounds.removeFromTop(24);
     clickToggle.setBounds(clickRow.removeFromLeft(160));
     bpmLabel.setBounds(clickRow.removeFromLeft(40));
     bpmSlider.setBounds(clickRow);
 
-    area.removeFromTop(15);
+    bounds.removeFromTop(15);
 
     // Canais dinamicos: uma linha [label][slider][mute] por canal
     for (int i = 0; i < channelVolumeSliders.size(); ++i)
     {
-        auto row = area.removeFromTop(28);
+        auto row = bounds.removeFromTop(28);
         channelLabels[i]->setBounds(row.removeFromLeft(70));
         row.removeFromLeft(5);
         channelMuteButtons[i]->setBounds(row.removeFromRight(60));
         row.removeFromRight(5);
         channelVolumeSliders[i]->setBounds(row);
-        area.removeFromTop(4);
+        bounds.removeFromTop(4);
     }
 }

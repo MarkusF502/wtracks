@@ -40,5 +40,6 @@ WTRACKS_API int wtracks_get_channel_count();
 // Click track
 WTRACKS_API void wtracks_set_click_enabled(bool enabled);
 WTRACKS_API void wtracks_set_click_bpm(double bpm);
+WTRACKS_API void wtracks_set_click_time_signature(int numerator, int denominator);
 
 } // extern "C"

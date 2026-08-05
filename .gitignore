@@ -1,0 +1,51 @@
+# Arquivos de configuração de IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.vshost.exe
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos e pastas de build do C++/CMake
+# Ignora qualquer pasta chamada 'build' ou que comece com 'build-'
+**/build/
+**/build-*/
+**/Builds/
+
+# Binários e bibliotecas compiladas
+*.exe
+*.dll
+*.so
+*.lib
+*.a
+*.dylib
+
+# Arquivos gerados pelo CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+
+# Arquivos de objeto
+*.o
+*.obj
+
+# Arquivos de cache do JUCE
+JuceLibraryCode/
+
+# Arquivos de cache e build do Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+
+# Arquivos de build específicos do Android (gerados pelo Flutter/Gradle)
+android/app/build/
+android/.gradle/
