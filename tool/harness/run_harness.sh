@@ -44,7 +44,7 @@ fi
 # ---------------------------------------------------------------- analyze
 section "flutter analyze"
 cd "$APP"
-flutter pub get >/dev/null
+flutter pub get >"$OUT/pub_get.log" 2>&1 || { cat "$OUT/pub_get.log"; exit 1; }
 flutter analyze >"$OUT/analyze.log" 2>&1
 analyze_rc=$?
 tail -3 "$OUT/analyze.log"
@@ -106,4 +106,4 @@ print("\n".join(lines))
 PY
 
 section "Relatórios em $OUT"
-[[ "$native_status" == "ok" || "$native_status" == "pulado" ]] && [[ $test_rc -eq 0 ]]
+[[ "$native_status" == "ok" || "$native_status" == "pulado" ]] && [[ $test_rc -eq 0 ]] && [[ $analyze_rc -eq 0 ]]

@@ -1,5 +1,8 @@
 # Relatório de testes automatizados — WTracks
 
+> Relatório histórico anterior à Fase 5. As correções já foram aplicadas.
+> Consulte [FASE5.md](FASE5.md) para implementação e validação atual; não reaplique o patch.
+
 Data: 2026-09-28 · Executado em Linux desktop, sem celular nem emulador.
 
 ## Resumo
