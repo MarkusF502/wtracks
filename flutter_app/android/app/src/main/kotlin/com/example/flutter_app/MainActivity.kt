@@ -1,5 +1,8 @@
 package com.example.flutter_app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -20,6 +23,8 @@ class MainActivity : FlutterActivity() {
 
     private var pendingResult: MethodChannel.Result? = null
     private val PICK_FILES_REQUEST_CODE = 1001
+    private val NOTIFICATION_REQUEST_CODE = 1002
+    private var permissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +64,18 @@ class MainActivity : FlutterActivity() {
 
             // Adicione isso no seu configureFlutterEngine, logo abaixo do channel do file_picker
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "wtracks/background").setMethodCallHandler { call, result ->
-            if (call.method == "start") {
+            if (call.method == "requestNotificationPermission") {
+                val prefs = getPreferences(MODE_PRIVATE)
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+                    !prefs.getBoolean("notificationPermissionAsked", false)) {
+                    prefs.edit().putBoolean("notificationPermissionAsked", true).apply()
+                    permissionResult = result
+                    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_REQUEST_CODE)
+                } else {
+                    result.success(null)
+                }
+            } else if (call.method == "start") {
                 val title = call.argument<String>("title") ?: "WTracks"
                 val intent = Intent(this, PlaybackService::class.java).apply {
                     putExtra("title", title)
@@ -71,14 +87,19 @@ class MainActivity : FlutterActivity() {
                 }
                 result.success(null)
             } else if (call.method == "stop") {
-                val intent = Intent(this, PlaybackService::class.java).apply {
-                    action = "STOP_SERVICE"
-                }
-                startService(intent)
+                stopService(Intent(this, PlaybackService::class.java))
                 result.success(null)
             } else {
                 result.notImplemented()
             }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == NOTIFICATION_REQUEST_CODE) {
+            permissionResult?.success(null) // Denial must never prevent playback.
+            permissionResult = null
         }
     }
 

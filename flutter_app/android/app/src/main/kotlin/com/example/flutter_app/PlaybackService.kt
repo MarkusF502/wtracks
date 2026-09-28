@@ -13,7 +13,7 @@ class PlaybackService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
 
-        if (action == "STOP_SERVICE") {
+        if (intent == null || action == "STOP_SERVICE") {
             stopForeground(true)
             stopSelf()
             return START_NOT_STICKY
@@ -46,7 +46,7 @@ class PlaybackService : Service() {
             startForeground(1, notification)
         }
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
