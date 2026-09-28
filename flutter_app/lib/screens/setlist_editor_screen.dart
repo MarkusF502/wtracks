@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import '../widgets/dialog_text_controller.dart';
 import '../providers/setlist_provider.dart';
 import '../services/track_navigation.dart';
 import '../theme/app_colors.dart';
@@ -45,37 +46,40 @@ class _SetlistEditorScreenState extends ConsumerState<SetlistEditorScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-        () => ref.read(setlistEditorProvider.notifier).open(widget.setlistId));
+    Future.microtask(() {
+      if (mounted) ref.read(setlistEditorProvider.notifier).open(widget.setlistId);
+    });
   }
 
   Future<void> _rename(Setlist setlist) async {
-    final controller = TextEditingController(text: setlist.name);
     final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kPanelBg,
-        title: const Text('Renomear setlist', style: TextStyle(color: kText)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: kText),
-          decoration: const InputDecoration(
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kAccent)),
+      builder: (ctx) => DialogTextController(
+        initialText: setlist.name,
+        builder: (controller) => AlertDialog(
+          backgroundColor: kPanelBg,
+          title: const Text('Renomear setlist', style: TextStyle(color: kText)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: kText),
+            decoration: const InputDecoration(
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kAccent)),
+            ),
+            onSubmitted: (value) => Navigator.of(ctx).pop(value),
           ),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Salvar'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
+    if (!mounted) return;
 
     final trimmed = newName?.trim();
     if (trimmed == null || trimmed.isEmpty || trimmed == setlist.name) return;
@@ -90,7 +94,7 @@ class _SetlistEditorScreenState extends ConsumerState<SetlistEditorScreen> {
         builder: (_) => TrackPickerScreen(initiallySelectedIds: currentIds),
       ),
     );
-    if (selected == null || selected.isEmpty) return;
+    if (!mounted || selected == null || selected.isEmpty) return;
     await ref.read(setlistEditorProvider.notifier).addTracks(selected);
   }
 
@@ -167,8 +171,8 @@ class _SetlistEditorScreenState extends ConsumerState<SetlistEditorScreen> {
                 return ReorderableListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: setlist.tracks.length,
-                  onReorder: (oldIndex, newIndex) {
-                    ref.read(setlistEditorProvider.notifier).reorder(oldIndex, newIndex);
+                  onReorderItem: (oldIndex, newIndex) {
+                    ref.read(setlistEditorProvider.notifier).reorder(oldIndex, newIndex > oldIndex ? newIndex + 1 : newIndex);
                   },
                   itemBuilder: (context, index) {
                     final track = setlist.tracks[index];
@@ -248,7 +252,7 @@ class _SongRow extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     children: [
-                      if (keyChip != null) keyChip,
+                      ?keyChip,
                       bpmChip,
                       channelsChip,
                     ],

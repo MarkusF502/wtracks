@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import '../widgets/dialog_text_controller.dart';
 import '../providers/setlist_provider.dart';
 import '../theme/app_colors.dart';
 import 'setlist_editor_screen.dart';
@@ -17,34 +18,36 @@ class SetlistsScreen extends ConsumerWidget {
   }
 
   Future<void> _createSetlist(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kPanelBg,
-        title: const Text('Novo setlist', style: TextStyle(color: kText)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: kText),
-          decoration: const InputDecoration(
-            hintText: 'Nome do setlist',
-            hintStyle: TextStyle(color: kTextDim),
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kAccent)),
+      builder: (ctx) => DialogTextController(
+        initialText: '',
+        builder: (controller) => AlertDialog(
+          backgroundColor: kPanelBg,
+          title: const Text('Novo setlist', style: TextStyle(color: kText)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: kText),
+            decoration: const InputDecoration(
+              hintText: 'Nome do setlist',
+              hintStyle: TextStyle(color: kTextDim),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: kBorder)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: kAccent)),
+            ),
+            onSubmitted: (value) => Navigator.of(ctx).pop(value),
           ),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              child: const Text('Criar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Criar'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
+    if (!context.mounted) return;
 
     final trimmed = name?.trim();
     if (trimmed == null || trimmed.isEmpty) return;
@@ -75,7 +78,7 @@ class SetlistsScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (context.mounted && confirmed == true) {
       await ref.read(setlistLibraryProvider.notifier).deleteSetlist(setlist.id);
     }
   }

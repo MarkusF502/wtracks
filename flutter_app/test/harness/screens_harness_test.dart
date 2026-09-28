@@ -129,7 +129,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.stop));
       await tester.pump(const Duration(milliseconds: 200));
       expect(engine.calls, contains('stop'));
-      expect(bg.map((c) => c.method), ['start', 'stop']);
+      expect(bg.map((c) => c.method), ['requestNotificationPermission', 'start', 'stop']);
       await unmount(tester);
     });
 

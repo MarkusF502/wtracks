@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import 'setlist_provider.dart';
+import 'waveform_provider.dart';
 import '../native/wtracks_bindings.dart';
 import '../services/persistence_service.dart';
 
@@ -21,8 +22,7 @@ final engineProvider = Provider<WTracksEngine>((ref) {
   if (!ready) {
     // A tela que consome isso decide como avisar o usuário -- aqui só
     // deixamos registrado pra depuração via wtracks_get_last_error().
-    // ignore: avoid_print
-    print('WTracksEngine.initialise() falhou.');
+    debugPrint('WTracksEngine.initialise() falhou.');
   }
 
   return engine;
@@ -32,60 +32,74 @@ final engineProvider = Provider<WTracksEngine>((ref) {
 /// Widgets de mixer/canal leem daqui em vez de perguntar pro engine
 /// canal por canal.
 class CurrentTrackNotifier extends Notifier<Track?> {
+  int _generation = 0;
+  bool _disposed = false;
+  Future<void> _pending = Future.value();
+  int get loadGeneration => _generation;
+  String? loadingTrackId;
+
   @override
-  Track? build() => null;
+  Track? build() {
+    ref.onDispose(() { _disposed = true; _generation++; });
+    return null;
+  }
 
-  /// Carrega [track] no engine nativo. Retorna false se o engine recusar
-  /// (ex: canais com sample rate/duração incompatíveis) -- nesse caso
-  /// [state] não muda, e o chamador pode consultar wtracks_get_last_error()
-  /// através do engineProvider para mostrar o motivo ao usuário.
-  Future<bool> load(Track track) async {
+  /// Serialize native loads: every isolate addresses the same C++ engine.
+  /// A superseded result must not publish UI state or mixer settings.
+  Future<bool> load(Track track) {
+    final generation = ++_generation;
+    loadingTrackId = track.id;
     final engine = ref.read(engineProvider);
-    engine.stop();
-
-    debugPrint('>>> [DEBUG] 1. Iniciando load() no Provider para a track: ${track.id}');
-    debugPrint('>>> [DEBUG] Caminhos dos arquivos: ${track.channelFilePaths}');
-
-    try {
-      debugPrint('>>> [DEBUG] 2. Entrando no Isolate.run()...');
-
-      final loaded = await Isolate.run(() {
-        debugPrint('>>> [ISOLATE] 3. Isolate rodando em background. Abrindo engine secundária...');
-        final backgroundEngine = WTracksEngine();
-        debugPrint('>>> [ISOLATE] 4. Chamando backgroundEngine.loadTrack()...');
-        final success = backgroundEngine.loadTrack(track.id, track.channelFilePaths);
-        debugPrint('>>> [ISOLATE] 5. loadTrack() terminou com sucesso = $success');
-        return success;
-      });
-
-      debugPrint('>>> [DEBUG] 6. Isolate.run() finalizou com loaded = $loaded');
-
-      if (!loaded) {
-        debugPrint('>>> [DEBUG] ERRO: O engine recusou o carregamento.');
+    final transport = ref.read(transportProvider.notifier);
+    final operation = _pending.then((_) async {
+      if (_disposed || generation != _generation) return false;
+      await transport.stop();
+      if (_disposed || generation != _generation) return false;
+      try {
+        final loaded = await engine.loadTrackAsync(track.id, track.channelFilePaths);
+        if (_disposed || generation != _generation) {
+          if (!_disposed && loaded) {
+            engine.unloadTrack();
+            state = null;
+          }
+          return false;
+        }
+        if (!loaded) {
+          debugPrint('Falha ao carregar música: ${engine.lastError}');
+          return false;
+        }
+        engine.setClickBpm(track.clickSettings.bpm);
+        engine.setClickTimeSignature(track.clickSettings.timeSignatureNumerator, 4);
+        engine.setClickOffsetSeconds(track.clickSettings.beatOffsetSeconds);
+        state = track;
+        for (var i = 0; i < track.channels.length; i++) {
+          engine.setChannelVolume(i, track.channels[i].volume);
+        }
+        _syncEffectiveMutes();
+        return true;
+      } catch (e) {
+        debugPrint('Exceção ao carregar música: $e');
         return false;
+      } finally {
+        if (generation == _generation) loadingTrackId = null;
       }
+    });
+    _pending = operation.then((_) {});
+    return operation;
+  }
 
-      debugPrint('>>> [DEBUG] 7. Configurando BPM e tempo...');
-      engine.setClickBpm(track.clickSettings.bpm);
-      engine.setClickTimeSignature(track.clickSettings.timeSignatureNumerator, 4);
-      engine.setClickOffsetSeconds(track.clickSettings.beatOffsetSeconds);
-
-      // O engine recém-carregado começa com todos os canais a 100% e sem
-      // mute -- reaplica o mix salvo pra bater com o que o mixer mostra.
-      for (var i = 0; i < track.channels.length; i++) {
-        engine.setChannelVolume(i, track.channels[i].volume);
-      }
-
-      debugPrint('>>> [DEBUG] 8. Atualizando state com a nova track...');
-      state = track;
-      _syncEffectiveMutes();
-
-      debugPrint('>>> [DEBUG] 9. Tudo concluído com sucesso! Retornando true.');
-      return true;
-    } catch (e, stack) {
-      debugPrint('>>> [DEBUG] CRITICAL EXCEPTION capturada no catch: $e\n$stack');
-      return false;
-    }
+  Future<void> unload() {
+    final generation = ++_generation;
+    loadingTrackId = null;
+    final engine = ref.read(engineProvider);
+    final stopping = ref.read(transportProvider.notifier).stop();
+    final operation = _pending.then((_) async {
+      await stopping;
+      engine.unloadTrack();
+      if (!_disposed && generation == _generation) state = null;
+    });
+    _pending = operation;
+    return operation;
   }
 
   void setChannelVolume(int index, double volume) {
@@ -239,7 +253,9 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
 
     final saved = await ref.read(persistenceServiceProvider).saveTrack(track);
 
-    ref.read(currentTrackProvider.notifier).setLoadedTrack(saved);
+    if (ref.read(currentTrackProvider)?.id == saved.id) {
+      ref.read(currentTrackProvider.notifier).setLoadedTrack(saved);
+    }
 
     final index = state.indexWhere((t) => t.id == saved.id);
     if (index >= 0) {
@@ -252,7 +268,23 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
   }
 
   Future<void> deleteTrack(String id) async {
-    await ref.read(persistenceServiceProvider).deleteTrack(id);
+    final persistence = ref.read(persistenceServiceProvider);
+    final current = ref.read(currentTrackProvider.notifier);
+    if (ref.read(currentTrackProvider)?.id == id || current.loadingTrackId == id) {
+      await current.unload();
+    }
+    await ref.read(waveformProvider.notifier).forget(id);
+    for (final setlist in await persistence.loadAllSetlists()) {
+      if (setlist.tracks.any((track) => track.id == id)) {
+        await persistence.saveSetlist(setlist.withTrackRemoved(id));
+      }
+    }
+    await persistence.deleteTrack(id);
+    await ref.read(setlistLibraryProvider.notifier).refresh();
+    final editor = ref.read(setlistEditorProvider);
+    if (editor != null) {
+      ref.read(setlistEditorProvider.notifier).setLoadedSetlist(editor.withTrackRemoved(id));
+    }
     state = state.where((t) => t.id != id).toList();
   }
 
@@ -319,25 +351,61 @@ class TransportNotifier extends Notifier<TransportState> {
         isPlaying: engine.isPlaying,
       );
       // Parado, nada muda entre ticks -- evita rebuild 10x/s à toa.
+      if (_backgroundActive && !next.isPlaying) {
+        _backgroundActive = false;
+        unawaited(_background('stop'));
+      }
       if (next != state) state = next;
     });
-    ref.onDispose(() => _timer?.cancel());
+    ref.onDispose(() {
+      _timer?.cancel();
+      ++_playGeneration;
+    });
     return const TransportState();
   }
 
-  void play() {
-    ref.read(engineProvider).play();
-    final trackTitle = ref.read(currentTrackProvider)?.title ?? 'WTracks';
-    _bgChannel.invokeMethod('start', {'title': trackTitle});
+  bool _backgroundActive = false;
+  int _playGeneration = 0;
+  Future<void> _backgroundQueue = Future.value();
+
+  Future<void> _background(String method, [Map<String, Object>? arguments]) {
+    final operation = _backgroundQueue.then((_) async {
+      try {
+        await _bgChannel.invokeMethod<void>(method, arguments);
+      } on MissingPluginException catch (e) {
+        debugPrint('Background indisponível: $e');
+      } on PlatformException catch (e) {
+        debugPrint('Falha no background: $e');
+      }
+    });
+    _backgroundQueue = operation;
+    return operation;
   }
 
-  void pause() {
+  Future<void> play() async {
+    final generation = ++_playGeneration;
+    final engine = ref.read(engineProvider);
+    final title = ref.read(currentTrackProvider)?.title ?? 'WTracks';
+    await _background('requestNotificationPermission');
+    if (generation != _playGeneration) return;
+    engine.play();
+    if (!engine.isPlaying) return;
+    _backgroundActive = true;
+    await _background('start', {'title': title});
+  }
+
+  Future<void> pause() async {
+    ++_playGeneration;
     ref.read(engineProvider).pause();
+    _backgroundActive = false;
+    await _background('stop');
   }
 
-  void stop() {
+  Future<void> stop() async {
+    ++_playGeneration;
     ref.read(engineProvider).stop();
-    _bgChannel.invokeMethod('stop');
+    _backgroundActive = false;
+    await _background('stop');
   }
 
   void seekTo(double seconds) => ref.read(engineProvider).seekToSeconds(seconds);

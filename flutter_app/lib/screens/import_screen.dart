@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../file_import_service.dart';
 import '../models/track.dart';
+import '../models/engine_error.dart';
 import '../providers/engine_provider.dart';
 
 const _uuid = Uuid();
@@ -142,9 +143,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       if (!mounted) return;
 
       if (!loaded) {
-        final lastError = ref.read(engineProvider).lastError;
+        final lastError = engineErrorMessage(ref.read(engineProvider).lastErrorCode);
         setState(() {
-          _error = 'Falha ao carregar no motor: ${lastError.isEmpty ? "Formato inválido" : lastError}';
+          _error = 'Falha ao carregar no motor: $lastError';
           _isFinalizing = false;
         });
         return;
@@ -160,7 +161,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         _error = 'Erro interno inesperado: $e';
         _isFinalizing = false;
       });
-      print('Erro crítico em _finalize: $e\n$stack');
+      debugPrint('Erro crítico em _finalize: $e\n$stack');
     }
   }
 
@@ -324,7 +325,7 @@ class _FileRow extends StatelessWidget {
     final borderColor = isSelected
         ? const Color(0xFF00E5FF)
         : isUsed
-            ? const Color(0xFF00FF8850)
+            ? const Color(0x00FF8850)
             : const Color(0xFF1E1E2E);
     final background = isSelected
         ? const Color(0xFF00E5FF).withValues(alpha: 0.1)

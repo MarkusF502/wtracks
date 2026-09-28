@@ -3,6 +3,7 @@
 // substituído por [FakeEngine] e o disco por [InMemoryPersistence].
 
 import 'dart:ffi';
+import 'package:flutter_app/models/engine_error.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -16,6 +17,10 @@ import 'package:flutter_app/services/persistence_service.dart';
 /// Engine falso que grava cada chamada recebida, pra os testes conferirem
 /// o que a UI/providers mandaram pro motor nativo.
 class FakeEngine implements WTracksEngine {
+  @override
+  bool ready = true;
+  @override
+  EngineErrorCode get lastErrorCode => EngineErrorCode.unknown;
   final calls = <String>[];
 
   bool playing = false;
@@ -34,7 +39,7 @@ class FakeEngine implements WTracksEngine {
   @override
   Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) async => true;
   @override
-  void unloadTrack() {}
+  void unloadTrack() { calls.add('unload'); }
   @override
   void play() {
     calls.add('play');

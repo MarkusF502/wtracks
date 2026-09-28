@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import '../widgets/dialog_text_controller.dart';
 import '../providers/engine_provider.dart';
 import '../services/track_navigation.dart';
 import 'import_screen.dart';
@@ -21,32 +22,34 @@ class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   Future<void> _renameTrack(BuildContext context, WidgetRef ref, Track track) async {
-    final controller = TextEditingController(text: track.title);
     final newTitle = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _panelBg,
-        title: const Text('Renomear música', style: TextStyle(color: Color(0xFFF0F0FA))),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Color(0xFFF0F0FA)),
-          decoration: const InputDecoration(
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _border)),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _accent)),
+      builder: (ctx) => DialogTextController(
+        initialText: track.title,
+        builder: (controller) => AlertDialog(
+          backgroundColor: _panelBg,
+          title: const Text('Renomear música', style: TextStyle(color: Color(0xFFF0F0FA))),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: Color(0xFFF0F0FA)),
+            decoration: const InputDecoration(
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _border)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _accent)),
+            ),
+            onSubmitted: (value) => Navigator.of(ctx).pop(value),
           ),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Salvar'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
+    if (!context.mounted) return;
 
     final trimmed = newTitle?.trim();
     if (trimmed == null || trimmed.isEmpty || trimmed == track.title) return;
@@ -69,6 +72,28 @@ class LibraryScreen extends ConsumerWidget {
       // performance e deixando o usuário decidir se quer salvar.
       if (!context.mounted) return;
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PerformanceScreen()));
+    }
+  }
+
+  Future<void> _deleteTrack(BuildContext context, WidgetRef ref, Track track) async {
+    final setlists = await ref.read(persistenceServiceProvider).loadAllSetlists();
+    if (!context.mounted) return;
+    final count = setlists.where((s) => s.tracks.any((t) => t.id == track.id)).length;
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Excluir música?'),
+      content: Text('“${track.title}” aparece em $count setlist(s). A música e seu áudio serão excluídos e removidos desses setlists.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+      ],
+    ));
+    if (!context.mounted || confirmed != true) return;
+    try {
+      await ref.read(trackLibraryProvider.notifier).deleteTrack(track.id);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível excluir a música. Tente novamente.')));
+      }
     }
   }
 
@@ -128,10 +153,15 @@ class LibraryScreen extends ConsumerWidget {
                     title: Text(track.title, style: const TextStyle(color: Color(0xFFF0F0FA))),
                     subtitle: Text('${track.channels.length} canais',
                         style: const TextStyle(color: _textDim)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: _textDim),
-                      tooltip: 'Renomear',
-                      onPressed: () => _renameTrack(context, ref, track),
+                    trailing: PopupMenuButton<String>(
+                      tooltip: 'Opções da música',
+                      onSelected: (action) => action == 'delete'
+                          ? _deleteTrack(context, ref, track)
+                          : _renameTrack(context, ref, track),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'rename', child: Text('Renomear')),
+                        PopupMenuItem(value: 'delete', child: Text('Excluir')),
+                      ],
                     ),
                     onTap: () => openTrack(context, ref, track),
                     onLongPress: () => _renameTrack(context, ref, track),

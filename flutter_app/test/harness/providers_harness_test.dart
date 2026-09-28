@@ -8,6 +8,12 @@ import 'package:flutter_app/providers/engine_provider.dart';
 
 import 'harness_support.dart';
 
+class NativeLoadFakeEngine extends FakeEngine {
+  @override
+  Future<bool> loadTrackAsync(String id, List<String> paths) =>
+      WTracksEngine().loadTrackAsync(id, paths);
+}
+
 ProviderContainer makeContainer(FakeEngine engine, {InMemoryPersistence? persistence}) {
   final c = ProviderContainer(overrides: [
     engineProvider.overrideWithValue(engine),
@@ -68,7 +74,7 @@ void main() {
         ChannelInfo(label: 'Click', filePath: b.path, muted: true),
       ]);
 
-      final engine = FakeEngine();
+      final engine = NativeLoadFakeEngine();
       final c = makeContainer(engine);
       final ok = await c.read(currentTrackProvider.notifier).load(saved);
 

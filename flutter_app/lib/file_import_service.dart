@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -40,7 +41,7 @@ class FileImportService {
             );
         return paths.cast<String>();
       } on PlatformException catch (e) {
-        print('FileImportService: method channel failed: $e');
+        debugPrint('FileImportService: method channel failed: $e');
         // fall through to file_selector fallback
       }
     }
@@ -70,11 +71,11 @@ class FileImportService {
       if (pickedFile.path.isNotEmpty) {
         final source = File(pickedFile.path);
         // Debug log para investigar casos onde o arquivo some durante a cópia.
-        print('FileImportService: copying from ${source.path} to ${localFile.path}');
+        debugPrint('FileImportService: copying from ${source.path} to ${localFile.path}');
         await source.copy(localFile.path);
       } else {
         // Fallback: usar saveTo que internamente lida com content:// URIs.
-        print('FileImportService: saving ${pickedFile.name} to ${localFile.path} via saveTo');
+        debugPrint('FileImportService: saving ${pickedFile.name} to ${localFile.path} via saveTo');
         await pickedFile.saveTo(localFile.path);
       }
 
@@ -82,7 +83,7 @@ class FileImportService {
         throw StateError('Falha ao copiar o arquivo: ${pickedFile.name}');
       }
 
-      print('FileImportService: imported ${localFile.path} size=${await localFile.length()}');
+      debugPrint('FileImportService: imported ${localFile.path} size=${await localFile.length()}');
       localPaths.add(localFile.path);
     }
 

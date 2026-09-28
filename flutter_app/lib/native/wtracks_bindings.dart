@@ -2,6 +2,8 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
+import '../models/engine_error.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
 
@@ -89,6 +91,8 @@ class WTracksEngine {
   late final _VoidDart _shutdown;
   late final _LoadTrackDart _loadTrack;
   late final _GetLastErrorDart _getLastError;
+  late final _GetChannelCountDart _getLastErrorCode;
+  bool ready = false;
   late final _VoidDart _unloadTrack;
   late final _VoidDart _play;
   late final _VoidDart _pause;
@@ -121,6 +125,8 @@ class WTracksEngine {
     _getLastError = _lib
         .lookup<NativeFunction<_GetLastErrorNative>>('wtracks_get_last_error')
         .asFunction();
+    _getLastErrorCode = _lib.lookupFunction<Int32 Function(), int Function()>(
+      'wtracks_get_last_error_code');
     _unloadTrack = _lib
         .lookup<NativeFunction<_VoidNative>>('wtracks_unload_track')
         .asFunction();
@@ -193,7 +199,7 @@ class WTracksEngine {
   }
 
   bool initialise({int sampleRate = 44100, int bufferSize = 256}) =>
-      _initialise(sampleRate, bufferSize);
+      ready = _initialise(sampleRate, bufferSize);
 
   void shutdown() => _shutdown();
 
@@ -217,8 +223,7 @@ class WTracksEngine {
     try {
       final success = _loadTrack(songIdPtr, pathsArray, pathPointers.length);
       if (!success) {
-        // ignore: avoid_print
-        print('WTracksEngine.loadTrack failed: $lastError');
+        debugPrint('WTracksEngine.loadTrack failed: $lastError');
       }
       return success;
     } finally {
@@ -256,8 +261,7 @@ class WTracksEngine {
       try {
         final success = loadFn(songIdPtr, pathsArray, pathPointers.length);
         if (!success) {
-          // ignore: avoid_print
-          print(
+            debugPrint(
             'WTracksEngine.loadTrackAsync failed: ${getErrorFn().toDartString()}',
           );
         }
@@ -291,6 +295,8 @@ class WTracksEngine {
 
   void setClickEnabled(bool enabled) => _setClickEnabled(enabled);
   void setClickBpm(double bpm) => _setClickBpm(bpm);
+
+  EngineErrorCode get lastErrorCode => engineErrorCodeFromInt(_getLastErrorCode());
 
   String get lastError => _getLastError().toDartString();
 

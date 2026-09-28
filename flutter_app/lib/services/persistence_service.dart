@@ -60,6 +60,26 @@ class PersistenceService {
     return dir;
   }
 
+  // Serialize writes to the same destination, including rapid reorders.
+  static final Map<String, Future<void>> _writes = {};
+
+  Future<void> _writeJson(File file, Object value) async {
+    final content = jsonEncode(value);
+    final previous = _writes[file.path] ?? Future<void>.value();
+    final operation = previous.then((_) async {
+      final temporary = File('${file.path}.tmp');
+      await temporary.writeAsString(content, flush: true);
+      await temporary.rename(file.path);
+    });
+    final settled = operation.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    _writes[file.path] = settled;
+    try {
+      await operation;
+    } finally {
+      if (identical(_writes[file.path], settled)) _writes.remove(file.path);
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Tracks
   // ---------------------------------------------------------------------
@@ -123,7 +143,7 @@ class PersistenceService {
     // migrado mas track.json desatualizado/ausente. Cenário raro, aceitável
     // por ora; não há transação/rollback implementado.
     final jsonFile = File('${(await _tracksDir()).path}/${track.id}.json');
-    await jsonFile.writeAsString(jsonEncode(updatedTrack.toJson()));
+    await _writeJson(jsonFile, updatedTrack.toJson());
 
     return updatedTrack;
   }
@@ -163,9 +183,6 @@ class PersistenceService {
 
   /// Remove `tracks/<id>.json` e `audio/<id>/` recursivamente.
   ///
-  /// TODO: não verifica se algum Setlist salvo referencia esse trackId --
-  /// consistência de Setlist órfã é dívida técnica conhecida, fora de
-  /// escopo por ora.
   Future<void> deleteTrack(String id) async {
     final jsonFile = File('${(await _tracksDir()).path}/$id.json');
     if (await jsonFile.exists()) await jsonFile.delete();
@@ -182,7 +199,7 @@ class PersistenceService {
 
   Future<void> saveSetlist(Setlist setlist) async {
     final jsonFile = File('${(await _setlistsDir()).path}/${setlist.id}.json');
-    await jsonFile.writeAsString(jsonEncode(setlist.toJson()));
+    await _writeJson(jsonFile, setlist.toJson());
   }
 
   Future<List<Setlist>> loadAllSetlists() async {
@@ -246,7 +263,7 @@ class PersistenceService {
 
   Future<void> saveWaveformPeaks(String trackId, List<double> peaks) async {
     final jsonFile = File('${(await _waveformsDir()).path}/$trackId.json');
-    await jsonFile.writeAsString(jsonEncode({'peaks': peaks}));
+    await _writeJson(jsonFile, {'peaks': peaks});
   }
 
   /// Retorna `null` se o arquivo não existir (track nunca teve cache

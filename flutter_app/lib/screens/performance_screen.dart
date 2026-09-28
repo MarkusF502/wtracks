@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import '../widgets/dialog_text_controller.dart';
 import '../providers/engine_provider.dart';
 import '../providers/waveform_provider.dart';
 import '../utils/tap_tempo.dart';
@@ -85,32 +86,34 @@ class PerformanceScreen extends ConsumerWidget {
   }
 
   Future<void> _renameTrack(BuildContext context, WidgetRef ref, Track track) async {
-    final controller = TextEditingController(text: track.title);
     final newTitle = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _panelBg,
-        title: const Text('Renomear música', style: TextStyle(color: Color(0xFFF0F0FA))),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Color(0xFFF0F0FA)),
-          decoration: const InputDecoration(
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _border)),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _accent)),
+      builder: (ctx) => DialogTextController(
+        initialText: track.title,
+        builder: (controller) => AlertDialog(
+          backgroundColor: _panelBg,
+          title: const Text('Renomear música', style: TextStyle(color: Color(0xFFF0F0FA))),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: const TextStyle(color: Color(0xFFF0F0FA)),
+            decoration: const InputDecoration(
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _border)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _accent)),
+            ),
+            onSubmitted: (value) => Navigator.of(ctx).pop(value),
           ),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Salvar'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
+    if (!context.mounted) return;
 
     final trimmed = newTitle?.trim();
     if (trimmed == null || trimmed.isEmpty || trimmed == track.title) return;
@@ -288,10 +291,13 @@ class _WaveformTimelineState extends ConsumerState<_WaveformTimeline> {
   @override
   void didUpdateWidget(covariant _WaveformTimeline oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.track.id != widget.track.id) _load();
+    if (oldWidget.track.id != widget.track.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    }
   }
 
   void _load() {
+    if (!mounted) return;
     ref.read(waveformProvider.notifier).loadFor(widget.track);
   }
 
