@@ -66,10 +66,55 @@ public:
         testPlaybackStopsAtEnd(dir);
         testSeekOnExactDownbeatPlaysAccent(dir);
 
+        testErrorCodes(dir);
+        testDeviceRateChange(dir);
+
         dir.deleteRecursively();
     }
 
 private:
+    void testErrorCodes(const juce::File& dir)
+    {
+        beginTest("[F5] codigos de erro: corrompido, sample rate e duracao");
+        AudioEngine engine;
+        engine.prepareToPlay(kBlock, 48000.0);
+        auto corrupt = dir.getChildFile("corrupt.wav");
+        corrupt.replaceWithText("not audio");
+        expect(!engine.loadTrack("bad", {corrupt}));
+        expect(engine.getLastErrorCode() == EngineErrorCode::FileUnreadable);
+        auto a = writeSine(dir, "a.wav", 44100, 1, 440);
+        auto b = writeSine(dir, "b.wav", 48000, 1, 440);
+        auto c = writeSine(dir, "c.wav", 44100, 2, 440);
+        expect(!engine.loadTrack("rates", {a, b}));
+        expect(engine.getLastErrorCode() == EngineErrorCode::FormatMismatch);
+        expect(!engine.loadTrack("lengths", {a, c}));
+        expect(engine.getLastErrorCode() == EngineErrorCode::FormatMismatch);
+        expect(engine.loadTrack("ok", {a}));
+        expect(engine.getLastErrorCode() == EngineErrorCode::None);
+        engine.releaseResources();
+    }
+
+    void testDeviceRateChange(const juce::File& dir)
+    {
+        beginTest("[F5] prepareToPlay recalcula BPM e offset em 48k");
+        auto silent = writeSine(dir, "rate_change.wav", 44100, 10, 0);
+        AudioEngine engine;
+        engine.prepareToPlay(kBlock, 44100);
+        expect(engine.loadTrack("click", {silent}));
+        engine.setClickBpm(60);
+        engine.setClickOffsetSeconds(0.25);
+        engine.setClickEnabled(true);
+        engine.releaseResources();
+        engine.prepareToPlay(kBlock, 48000);
+        engine.seekToSeconds(4.25);
+        engine.play();
+        juce::AudioBuffer<float> out;
+        renderBlocks(engine, 1, &out);
+        const double expected = 0.5 * std::sin(2 * juce::MathConstants<double>::pi * 1760 / 48000);
+        expectWithinAbsoluteError(static_cast<double>(out.getSample(0, 1)), expected, 0.001);
+        engine.releaseResources();
+    }
+
     // BUG-N1: AudioFormatReaderSource nao faz resampling. Com o device a 48k
     // (comum no Android) e arquivo a 44.1k, a duracao reportada e a
     // velocidade de reproducao ficam erradas.

@@ -18,14 +18,21 @@ bool AudioEngine::initialise(int sampleRate, int bufferSize)
     currentSampleRate = sampleRate;
 
     auto result = deviceManager.initialiseWithDefaultDevices(0, 2);
-    if (result.isNotEmpty())
+    if (result.isNotEmpty()) {
+        setLastError(EngineErrorCode::DeviceInitFailed, result);
         return false;
+    }
 
     juce::AudioDeviceManager::AudioDeviceSetup setup;
     deviceManager.getAudioDeviceSetup(setup);
     setup.sampleRate = sampleRate;
     setup.bufferSize = bufferSize;
-    deviceManager.setAudioDeviceSetup(setup, true);
+    const auto setupError = deviceManager.setAudioDeviceSetup(setup, true);
+    if (setupError.isNotEmpty()) {
+        setLastError(EngineErrorCode::DeviceInitFailed, setupError);
+        return false;
+    }
+    setLastError(EngineErrorCode::None, "");
 
     audioSourcePlayer.setSource(this);
     deviceManager.addAudioCallback(&audioSourcePlayer);
@@ -48,7 +55,7 @@ void AudioEngine::shutdown()
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
 {
     DBG("C++ [loadTrack] Iniciando carregamento para: " + songId);
-    setLastError(""); // Zera erros antigos
+    setLastError(EngineErrorCode::None, ""); // Zera erros antigos
 
     double referenceSampleRate = 0.0;
     juce::int64 referenceLengthSamples = 0;
@@ -67,7 +74,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         {
             juce::String err = "Formato nao suportado ou arquivo corrompido: " + file.getFileName();
             DBG("C++ [loadTrack] ERRO CRITICO: " + err);
-            setLastError(err);
+            setLastError(EngineErrorCode::FileUnreadable, err);
             return false; 
         }
 
@@ -86,7 +93,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
                 delete reader; 
                 juce::String err = "Incompatibilidade de formato ou duracao: " + file.getFileName();
                 DBG("C++ [loadTrack] ERRO CRITICO: " + err);
-                setLastError(err);
+                setLastError(EngineErrorCode::FormatMismatch, err);
                 return false;
             }
         }
@@ -137,10 +144,17 @@ juce::String AudioEngine::getLastError() const
     return lastError;
 }
 
-void AudioEngine::setLastError(const juce::String& errorMessage)
+EngineErrorCode AudioEngine::getLastErrorCode() const
+{
+    const juce::SpinLock::ScopedLockType lock(errorLock);
+    return lastErrorCode;
+}
+
+void AudioEngine::setLastError(EngineErrorCode code, const juce::String& errorMessage)
 {
     const juce::SpinLock::ScopedLockType lock(errorLock);
     lastError = errorMessage;
+    lastErrorCode = code;
 }
 
 void AudioEngine::play()
@@ -286,6 +300,7 @@ void AudioEngine::generateClickBuffers(double sampleRate)
 void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
     currentSampleRate = sampleRate;
+    setClickBpm(clickBpm);
     mixerSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
 
     clickOffsetSamples = static_cast<int64_t>(clickOffsetSecondsValue * currentSampleRate);

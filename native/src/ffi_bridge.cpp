@@ -54,7 +54,7 @@ bool wtracks_load_track(const char* songId, const char** channelPaths, int chann
         return engine->loadTrack(juce::String(songId), files);
     } catch (...) {
         // Se explodir qualquer limite de RAM no C++, captura aqui e não derruba o Dart.
-        engine->setLastError("C++ Exception catastrófica ao carregar arquivos");
+        engine->setLastError(wtracks::EngineErrorCode::Unknown, "C++ Exception catastrófica ao carregar arquivos");
         return false;
     }
 }
@@ -65,6 +65,11 @@ const char* wtracks_get_last_error()
     if (!engine) return "";
     globalLastErrorBuffer = engine->getLastError();
     return globalLastErrorBuffer.toRawUTF8();
+}
+
+int wtracks_get_last_error_code()
+{
+    return static_cast<int>(engine ? engine->getLastErrorCode() : wtracks::EngineErrorCode::DeviceInitFailed);
 }
 
 void wtracks_unload_track()

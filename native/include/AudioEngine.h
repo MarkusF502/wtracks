@@ -11,6 +11,8 @@
 namespace wtracks
 {
 
+enum class EngineErrorCode { None = 0, FileUnreadable, FormatMismatch, DeviceInitFailed, Unknown };
+
 struct Channel
 {
     juce::String name;
@@ -55,7 +57,8 @@ public:
 
     // Tratamento de Erros Blindado
     juce::String getLastError() const;
-    void setLastError(const juce::String& errorMessage);
+    EngineErrorCode getLastErrorCode() const;
+    void setLastError(EngineErrorCode code, const juce::String& errorMessage);
 
     void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
     void releaseResources() override;
@@ -96,6 +99,7 @@ private:
 
     // Guarda o ultimo erro para a interface Dart consultar com segurança
     juce::String lastError { "" };
+    EngineErrorCode lastErrorCode = EngineErrorCode::None;
     mutable juce::SpinLock errorLock;
 
     void generateClickBuffers(double sampleRate);

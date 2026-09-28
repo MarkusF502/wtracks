@@ -22,6 +22,7 @@ WTRACKS_API void wtracks_shutdown();
 // (caminhos de arquivo), um por canal. channelCount informa quantos.
 WTRACKS_API bool wtracks_load_track(const char* songId, const char** channelPaths, int channelCount);
 WTRACKS_API const char* wtracks_get_last_error();
+WTRACKS_API int wtracks_get_last_error_code();
 WTRACKS_API void wtracks_unload_track();
 
 // Transporte
