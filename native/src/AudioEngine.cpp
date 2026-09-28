@@ -93,13 +93,16 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
 
         Channel channel;
         channel.name = file.getFileNameWithoutExtension();
+        channel.fileSampleRate = reader->sampleRate;
         channel.readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
+        channel.resampler = std::make_unique<juce::ResamplingAudioSource>(channel.readerSource.get(), false, 2);
+        channel.resampler->setResamplingRatio(channel.fileSampleRate / preparedSampleRate);
 
         // Mesmo se o sample rate for diferente (ex: 44.1k vs 48k), o resampler 
         // vai ser configurado AGORA, no vetor fantasma, sem travar o áudio que já está tocando!
         if (isPrepared) {
             DBG("C++ [loadTrack] isPrepared=true. Configurando resampling/buffer...");
-            channel.readerSource->prepareToPlay(preparedBlockSize, preparedSampleRate);
+            channel.resampler->prepareToPlay(preparedBlockSize, preparedSampleRate);
         }
 
         newChannels.push_back(std::move(channel));
@@ -165,7 +168,10 @@ void AudioEngine::stop()
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     for (auto& channel : channels)
         if (channel.readerSource != nullptr)
+        {
             channel.readerSource->setNextReadPosition(0);
+            channel.resampler->flushBuffers();
+        }
 }
 
 void AudioEngine::seekToSeconds(double seconds)
@@ -175,7 +181,10 @@ void AudioEngine::seekToSeconds(double seconds)
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     for (auto& channel : channels)
         if (channel.readerSource != nullptr)
-            channel.readerSource->setNextReadPosition(currentSamplePosition);
+        {
+            channel.readerSource->setNextReadPosition(static_cast<juce::int64>(seconds * channel.fileSampleRate));
+            channel.resampler->flushBuffers();
+        }
 
     if (samplesPerBeat > 0) {
         const int64_t offsetSamples = clickOffsetSamples.load();
@@ -203,7 +212,7 @@ double AudioEngine::getTotalLengthSeconds() const
         return 0.0;
 
     auto* reader = channels[0].readerSource->getAudioFormatReader();
-    return reader != nullptr ? reader->lengthInSamples / currentSampleRate : 0.0;
+    return reader != nullptr ? reader->lengthInSamples / channels[0].fileSampleRate : 0.0;
 }
 
 bool AudioEngine::isPlaying() const
@@ -290,8 +299,11 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
     scratchBuffer.setSize(2, samplesPerBlockExpected);
 
     for (auto& channel : channels)
-        if (channel.readerSource != nullptr)
-            channel.readerSource->prepareToPlay(samplesPerBlockExpected, sampleRate);
+        if (channel.resampler != nullptr)
+        {
+            channel.resampler->setResamplingRatio(channel.fileSampleRate / sampleRate);
+            channel.resampler->prepareToPlay(samplesPerBlockExpected, sampleRate);
+        }
 }
 
 void AudioEngine::releaseResources()
@@ -299,8 +311,8 @@ void AudioEngine::releaseResources()
     mixerSource.releaseResources();
 
     for (auto& channel : channels)
-        if (channel.readerSource != nullptr)
-            channel.readerSource->releaseResources();
+        if (channel.resampler != nullptr)
+            channel.resampler->releaseResources();
 
     isPrepared = false;
 }
@@ -330,7 +342,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         scratchBuffer.clear(); 
 
         juce::AudioSourceChannelInfo channelInfo(&scratchBuffer, 0, numSamples);
-        channel.readerSource->getNextAudioBlock(channelInfo);
+        channel.resampler->getNextAudioBlock(channelInfo);
 
         if (channel.muted)
             continue;
@@ -366,10 +378,9 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
             // Antes do offset (música ainda não chegou no 1º tempo real): sem click.
             if (effectiveSample >= 0 && effectiveSample % spb == 0)
             {
-                if (effectiveSample == 0)
-                    localBeatIndex = 0;
-                else
-                    localBeatIndex = (localBeatIndex + 1) % timeSignatureNumerator;
+                // Deriva o tempo do compasso da posicao absoluta em vez de
+                // incrementar -- correto tambem logo apos um seek.
+                localBeatIndex = static_cast<int>((effectiveSample / spb) % timeSignatureNumerator);
 
                 localClickReadPos = 0;
             }
@@ -398,7 +409,14 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         clickReadPosition.store(localClickReadPos);
     }
 
-    currentSamplePosition.fetch_add(numSamples);
+    const auto& first = channels.front();
+    const auto endPosition = static_cast<int64_t>(
+        first.readerSource->getTotalLength() / first.fileSampleRate * currentSampleRate);
+    if (currentSamplePosition.fetch_add(numSamples) + numSamples >= endPosition)
+    {
+        currentSamplePosition = endPosition;
+        playing = false;
+    }
 }
 
 } // namespace wtracks

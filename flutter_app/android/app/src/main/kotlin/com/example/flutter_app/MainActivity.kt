@@ -125,6 +125,7 @@ class MainActivity : FlutterActivity() {
         thread(name = "wtracks-import") {
             try {
                 val imported = mutableListOf<String>()
+                val batchDir = File(cacheDir, "wtracks_import/${System.nanoTime()}").apply { mkdirs() }
 
                 for (uri in uris) {
                     var name = "file_${System.currentTimeMillis()}.wav"
@@ -135,7 +136,7 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
-                    val outFile = File(cacheDir, "wtracks_import/$name")
+                    val outFile = File(batchDir, name)
                     outFile.parentFile?.mkdirs()
 
                     contentResolver.openInputStream(uri)?.use { input ->

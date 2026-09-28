@@ -408,10 +408,13 @@ class _Transport extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: _panelBg,
+      // Em paisagem / telas baixas o conteúdo não cabe nos 9/16 padrão.
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Container(
+            return SingleChildScrollView(child: Container(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -492,11 +495,16 @@ class _Transport extends ConsumerWidget {
                   const SizedBox(height: 8),
                   const Text('Offset do click', style: TextStyle(color: Colors.white, fontSize: 16)),
                   const SizedBox(height: 8),
-                  Text(
-                    '${track.clickSettings.beatOffsetSeconds >= 0 ? '+' : ''}'
-                    '${track.clickSettings.beatOffsetSeconds.toStringAsFixed(2)}s',
-                    style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  // Lê o offset do provider (não do `track` capturado ao abrir
+                  // o diálogo), senão o valor exibido nunca atualiza.
+                  Consumer(builder: (context, ref, _) {
+                    final offset = ref.watch(currentTrackProvider
+                        .select((t) => t?.clickSettings.beatOffsetSeconds ?? 0.0));
+                    return Text(
+                      '${offset >= 0 ? '+' : ''}${offset.toStringAsFixed(2)}s',
+                      style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
+                    );
+                  }),
                   const SizedBox(height: 8),
                   if (!isPlaying)
                     const Text('Toque play e marque no primeiro tempo real',
@@ -544,7 +552,7 @@ class _Transport extends ConsumerWidget {
                   ),
                 ],
               ),
-            );
+            ));
           }
         );
       },

@@ -15,6 +15,10 @@ struct Channel
 {
     juce::String name;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
+    // Converte do sample rate do arquivo pro do device (AudioFormatReaderSource
+    // sozinho nao faz resampling).
+    std::unique_ptr<juce::ResamplingAudioSource> resampler;
+    double fileSampleRate = 44100.0;
     float volume = 1.0f;
     bool muted = false;
     int outputBus = 0;

@@ -70,8 +70,15 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       engine.setClickTimeSignature(track.clickSettings.timeSignatureNumerator, 4);
       engine.setClickOffsetSeconds(track.clickSettings.beatOffsetSeconds);
 
+      // O engine recém-carregado começa com todos os canais a 100% e sem
+      // mute -- reaplica o mix salvo pra bater com o que o mixer mostra.
+      for (var i = 0; i < track.channels.length; i++) {
+        engine.setChannelVolume(i, track.channels[i].volume);
+      }
+
       debugPrint('>>> [DEBUG] 8. Atualizando state com a nova track...');
       state = track;
+      _syncEffectiveMutes();
 
       debugPrint('>>> [DEBUG] 9. Tudo concluído com sucesso! Retornando true.');
       return true;
@@ -286,6 +293,16 @@ class TransportState {
     this.lengthSeconds = 0,
     this.isPlaying = false,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      other is TransportState &&
+      other.positionSeconds == positionSeconds &&
+      other.lengthSeconds == lengthSeconds &&
+      other.isPlaying == isPlaying;
+
+  @override
+  int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying);
 }
 
 class TransportNotifier extends Notifier<TransportState> {
@@ -296,11 +313,13 @@ class TransportNotifier extends Notifier<TransportState> {
   TransportState build() {
     final engine = ref.watch(engineProvider);
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      state = TransportState(
+      final next = TransportState(
         positionSeconds: engine.currentPositionSeconds,
         lengthSeconds: engine.totalLengthSeconds,
         isPlaying: engine.isPlaying,
       );
+      // Parado, nada muda entre ticks -- evita rebuild 10x/s à toa.
+      if (next != state) state = next;
     });
     ref.onDispose(() => _timer?.cancel());
     return const TransportState();

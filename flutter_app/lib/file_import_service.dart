@@ -54,7 +54,12 @@ class FileImportService {
 
     if (files.isEmpty) return [];
 
-    final cacheDir = await _importCacheDirectory();
+    // Subpasta por importação: multitracks costumam repetir nomes
+    // (Click.wav, Guia.wav...) e sobrescreveriam o áudio de uma música
+    // importada antes e ainda não salva.
+    final cacheDir = await Directory(
+      '${(await _importCacheDirectory()).path}/${DateTime.now().microsecondsSinceEpoch}',
+    ).create(recursive: true);
     final localPaths = <String>[];
 
     for (final pickedFile in files) {
