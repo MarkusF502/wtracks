@@ -49,3 +49,5 @@ pubspec.lock
 # Arquivos de build específicos do Android (gerados pelo Flutter/Gradle)
 android/app/build/
 android/.gradle/
+# Saídas do harness de testes (tool/harness/run_harness.sh)
+harness_reports/

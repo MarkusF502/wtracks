@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
@@ -10,10 +11,21 @@ typedef _InitialiseDart = bool Function(int sampleRate, int bufferSize);
 typedef _VoidNative = Void Function();
 typedef _VoidDart = void Function();
 
-typedef _LoadTrackNative = Bool Function(
-    Pointer<Utf8> songId, Pointer<Pointer<Utf8>> channelPaths, Int32 channelCount);
-typedef _LoadTrackDart = bool Function(
-    Pointer<Utf8> songId, Pointer<Pointer<Utf8>> channelPaths, int channelCount);
+typedef _LoadTrackNative =
+    Bool Function(
+      Pointer<Utf8> songId,
+      Pointer<Pointer<Utf8>> channelPaths,
+      Int32 channelCount,
+    );
+typedef _LoadTrackDart =
+    bool Function(
+      Pointer<Utf8> songId,
+      Pointer<Pointer<Utf8>> channelPaths,
+      int channelCount,
+    );
+
+typedef _GetLastErrorNative = Pointer<Utf8> Function();
+typedef _GetLastErrorDart = Pointer<Utf8> Function();
 
 typedef _SeekNative = Void Function(Double seconds);
 typedef _SeekDart = void Function(double seconds);
@@ -24,7 +36,8 @@ typedef _GetPositionDart = double Function();
 typedef _IsPlayingNative = Bool Function();
 typedef _IsPlayingDart = bool Function();
 
-typedef _SetChannelVolumeNative = Void Function(Int32 channelIndex, Float volume);
+typedef _SetChannelVolumeNative =
+    Void Function(Int32 channelIndex, Float volume);
 typedef _SetChannelVolumeDart = void Function(int channelIndex, double volume);
 
 typedef _SetChannelMutedNative = Void Function(Int32 channelIndex, Bool muted);
@@ -39,19 +52,43 @@ typedef _SetClickEnabledDart = void Function(bool enabled);
 typedef _SetClickBpmNative = Void Function(Double bpm);
 typedef _SetClickBpmDart = void Function(double bpm);
 
-typedef _SetClickTimeSignatureNative = Void Function(Int32 numerator, Int32 denominator);
-typedef _SetClickTimeSignatureDart = void Function(int numerator, int denominator);
+typedef _SetClickTimeSignatureNative =
+    Void Function(Int32 numerator, Int32 denominator);
+typedef _SetClickTimeSignatureDart =
+    void Function(int numerator, int denominator);
+
+typedef _SetClickOffsetNative = Void Function(Double offsetSeconds);
+typedef _SetClickOffsetDart = void Function(double offsetSeconds);
+
+typedef _GenerateWaveformNative = Bool Function(
+  Pointer<Pointer<Utf8>> channelPaths,
+  Int32 channelCount,
+  Int32 numBuckets,
+  Pointer<Float> outPeaks,
+);
+typedef _GenerateWaveformDart = bool Function(
+  Pointer<Pointer<Utf8>> channelPaths,
+  int channelCount,
+  int numBuckets,
+  Pointer<Float> outPeaks,
+);
 
 /// Wrapper de alto nível em torno da biblioteca nativa wtracks_engine.
 /// Esta é a ÚNICA classe do app que sabe que FFI existe -- todo o
 /// resto do Flutter conversa com [WTracksEngine], nunca com ponteiros
 /// crus. Isso mantém o resto da UI limpo e testável.
 class WTracksEngine {
+  /// Número de buckets de amplitude gerados por [generateWaveformPeaksAsync]
+  /// -- grande o suficiente para preencher telas largas em landscape sem
+  /// esticar demais as barras, pequeno o suficiente pra manter o cache leve.
+  static const int waveformBucketCount = 500;
+
   late final DynamicLibrary _lib;
 
   late final _InitialiseDart _initialise;
   late final _VoidDart _shutdown;
   late final _LoadTrackDart _loadTrack;
+  late final _GetLastErrorDart _getLastError;
   late final _VoidDart _unloadTrack;
   late final _VoidDart _play;
   late final _VoidDart _pause;
@@ -65,7 +102,9 @@ class WTracksEngine {
   late final _GetChannelCountDart _getChannelCount;
   late final _SetClickEnabledDart _setClickEnabled;
   late final _SetClickBpmDart _setClickBpm;
-    late final _SetClickTimeSignatureDart _setClickTimeSignature;
+  late final _SetClickTimeSignatureDart _setClickTimeSignature;
+  late final _SetClickOffsetDart _setClickOffset;
+  late final _GenerateWaveformDart _generateWaveformPeaks;
 
   WTracksEngine() {
     _lib = _openLibrary();
@@ -79,14 +118,24 @@ class WTracksEngine {
     _loadTrack = _lib
         .lookup<NativeFunction<_LoadTrackNative>>('wtracks_load_track')
         .asFunction();
+    _getLastError = _lib
+        .lookup<NativeFunction<_GetLastErrorNative>>('wtracks_get_last_error')
+        .asFunction();
     _unloadTrack = _lib
         .lookup<NativeFunction<_VoidNative>>('wtracks_unload_track')
         .asFunction();
-    _play = _lib.lookup<NativeFunction<_VoidNative>>('wtracks_play').asFunction();
-    _pause =
-        _lib.lookup<NativeFunction<_VoidNative>>('wtracks_pause').asFunction();
-    _stop = _lib.lookup<NativeFunction<_VoidNative>>('wtracks_stop').asFunction();
-    _seek = _lib.lookup<NativeFunction<_SeekNative>>('wtracks_seek').asFunction();
+    _play = _lib
+        .lookup<NativeFunction<_VoidNative>>('wtracks_play')
+        .asFunction();
+    _pause = _lib
+        .lookup<NativeFunction<_VoidNative>>('wtracks_pause')
+        .asFunction();
+    _stop = _lib
+        .lookup<NativeFunction<_VoidNative>>('wtracks_stop')
+        .asFunction();
+    _seek = _lib
+        .lookup<NativeFunction<_SeekNative>>('wtracks_seek')
+        .asFunction();
     _getPosition = _lib
         .lookup<NativeFunction<_GetPositionNative>>('wtracks_get_position')
         .asFunction();
@@ -97,23 +146,42 @@ class WTracksEngine {
         .lookup<NativeFunction<_IsPlayingNative>>('wtracks_is_playing')
         .asFunction();
     _setChannelVolume = _lib
-        .lookup<NativeFunction<_SetChannelVolumeNative>>('wtracks_set_channel_volume')
+        .lookup<NativeFunction<_SetChannelVolumeNative>>(
+          'wtracks_set_channel_volume',
+        )
         .asFunction();
     _setChannelMuted = _lib
-        .lookup<NativeFunction<_SetChannelMutedNative>>('wtracks_set_channel_muted')
+        .lookup<NativeFunction<_SetChannelMutedNative>>(
+          'wtracks_set_channel_muted',
+        )
         .asFunction();
     _getChannelCount = _lib
-        .lookup<NativeFunction<_GetChannelCountNative>>('wtracks_get_channel_count')
+        .lookup<NativeFunction<_GetChannelCountNative>>(
+          'wtracks_get_channel_count',
+        )
         .asFunction();
     _setClickEnabled = _lib
-        .lookup<NativeFunction<_SetClickEnabledNative>>('wtracks_set_click_enabled')
+        .lookup<NativeFunction<_SetClickEnabledNative>>(
+          'wtracks_set_click_enabled',
+        )
         .asFunction();
     _setClickBpm = _lib
         .lookup<NativeFunction<_SetClickBpmNative>>('wtracks_set_click_bpm')
         .asFunction();
     _setClickTimeSignature = _lib
         .lookup<NativeFunction<_SetClickTimeSignatureNative>>(
-            'wtracks_set_click_time_signature')
+          'wtracks_set_click_time_signature',
+        )
+        .asFunction();
+    _setClickOffset = _lib
+        .lookup<NativeFunction<_SetClickOffsetNative>>(
+          'wtracks_set_click_offset',
+        )
+        .asFunction();
+    _generateWaveformPeaks = _lib
+        .lookup<NativeFunction<_GenerateWaveformNative>>(
+          'wtracks_generate_waveform_peaks',
+        )
         .asFunction();
   }
 
@@ -129,12 +197,15 @@ class WTracksEngine {
 
   void shutdown() => _shutdown();
 
+  bool loadTrack(String songId, List<String> channelFilePaths) =>
+      loadTrackSync(songId, channelFilePaths);
+
   /// Carrega uma música com múltiplos canais de áudio.
   /// [channelFilePaths] deve ter um caminho de arquivo LOCAL por canal
   /// (ex: ['guia.wav', 'click.wav', 'bateria.wav']) -- não URIs content://.
   /// A cópia de content:// para caminho local é responsabilidade do
   /// FileImportService, chamada antes disso.
-  bool loadTrack(String songId, List<String> channelFilePaths) {
+  bool loadTrackSync(String songId, List<String> channelFilePaths) {
     final songIdPtr = songId.toNativeUtf8();
     final pathPointers = channelFilePaths.map((p) => p.toNativeUtf8()).toList();
 
@@ -144,15 +215,61 @@ class WTracksEngine {
     }
 
     try {
-      return _loadTrack(songIdPtr, pathsArray, pathPointers.length);
+      final success = _loadTrack(songIdPtr, pathsArray, pathPointers.length);
+      if (!success) {
+        // ignore: avoid_print
+        print('WTracksEngine.loadTrack failed: $lastError');
+      }
+      return success;
     } finally {
       // Sempre liberar a memória alocada manualmente, ou vaza memória nativa
-            malloc.free(songIdPtr);
+      malloc.free(songIdPtr);
       for (final p in pathPointers) {
-                malloc.free(p);
+        malloc.free(p);
       }
       calloc.free(pathsArray);
     }
+  }
+
+  /// Carrega uma música de forma assíncrona em um isolate separado.
+  /// Útil quando a chamada síncrona puder bloquear a UI.
+  Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) {
+    return Isolate.run(() {
+      final lib = _openLibrary();
+      final loadFn = lib
+          .lookup<NativeFunction<_LoadTrackNative>>('wtracks_load_track')
+          .asFunction<_LoadTrackDart>();
+      final getErrorFn = lib
+          .lookup<NativeFunction<_GetLastErrorNative>>('wtracks_get_last_error')
+          .asFunction<_GetLastErrorDart>();
+
+      final songIdPtr = songId.toNativeUtf8();
+      final pathPointers = channelFilePaths
+          .map((p) => p.toNativeUtf8())
+          .toList();
+      final pathsArray = calloc<Pointer<Utf8>>(pathPointers.length);
+
+      for (var i = 0; i < pathPointers.length; i++) {
+        pathsArray[i] = pathPointers[i];
+      }
+
+      try {
+        final success = loadFn(songIdPtr, pathsArray, pathPointers.length);
+        if (!success) {
+          // ignore: avoid_print
+          print(
+            'WTracksEngine.loadTrackAsync failed: ${getErrorFn().toDartString()}',
+          );
+        }
+        return success;
+      } finally {
+        malloc.free(songIdPtr);
+        for (final p in pathPointers) {
+          malloc.free(p);
+        }
+        calloc.free(pathsArray);
+      }
+    });
   }
 
   void unloadTrack() => _unloadTrack();
@@ -174,6 +291,85 @@ class WTracksEngine {
 
   void setClickEnabled(bool enabled) => _setClickEnabled(enabled);
   void setClickBpm(double bpm) => _setClickBpm(bpm);
-    void setClickTimeSignature(int numerator, int denominator) =>
-            _setClickTimeSignature(numerator, denominator);
+
+  String get lastError => _getLastError().toDartString();
+
+  void setClickTimeSignature(int numerator, int denominator) =>
+      _setClickTimeSignature(numerator, denominator);
+
+  void setClickOffsetSeconds(double offsetSeconds) =>
+      _setClickOffset(offsetSeconds);
+
+  /// Versão síncrona de [generateWaveformPeaksAsync] -- bloqueia a thread
+  /// chamadora. Preferir a versão assíncrona a partir da UI; esta existe
+  /// para uso em testes/scripts e para espelhar o padrão de
+  /// loadTrack/loadTrackSync já usado nesta classe.
+  List<double>? generateWaveformPeaksSync(List<String> channelPaths) {
+    final pathPointers = channelPaths.map((p) => p.toNativeUtf8()).toList();
+    final pathsArray = calloc<Pointer<Utf8>>(pathPointers.length);
+    for (var i = 0; i < pathPointers.length; i++) {
+      pathsArray[i] = pathPointers[i];
+    }
+    final outPeaks = calloc<Float>(waveformBucketCount);
+
+    try {
+      final success = _generateWaveformPeaks(
+        pathsArray,
+        pathPointers.length,
+        waveformBucketCount,
+        outPeaks,
+      );
+      if (!success) return null;
+      return List<double>.generate(
+        waveformBucketCount,
+        (i) => outPeaks[i].toDouble(),
+        growable: false,
+      );
+    } finally {
+      for (final p in pathPointers) {
+        malloc.free(p);
+      }
+      calloc.free(pathsArray);
+      calloc.free(outPeaks);
+    }
+  }
+
+  /// Gera os picos de waveform (mixagem de todos os canais) para
+  /// [channelPaths], rodando em um isolate separado -- arquivos de música
+  /// podem ser grandes, então isso não pode bloquear a UI. Retorna `null`
+  /// se a extração falhar (arquivo inválido/corrompido).
+  Future<List<double>?> generateWaveformPeaksAsync(List<String> channelPaths) {
+    return Isolate.run(() {
+      final lib = _openLibrary();
+      final fn = lib
+          .lookup<NativeFunction<_GenerateWaveformNative>>(
+            'wtracks_generate_waveform_peaks',
+          )
+          .asFunction<_GenerateWaveformDart>();
+
+      final pathPointers = channelPaths.map((p) => p.toNativeUtf8()).toList();
+      final pathsArray = calloc<Pointer<Utf8>>(pathPointers.length);
+      for (var i = 0; i < pathPointers.length; i++) {
+        pathsArray[i] = pathPointers[i];
+      }
+      final outPeaks = calloc<Float>(waveformBucketCount);
+
+      try {
+        final success =
+            fn(pathsArray, pathPointers.length, waveformBucketCount, outPeaks);
+        if (!success) return null;
+        return List<double>.generate(
+          waveformBucketCount,
+          (i) => outPeaks[i].toDouble(),
+          growable: false,
+        );
+      } finally {
+        for (final p in pathPointers) {
+          malloc.free(p);
+        }
+        calloc.free(pathsArray);
+        calloc.free(outPeaks);
+      }
+    });
+  }
 }

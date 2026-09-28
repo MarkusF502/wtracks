@@ -11,6 +11,7 @@ add_subdirectory(JUCE)
 # Biblioteca compartilhada que sera consumida via Dart FFI
 add_library(wtracks_engine SHARED
     src/AudioEngine.cpp
+    src/WaveformExtractor.cpp
     src/ffi_bridge.cpp
 )
 
@@ -50,7 +51,10 @@ option(WTRACKS_BUILD_TESTS "Build the wtracks_engine desktop unit tests" ON)
 if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
     add_executable(wtracks_engine_tests
         src/AudioEngine.cpp
+        src/WaveformExtractor.cpp
         tests/AudioEngineTests.cpp
+        tests/WaveformExtractorTests.cpp
+        tests/HarnessRegressionTests.cpp
         tests/TestRunnerMain.cpp
     )
 

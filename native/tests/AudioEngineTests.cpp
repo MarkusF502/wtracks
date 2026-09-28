@@ -63,6 +63,7 @@ public:
         testMutedChannelIsSilent(tempDir);
         testStopResetsPosition(tempDir);
         testLoadTrackRejectsMismatchedLengths(tempDir);
+        testClickOffsetDelaysFirstBeat(tempDir);
 
         tempDir.deleteRecursively();
     }
@@ -191,6 +192,61 @@ private:
         expect(! engine.loadTrack("teste-invalido", { shortFile, longFile }),
                "loadTrack deveria falhar quando os canais tem duracoes muito diferentes");
         expectEquals(engine.getChannelCount(), 0);
+
+        engine.releaseResources();
+    }
+
+    void testClickOffsetDelaysFirstBeat(const juce::File& tempDir)
+    {
+        beginTest("setClickOffsetSeconds atrasa o primeiro disparo do click");
+
+        // Arquivo silencioso (frequencia 0 -> sin(0) == 0) para que o unico
+        // sinal presente na saida seja o click sintetizado pela engine.
+        auto silentFile = writeSineWav(tempDir, "click_offset_silence.wav", 1, 2.0, 0.0);
+
+        AudioEngine engine;
+        engine.prepareToPlay(kTestBlockSize, kTestSampleRate);
+        expect(engine.loadTrack("teste-click-offset", { silentFile }));
+
+        engine.setClickEnabled(true);
+        engine.setClickBpm(60.0); // samplesPerBeat == kTestSampleRate (1s por batida)
+
+        const double offsetSeconds = 0.5;
+        engine.setClickOffsetSeconds(offsetSeconds);
+        const int64_t offsetSamples = static_cast<int64_t>(offsetSeconds * kTestSampleRate);
+
+        engine.play();
+
+        juce::AudioBuffer<float> output(2, kTestBlockSize);
+        int64_t samplesProcessed = 0;
+        bool clickHeardBeforeOffset = false;
+        bool clickHeardAfterOffset = false;
+
+        // Processa até bem depois do offset (1s) pra dar tempo do click soar.
+        while (samplesProcessed < static_cast<int64_t>(kTestSampleRate))
+        {
+            output.clear();
+            juce::AudioSourceChannelInfo info(&output, 0, kTestBlockSize);
+            engine.getNextAudioBlock(info);
+
+            const auto rms = output.getRMSLevel(0, 0, kTestBlockSize);
+            const bool hasSound = rms > 0.0f;
+
+            if (hasSound)
+            {
+                if (samplesProcessed + kTestBlockSize <= offsetSamples)
+                    clickHeardBeforeOffset = true;
+                else
+                    clickHeardAfterOffset = true;
+            }
+
+            samplesProcessed += kTestBlockSize;
+        }
+
+        expect(! clickHeardBeforeOffset,
+               "Nenhum click deveria soar antes do offset configurado");
+        expect(clickHeardAfterOffset,
+               "O click deveria soar depois que a musica passa do offset configurado");
 
         engine.releaseResources();
     }

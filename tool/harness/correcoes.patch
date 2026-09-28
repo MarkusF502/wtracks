@@ -1,0 +1,244 @@
+--- a/native/include/AudioEngine.h
++++ b/native/include/AudioEngine.h
+@@ -15,6 +15,10 @@
+ {
+     juce::String name;
+     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
++    // Converte do sample rate do arquivo pro do device (AudioFormatReaderSource
++    // sozinho nao faz resampling).
++    std::unique_ptr<juce::ResamplingAudioSource> resampler;
++    double fileSampleRate = 44100.0;
+     float volume = 1.0f;
+     bool muted = false;
+     int outputBus = 0;
+--- a/native/src/AudioEngine.cpp
++++ b/native/src/AudioEngine.cpp
+@@ -93,13 +93,16 @@
+ 
+         Channel channel;
+         channel.name = file.getFileNameWithoutExtension();
++        channel.fileSampleRate = reader->sampleRate;
+         channel.readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
++        channel.resampler = std::make_unique<juce::ResamplingAudioSource>(channel.readerSource.get(), false, 2);
++        channel.resampler->setResamplingRatio(channel.fileSampleRate / preparedSampleRate);
+ 
+         // Mesmo se o sample rate for diferente (ex: 44.1k vs 48k), o resampler 
+         // vai ser configurado AGORA, no vetor fantasma, sem travar o áudio que já está tocando!
+         if (isPrepared) {
+             DBG("C++ [loadTrack] isPrepared=true. Configurando resampling/buffer...");
+-            channel.readerSource->prepareToPlay(preparedBlockSize, preparedSampleRate);
++            channel.resampler->prepareToPlay(preparedBlockSize, preparedSampleRate);
+         }
+ 
+         newChannels.push_back(std::move(channel));
+@@ -165,7 +168,10 @@
+     const juce::SpinLock::ScopedLockType lock(channelsLock);
+     for (auto& channel : channels)
+         if (channel.readerSource != nullptr)
++        {
+             channel.readerSource->setNextReadPosition(0);
++            channel.resampler->flushBuffers();
++        }
+ }
+ 
+ void AudioEngine::seekToSeconds(double seconds)
+@@ -175,7 +181,10 @@
+     const juce::SpinLock::ScopedLockType lock(channelsLock);
+     for (auto& channel : channels)
+         if (channel.readerSource != nullptr)
+-            channel.readerSource->setNextReadPosition(currentSamplePosition);
++        {
++            channel.readerSource->setNextReadPosition(static_cast<juce::int64>(seconds * channel.fileSampleRate));
++            channel.resampler->flushBuffers();
++        }
+ 
+     if (samplesPerBeat > 0) {
+         const int64_t offsetSamples = clickOffsetSamples.load();
+@@ -203,7 +212,7 @@
+         return 0.0;
+ 
+     auto* reader = channels[0].readerSource->getAudioFormatReader();
+-    return reader != nullptr ? reader->lengthInSamples / currentSampleRate : 0.0;
++    return reader != nullptr ? reader->lengthInSamples / channels[0].fileSampleRate : 0.0;
+ }
+ 
+ bool AudioEngine::isPlaying() const
+@@ -290,8 +299,11 @@
+     scratchBuffer.setSize(2, samplesPerBlockExpected);
+ 
+     for (auto& channel : channels)
+-        if (channel.readerSource != nullptr)
+-            channel.readerSource->prepareToPlay(samplesPerBlockExpected, sampleRate);
++        if (channel.resampler != nullptr)
++        {
++            channel.resampler->setResamplingRatio(channel.fileSampleRate / sampleRate);
++            channel.resampler->prepareToPlay(samplesPerBlockExpected, sampleRate);
++        }
+ }
+ 
+ void AudioEngine::releaseResources()
+@@ -299,8 +311,8 @@
+     mixerSource.releaseResources();
+ 
+     for (auto& channel : channels)
+-        if (channel.readerSource != nullptr)
+-            channel.readerSource->releaseResources();
++        if (channel.resampler != nullptr)
++            channel.resampler->releaseResources();
+ 
+     isPrepared = false;
+ }
+@@ -330,7 +342,7 @@
+         scratchBuffer.clear(); 
+ 
+         juce::AudioSourceChannelInfo channelInfo(&scratchBuffer, 0, numSamples);
+-        channel.readerSource->getNextAudioBlock(channelInfo);
++        channel.resampler->getNextAudioBlock(channelInfo);
+ 
+         if (channel.muted)
+             continue;
+@@ -366,10 +378,9 @@
+             // Antes do offset (música ainda não chegou no 1º tempo real): sem click.
+             if (effectiveSample >= 0 && effectiveSample % spb == 0)
+             {
+-                if (effectiveSample == 0)
+-                    localBeatIndex = 0;
+-                else
+-                    localBeatIndex = (localBeatIndex + 1) % timeSignatureNumerator;
++                // Deriva o tempo do compasso da posicao absoluta em vez de
++                // incrementar -- correto tambem logo apos um seek.
++                localBeatIndex = static_cast<int>((effectiveSample / spb) % timeSignatureNumerator);
+ 
+                 localClickReadPos = 0;
+             }
+@@ -398,7 +409,14 @@
+         clickReadPosition.store(localClickReadPos);
+     }
+ 
+-    currentSamplePosition.fetch_add(numSamples);
++    const auto& first = channels.front();
++    const auto endPosition = static_cast<int64_t>(
++        first.readerSource->getTotalLength() / first.fileSampleRate * currentSampleRate);
++    if (currentSamplePosition.fetch_add(numSamples) + numSamples >= endPosition)
++    {
++        currentSamplePosition = endPosition;
++        playing = false;
++    }
+ }
+ 
+ } // namespace wtracks
+\ No newline at end of file
+--- a/flutter_app/lib/providers/engine_provider.dart
++++ b/flutter_app/lib/providers/engine_provider.dart
+@@ -70,8 +70,15 @@
+       engine.setClickTimeSignature(track.clickSettings.timeSignatureNumerator, 4);
+       engine.setClickOffsetSeconds(track.clickSettings.beatOffsetSeconds);
+ 
++      // O engine recém-carregado começa com todos os canais a 100% e sem
++      // mute -- reaplica o mix salvo pra bater com o que o mixer mostra.
++      for (var i = 0; i < track.channels.length; i++) {
++        engine.setChannelVolume(i, track.channels[i].volume);
++      }
++
+       debugPrint('>>> [DEBUG] 8. Atualizando state com a nova track...');
+       state = track;
++      _syncEffectiveMutes();
+ 
+       debugPrint('>>> [DEBUG] 9. Tudo concluído com sucesso! Retornando true.');
+       return true;
+@@ -286,6 +293,16 @@
+     this.lengthSeconds = 0,
+     this.isPlaying = false,
+   });
++
++  @override
++  bool operator ==(Object other) =>
++      other is TransportState &&
++      other.positionSeconds == positionSeconds &&
++      other.lengthSeconds == lengthSeconds &&
++      other.isPlaying == isPlaying;
++
++  @override
++  int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying);
+ }
+ 
+ class TransportNotifier extends Notifier<TransportState> {
+@@ -296,11 +313,13 @@
+   TransportState build() {
+     final engine = ref.watch(engineProvider);
+     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+-      state = TransportState(
++      final next = TransportState(
+         positionSeconds: engine.currentPositionSeconds,
+         lengthSeconds: engine.totalLengthSeconds,
+         isPlaying: engine.isPlaying,
+       );
++      // Parado, nada muda entre ticks -- evita rebuild 10x/s à toa.
++      if (next != state) state = next;
+     });
+     ref.onDispose(() => _timer?.cancel());
+     return const TransportState();
+--- a/flutter_app/lib/file_import_service.dart
++++ b/flutter_app/lib/file_import_service.dart
+@@ -54,7 +54,12 @@
+ 
+     if (files.isEmpty) return [];
+ 
+-    final cacheDir = await _importCacheDirectory();
++    // Subpasta por importação: multitracks costumam repetir nomes
++    // (Click.wav, Guia.wav...) e sobrescreveriam o áudio de uma música
++    // importada antes e ainda não salva.
++    final cacheDir = await Directory(
++      '${(await _importCacheDirectory()).path}/${DateTime.now().microsecondsSinceEpoch}',
++    ).create(recursive: true);
+     final localPaths = <String>[];
+ 
+     for (final pickedFile in files) {
+--- a/flutter_app/lib/screens/performance_screen.dart
++++ b/flutter_app/lib/screens/performance_screen.dart
+@@ -408,10 +408,13 @@
+     showModalBottomSheet(
+       context: context,
+       backgroundColor: _panelBg,
++      // Em paisagem / telas baixas o conteúdo não cabe nos 9/16 padrão.
++      isScrollControlled: true,
++      useSafeArea: true,
+       builder: (ctx) {
+         return StatefulBuilder(
+           builder: (context, setState) {
+-            return Container(
++            return SingleChildScrollView(child: Container(
+               padding: const EdgeInsets.all(24),
+               child: Column(
+                 mainAxisSize: MainAxisSize.min,
+@@ -492,11 +495,16 @@
+                   const SizedBox(height: 8),
+                   const Text('Offset do click', style: TextStyle(color: Colors.white, fontSize: 16)),
+                   const SizedBox(height: 8),
+-                  Text(
+-                    '${track.clickSettings.beatOffsetSeconds >= 0 ? '+' : ''}'
+-                    '${track.clickSettings.beatOffsetSeconds.toStringAsFixed(2)}s',
+-                    style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
+-                  ),
++                  // Lê o offset do provider (não do `track` capturado ao abrir
++                  // o diálogo), senão o valor exibido nunca atualiza.
++                  Consumer(builder: (context, ref, _) {
++                    final offset = ref.watch(currentTrackProvider
++                        .select((t) => t?.clickSettings.beatOffsetSeconds ?? 0.0));
++                    return Text(
++                      '${offset >= 0 ? '+' : ''}${offset.toStringAsFixed(2)}s',
++                      style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
++                    );
++                  }),
+                   const SizedBox(height: 8),
+                   if (!isPlaying)
+                     const Text('Toque play e marque no primeiro tempo real',
+@@ -544,7 +552,7 @@
+                   ),
+                 ],
+               ),
+-            );
++            ));
+           }
+         );
+       },

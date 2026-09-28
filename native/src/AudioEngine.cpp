@@ -5,7 +5,7 @@ namespace wtracks
 
 AudioEngine::AudioEngine()
 {
-    formatManager.registerBasicFormats(); // habilita leitura de WAV, AIFF, etc.
+    formatManager.registerBasicFormats(); 
 }
 
 AudioEngine::~AudioEngine()
@@ -17,25 +17,16 @@ bool AudioEngine::initialise(int sampleRate, int bufferSize)
 {
     currentSampleRate = sampleRate;
 
-    // Abre o dispositivo de audio padrao da plataforma. No Android isso passa
-    // por Oboe/AAudio via JUCE; no Windows por WASAPI -- ambos escondidos
-    // atras do AudioDeviceManager, entao nao precisamos tratar por plataforma.
     auto result = deviceManager.initialiseWithDefaultDevices(0, 2);
     if (result.isNotEmpty())
         return false;
 
-    // Tenta aplicar o sample rate e buffer size pedidos. Se o dispositivo nao
-    // suportar exatamente esses valores, o JUCE ajusta para o mais proximo
-    // suportado -- prepareToPlay() sera chamado com o valor real logo em seguida.
     juce::AudioDeviceManager::AudioDeviceSetup setup;
     deviceManager.getAudioDeviceSetup(setup);
     setup.sampleRate = sampleRate;
     setup.bufferSize = bufferSize;
     deviceManager.setAudioDeviceSetup(setup, true);
 
-    // AudioSourcePlayer e o adaptador entre o callback de audio do dispositivo
-    // e este AudioEngine (que e um juce::AudioSource). Sem isso, o dispositivo
-    // fica aberto mas nenhum audio e efetivamente processado.
     audioSourcePlayer.setSource(this);
     deviceManager.addAudioCallback(&audioSourcePlayer);
 
@@ -56,30 +47,30 @@ void AudioEngine::shutdown()
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
 {
-    unloadCurrentTrack();
+    DBG("C++ [loadTrack] Iniciando carregamento para: " + songId);
+    setLastError(""); // Zera erros antigos
 
     double referenceSampleRate = 0.0;
     juce::int64 referenceLengthSamples = 0;
 
-    for (const auto& file : channelFiles)
+    // 1. Cross-loading Seguro: Preparamos as novas faixas em um vetor temporário!
+    // NENHUM lock da thread de áudio é feito aqui.
+    std::vector<Channel> newChannels;
+
+    for (size_t i = 0; i < channelFiles.size(); ++i)
     {
+        const auto& file = channelFiles[i];
+        DBG("C++ [loadTrack] Lendo arquivo " + juce::String(i) + ": " + file.getFileName());
+
         auto* reader = formatManager.createReaderFor(file);
         if (reader == nullptr)
         {
-            DBG("Falha ao criar reader para: " + file.getFileName());
-            unloadCurrentTrack();
-            return false; // TODO: reportar erro de forma mais explicita para a UI
+            juce::String err = "Formato nao suportado ou arquivo corrompido: " + file.getFileName();
+            DBG("C++ [loadTrack] ERRO CRITICO: " + err);
+            setLastError(err);
+            return false; 
         }
 
-        DBG("Canal: " + file.getFileName()
-            + " | sampleRate: " + juce::String(reader->sampleRate)
-            + " | lengthInSamples: " + juce::String(reader->lengthInSamples)
-            + " | bitsPerSample: " + juce::String(reader->bitsPerSample)
-            + " | numChannels: " + juce::String(reader->numChannels));
-
-        // Valida que todos os canais tem o mesmo sample rate e um comprimento
-        // compativel (tolerancia de 50ms) antes de aceitar a musica como
-        // "pronta para tocar" -- isso evita dessincronia sutil entre trilhas.
         if (referenceSampleRate == 0.0)
         {
             referenceSampleRate = reader->sampleRate;
@@ -92,9 +83,11 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
 
             if (reader->sampleRate != referenceSampleRate || lengthDiff > toleranceSamples)
             {
-                delete reader; // ainda nao foi adotado por nenhum readerSource
-                unloadCurrentTrack();
-                return false; // TODO: reportar erro de forma mais explicita para a UI
+                delete reader; 
+                juce::String err = "Incompatibilidade de formato ou duracao: " + file.getFileName();
+                DBG("C++ [loadTrack] ERRO CRITICO: " + err);
+                setLastError(err);
+                return false;
             }
         }
 
@@ -102,17 +95,29 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         channel.name = file.getFileNameWithoutExtension();
         channel.readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
 
-        // Se o motor ja estiver rodando (prepareToPlay ja foi chamado), prepara
-        // este canal imediatamente para que ele possa entrar tocando sem glitch.
-        if (isPrepared)
+        // Mesmo se o sample rate for diferente (ex: 44.1k vs 48k), o resampler 
+        // vai ser configurado AGORA, no vetor fantasma, sem travar o áudio que já está tocando!
+        if (isPrepared) {
+            DBG("C++ [loadTrack] isPrepared=true. Configurando resampling/buffer...");
             channel.readerSource->prepareToPlay(preparedBlockSize, preparedSampleRate);
-
-        { // <-- CRIAR UM BLOCO SÓ PARA O LOCK
-            const juce::SpinLock::ScopedLockType lock(channelsLock);
-            channels.push_back(std::move(channel));
         }
+
+        newChannels.push_back(std::move(channel));
     }
 
+    DBG("C++ [loadTrack] Todos os arquivos lidos. Fazendo Swap Atomico (Lock)...");
+    
+    // 2. Swap Atômico: Substitui as trilhas instantaneamente!
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        playing = false; // Pausa por segurança
+        channels = std::move(newChannels);
+        currentSamplePosition = 0;
+        currentBeatIndex = 0;
+        clickReadPosition = -1;
+    }
+
+    DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
     return true;
 }
 
@@ -123,25 +128,30 @@ void AudioEngine::unloadCurrentTrack()
     channels.clear();
 }
 
+juce::String AudioEngine::getLastError() const
+{
+    const juce::SpinLock::ScopedLockType lock(errorLock);
+    return lastError;
+}
+
+void AudioEngine::setLastError(const juce::String& errorMessage)
+{
+    const juce::SpinLock::ScopedLockType lock(errorLock);
+    lastError = errorMessage;
+}
+
 void AudioEngine::play()
 {
-    // O callback de audio (via AudioSourcePlayer, ligado em initialise()) ja
-    // esta rodando continuamente -- play() so precisa liberar getNextAudioBlock
-    // para de fato produzir som a partir da posicao atual.
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         if (channels.empty())
             return;
     }
-
     playing = true;
 }
 
 void AudioEngine::pause()
 {
-    // Apenas interrompe a producao de audio; currentSamplePosition e a posicao
-    // de leitura de cada readerSource nao sao alteradas, entao um play()
-    // seguinte retoma exatamente de onde parou.
     playing = false;
 }
 
@@ -149,7 +159,7 @@ void AudioEngine::stop()
 {
     playing = false;
     currentSamplePosition = 0;
-    currentBeatIndex = 0;      // Zera o compasso
+    currentBeatIndex = 0;      
     clickReadPosition = -1;
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
@@ -167,12 +177,17 @@ void AudioEngine::seekToSeconds(double seconds)
         if (channel.readerSource != nullptr)
             channel.readerSource->setNextReadPosition(currentSamplePosition);
 
-    // RECALCULA O COMPASSO DO CLICK
     if (samplesPerBeat > 0) {
-        int64_t totalBeatsElapsed = currentSamplePosition / samplesPerBeat;
-        currentBeatIndex = static_cast<int>(totalBeatsElapsed % timeSignatureNumerator);
+        const int64_t offsetSamples = clickOffsetSamples.load();
+        const int64_t effectivePosition = currentSamplePosition.load() - offsetSamples;
+        if (effectivePosition >= 0) {
+            int64_t totalBeatsElapsed = effectivePosition / samplesPerBeat;
+            currentBeatIndex = static_cast<int>(totalBeatsElapsed % timeSignatureNumerator);
+        } else {
+            currentBeatIndex = 0; // ainda não chegou no 1º tempo -- estado neutro
+        }
     }
-    clickReadPosition = -1; // Cala o bipe no meio do seek
+    clickReadPosition = -1;
 }
 
 double AudioEngine::getCurrentPositionSeconds() const
@@ -229,29 +244,28 @@ void AudioEngine::setClickBpm(double bpm)
 
 void AudioEngine::setClickTimeSignature(int numerator, int denominator)
 {
-    // O denominador (ex: 4 em 4/4) já é coberto matematicamente pelo BPM.
-    // O numerador dita a cada quantas batidas o acento (Tempo 1) se repete.
     if (numerator > 0)
         timeSignatureNumerator = numerator;
 }
 
+void AudioEngine::setClickOffsetSeconds(double offsetSeconds)
+{
+    clickOffsetSecondsValue = offsetSeconds;
+    clickOffsetSamples = static_cast<int64_t>(offsetSeconds * currentSampleRate);
+}
+
 void AudioEngine::generateClickBuffers(double sampleRate)
 {
-    // Cria um bipe curto de 30 milissegundos
     const int numSamples = static_cast<int>(sampleRate * 0.03);
     clickBufferAccent.setSize(1, numSamples);
     clickBufferNormal.setSize(1, numSamples);
 
-    // Frequências: A6 (1760Hz) para acento e A5 (880Hz) para normal
     const double freqAccent = 1760.0;
     const double freqNormal = 880.0;
 
     for (int i = 0; i < numSamples; ++i)
     {
-        // Envelope linear simples: começa em 1.0 e cai até 0.0 (evita estalos/pops)
         float envelope = 1.0f - (static_cast<float>(i) / numSamples);
-
-        // Gera a onda senoidal pura e aplica o envelope e um volume mestre (0.5f)
         float sampleAccent = static_cast<float>(std::sin(2.0 * juce::MathConstants<double>::pi * freqAccent * i / sampleRate)) * envelope * 0.5f;
         float sampleNormal = static_cast<float>(std::sin(2.0 * juce::MathConstants<double>::pi * freqNormal * i / sampleRate)) * envelope * 0.5f;
 
@@ -265,14 +279,14 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
     currentSampleRate = sampleRate;
     mixerSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
 
+    clickOffsetSamples = static_cast<int64_t>(clickOffsetSecondsValue * currentSampleRate);
+
     generateClickBuffers(sampleRate);
 
     preparedBlockSize = samplesPerBlockExpected;
     preparedSampleRate = sampleRate;
     isPrepared = true;
 
-    // Estereo e suficiente por enquanto -- getNextAudioBlock faz downmix/
-    // duplicacao de canais mono na hora de somar no buffer de saida.
     scratchBuffer.setSize(2, samplesPerBlockExpected);
 
     for (auto& channel : channels)
@@ -295,12 +309,10 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
 {
     bufferToFill.clearActiveBufferRegion();
 
-    // Uma verificação rápida ANTES do lock para não gastar CPU se não precisar
     if (! playing.load() || bufferToFill.buffer == nullptr)
         return;
 
-    // TRAVA A THREAD DE ÁUDIO APENAS DURANTE O PROCESSAMENTO
-    const juce::SpinLock::ScopedLockType lock(channelsLock); // <-- TRAVAR AQUI
+    const juce::SpinLock::ScopedLockType lock(channelsLock); 
 
     if (channels.empty())
          return;
@@ -310,28 +322,16 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
     if (scratchBuffer.getNumSamples() < numSamples)
         scratchBuffer.setSize(2, numSamples, false, false, true);
 
-    // 1 + 2 + 3: le cada canal por vez em scratchBuffer e soma (com volume
-    // aplicado) diretamente no buffer de saida. Todos os canais avancam a
-    // mesma quantidade de samples neste bloco, entao permanecem sample-accurate
-    // entre si mesmo sem um clock central explicito.
     for (auto& channel : channels)
     {
         if (channel.readerSource == nullptr)
             continue;
 
-        // IMPORTANTE: getNextAudioBlock() do readerSource precisa ser chamado
-        // SEMPRE, mesmo quando o canal esta mutado ou com volume 0. E essa
-        // chamada quem avanca a posicao de leitura do canal -- se pularmos
-        // aqui, o canal mutado "congela" no tempo em vez de continuar
-        // avancando junto com os demais, e ao desmutar ele retoma de onde
-        // parou, dessincronizado do resto (foi exatamente o bug reportado).
-        scratchBuffer.clear(); // evita vazamento de dados do canal anterior (ex: fontes mono)
+        scratchBuffer.clear(); 
 
         juce::AudioSourceChannelInfo channelInfo(&scratchBuffer, 0, numSamples);
         channel.readerSource->getNextAudioBlock(channelInfo);
 
-        // Mute/volume decidem apenas se o resultado entra no mix de saida --
-        // nunca se a leitura acontece.
         if (channel.muted)
             continue;
 
@@ -339,9 +339,6 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         if (gain <= 0.0f)
             continue;
 
-        // TODO: quando o roteamento por outputBus (P.A./monitor/fone) for
-        // implementado, este e o ponto de somar em buffers separados por
-        // saida fisica em vez de sempre no mesmo par estereo de saida.
         for (int destChannel = 0; destChannel < bufferToFill.buffer->getNumChannels(); ++destChannel)
         {
             const int srcChannel = juce::jmin(destChannel, scratchBuffer.getNumChannels() - 1);
@@ -350,34 +347,33 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         }
     }
 
-    // INJEÇÃO DO CLICK TRACK SINTETIZADO
-    const int64_t spb = samplesPerBeat.load(); // Leitura segura fora do loop
+    const int64_t spb = samplesPerBeat.load(); 
     if (clickEnabled && spb > 0)
     {
         auto& outBuffer = *bufferToFill.buffer;
         const int numOutChannels = outBuffer.getNumChannels();
 
-        // 1. Faz o cache local dos atomics para evitar overhead de CPU no loop
         int64_t localSamplePos = currentSamplePosition.load();
         int localBeatIndex = currentBeatIndex.load();
         int64_t localClickReadPos = clickReadPosition.load();
+        const int64_t offsetSamples = clickOffsetSamples.load();
 
         for (int i = 0; i < numSamples; ++i)
         {
             const int64_t globalSample = localSamplePos + i;
+            const int64_t effectiveSample = globalSample - offsetSamples;
 
-            // Caiu exatamente em cima da cabeça de um tempo?
-            if (globalSample % spb == 0)
+            // Antes do offset (música ainda não chegou no 1º tempo real): sem click.
+            if (effectiveSample >= 0 && effectiveSample % spb == 0)
             {
-                if (globalSample == 0) 
+                if (effectiveSample == 0)
                     localBeatIndex = 0;
-                else 
+                else
                     localBeatIndex = (localBeatIndex + 1) % timeSignatureNumerator;
 
-                localClickReadPos = 0; // Armar gatilho do bipe!
+                localClickReadPos = 0;
             }
 
-            // Se o bipe está tocando, injeta o som
             if (localClickReadPos >= 0)
             {
                 auto& activeBuffer = (localBeatIndex == 0) ? clickBufferAccent : clickBufferNormal;
@@ -398,12 +394,10 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
             }
         }
 
-        // 2. Salva os resultados de volta nos atomics para as outras threads verem
         currentBeatIndex.store(localBeatIndex);
         clickReadPosition.store(localClickReadPos);
     }
 
-    // Avança a posição global de forma atômica e segura (fetch_add é nativo do std::atomic)
     currentSamplePosition.fetch_add(numSamples);
 }
 

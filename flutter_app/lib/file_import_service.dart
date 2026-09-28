@@ -21,7 +21,23 @@ class FileImportService {
     if (Platform.isAndroid) {
       try {
         final channel = MethodChannel('wtracks/file_picker');
-        final List<dynamic> paths = await channel.invokeMethod('pickAndImport');
+        // Rede de segurança: se o processo Android for recriado/morto enquanto
+        // o seletor de arquivos está aberto (comportamento agressivo do MIUI),
+        // o MethodChannel.Result nativo original se perde e este invokeMethod
+        // ficaria pendurado para sempre sem o timeout. 90s é generoso o
+        // suficiente para o usuário navegar no seletor e copiar arquivos
+        // grandes, mas garante que a UI eventualmente reaja em vez de travar
+        // com spinner infinito.
+        final List<dynamic> paths = await channel
+            .invokeMethod('pickAndImport')
+            .timeout(
+              const Duration(seconds: 90),
+              onTimeout: () => throw PlatformException(
+                code: 'TIMEOUT',
+                message: 'Seletor de arquivo nativo não respondeu a tempo '
+                    '(possível recriação de processo pelo sistema)',
+              ),
+            );
         return paths.cast<String>();
       } on PlatformException catch (e) {
         print('FileImportService: method channel failed: $e');
@@ -44,10 +60,10 @@ class FileImportService {
     for (final pickedFile in files) {
       final localFile = File('${cacheDir.path}/${pickedFile.name}');
 
-      // Se o XFile já fornece um `path` (caso comum em Android), copie diretamente
+      // Se o XFile já fornece um path (caso comum em Android), copie diretamente
       // do arquivo temporário que o plugin criou para o nosso diretório.
-      if (pickedFile.path != null && pickedFile.path!.isNotEmpty) {
-        final source = File(pickedFile.path!);
+      if (pickedFile.path.isNotEmpty) {
+        final source = File(pickedFile.path);
         // Debug log para investigar casos onde o arquivo some durante a cópia.
         print('FileImportService: copying from ${source.path} to ${localFile.path}');
         await source.copy(localFile.path);
