@@ -1,3 +1,4 @@
+import 'dart:async';
 // Infraestrutura compartilhada pelos testes do harness (test/harness/).
 // Permite exercitar providers e telas sem celular: o engine nativo é
 // substituído por [FakeEngine] e o disco por [InMemoryPersistence].
@@ -38,7 +39,12 @@ class FakeEngine implements WTracksEngine {
   @override
   bool loadTrackSync(String songId, List<String> channelFilePaths) => true;
   @override
-  Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) async => true;
+  Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) async {
+    loadedPaths.add(channelFilePaths);
+    return failNextLoad ? (failNextLoad = false) : true;
+  }
+  final loadedPaths = <List<String>>[];
+  bool failNextLoad = false;
   @override
   void unloadTrack() { calls.add('unload'); loopEnabled = false; loopStart = 0; loopEnd = 0; clearQueuedLoop(); }
   @override
@@ -73,6 +79,34 @@ class FakeEngine implements WTracksEngine {
       calls.add('volume($channelIndex,$volume)');
   @override
   void setChannelMuted(int channelIndex, bool muted) => calls.add('muted($channelIndex,$muted)');
+  @override
+  double timeScale = 1;
+  bool failTimeScale = false;
+  bool failProcessing = false;
+  Completer<void>? processingGate;
+  final processedRequests = <({String input, String output, double timeFactor, double pitchFactor, bool complex, int token})>[];
+  final cancelledTokens = <int>[];
+  @override
+  bool setTimeScale(double timeFactor) {
+    calls.add('timeScale($timeFactor)');
+    if (failTimeScale) return false;
+    timeScale = timeFactor;
+    return true;
+  }
+  @override
+  bool processTimePitch(String input, String output, double timeFactor, double pitchFactor, bool complex, int token) => false;
+  @override
+  Future<bool> processTimePitchAsync(String input, String output, double timeFactor, double pitchFactor, bool complex, int token) async {
+    processedRequests.add((input: input, output: output, timeFactor: timeFactor, pitchFactor: pitchFactor, complex: complex, token: token));
+    if (processingGate != null) await processingGate!.future;
+    if (failProcessing || cancelledTokens.contains(token)) return false;
+    File(output)
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(List.filled(100, 1));
+    return true;
+  }
+  @override
+  void cancelTimePitch(int token) => cancelledTokens.add(token);
   final routes = <int, ChannelRoute>{};
   double masterVolume = 1;
   bool failRoute = false;

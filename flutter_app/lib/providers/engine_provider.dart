@@ -8,6 +8,8 @@ import '../models/track.dart';
 import '../models/song_section.dart';
 import '../models/guide_cue.dart';
 import '../services/guide_resource_service.dart';
+import '../services/time_pitch_service.dart';
+import '../models/time_pitch_settings.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
 import '../native/wtracks_bindings.dart';
@@ -16,6 +18,9 @@ import '../services/click_resource_service.dart';
 
 final clickResourceServiceProvider = Provider<ClickResourceService>(
   (ref) => ClickResourceService(),
+);
+final timePitchServiceProvider = Provider<TimePitchService>(
+  (ref) => TimePitchService(),
 );
 final guideResourceServiceProvider = Provider<GuideResourceService>(
   (ref) => GuideResourceService(),
@@ -77,8 +82,12 @@ class CurrentTrackNotifier extends Notifier<Track?> {
             .read(clickResourceServiceProvider)
             .prepare(track.clickSettings.timbreFamily);
         if (_disposed || generation != _generation) return false;
-        final loaded = await engine.loadTrackAsync(track.id, track.channelFilePaths,
-        );
+        // Processed stems (tom/andamento) are rendered offline and cached; failures leave the engine untouched.
+        final audioPaths = track.timePitch.isIdentity
+            ? track.channelFilePaths
+            : await ref.read(timePitchServiceProvider).prepare(engine, track);
+        if (_disposed || generation != _generation) return false;
+        final loaded = await engine.loadTrackAsync(track.id, audioPaths);
         if (_disposed || generation != _generation) {
           if (!_disposed && loaded) {
             engine.unloadTrack();
@@ -88,6 +97,11 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         }
         if (!loaded) {
           debugPrint('Falha ao carregar música: ${engine.lastError}');
+          return false;
+        }
+        if (!track.timePitch.isIdentity && !engine.setTimeScale(track.timePitch.timeFactor)) {
+          engine.unloadTrack();
+          state = null;
           return false;
         }
         final bankLoaded = await engine.loadClickBankAsync(clickPaths);
@@ -153,6 +167,54 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final updatedChannels = [...track.channels];
     updatedChannels[index] = updatedChannels[index].copyWith(volume: volume);
     state = track.copyWith(channels: updatedChannels);
+  }
+
+  double? timePitchProgress; // 0..1 enquanto renderiza; null fora disso
+  final timePitchListeners = <void Function()>[];
+  void _notifyTimePitch() {
+    for (final listener in timePitchListeners.toList()) {
+      listener();
+    }
+  }
+
+  /// Cancela a renderização de tom/andamento em andamento.
+  void cancelTimePitch() => ref.read(timePitchServiceProvider).cancel(ref.read(engineProvider));
+
+  /// Aplica tom/andamento: renderiza primeiro (o motor não é tocado se falhar),
+  /// recarrega a música processada e volta à mesma posição. A reprodução fica
+  /// pausada e laços ativos são descartados.
+  Future<bool> setTimePitch(String trackId, TimePitchSettings settings) async {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null || !settings.isValid) return false;
+    if (track.timePitch == settings) return true;
+    final engine = ref.read(engineProvider);
+    final position = engine.currentPositionSeconds;
+    final generation = _generation;
+    final updated = track.copyWith(timePitch: settings);
+    try {
+      if (!settings.isIdentity) {
+        timePitchProgress = 0;
+        _notifyTimePitch();
+        await ref.read(timePitchServiceProvider).prepare(engine, updated, onProgress: (p) {
+          timePitchProgress = p;
+          _notifyTimePitch();
+        });
+      }
+    } catch (e) {
+      debugPrint('Falha no tom/andamento: $e');
+      return false;
+    } finally {
+      timePitchProgress = null;
+      _notifyTimePitch();
+    }
+    if (_disposed || generation != _generation || state?.id != trackId) return false;
+    if (await load(updated)) {
+      engine.seekToSeconds(position);
+      return true;
+    }
+    // Reload failed: restore the previous rendering so the song stays playable.
+    await load(track);
+    return false;
   }
 
   /// Troca a saída do canal; o estado só muda se o motor aceitou a rota.

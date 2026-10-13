@@ -102,6 +102,14 @@ typedef _ConfigureGuidesNative = Bool Function(Pointer<Double>, Pointer<Pointer<
 typedef _ConfigureGuidesDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
 typedef _SetRouteDart = bool Function(int, int, bool);
+typedef _ProcessTimePitchNative = Bool Function(Pointer<Utf8>, Pointer<Utf8>, Double, Double, Bool, Int64);
+typedef _ProcessTimePitchDart = bool Function(Pointer<Utf8>, Pointer<Utf8>, double, double, bool, int);
+typedef _SetTimeScaleNative = Bool Function(Double);
+typedef _SetTimeScaleDart = bool Function(double);
+typedef _GetTimeScaleNative = Double Function();
+typedef _GetTimeScaleDart = double Function();
+typedef _CancelTimePitchNative = Void Function(Int64);
+typedef _CancelTimePitchDart = void Function(int);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -168,6 +176,10 @@ class WTracksEngine {
   late final _GetCounterDart _getUnderrunCount;
   late final _LoopSnapshotDart _getLoopState;
 
+  late final _ProcessTimePitchDart _processTimePitch;
+  late final _SetTimeScaleDart _setTimeScale;
+  late final _GetTimeScaleDart _getTimeScale;
+  late final _CancelTimePitchDart _cancelTimePitch;
   late final _SetRouteDart _setChannelRoute;
   late final _ClickGainDart _setMasterVolume;
   late final _ConfigureGuidesDart _configureGuides;
@@ -266,6 +278,10 @@ class WTracksEngine {
     _getQueuedLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_start');
     _getQueuedLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_end');
     _getLoopState = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_loop_state');
+    _processTimePitch = _lib.lookupFunction<_ProcessTimePitchNative, _ProcessTimePitchDart>('wtracks_process_time_pitch');
+    _setTimeScale = _lib.lookupFunction<_SetTimeScaleNative, _SetTimeScaleDart>('wtracks_set_time_scale');
+    _getTimeScale = _lib.lookupFunction<_GetTimeScaleNative, _GetTimeScaleDart>('wtracks_get_time_scale');
+    _cancelTimePitch = _lib.lookupFunction<_CancelTimePitchNative, _CancelTimePitchDart>('wtracks_cancel_time_pitch');
     _setChannelRoute = _lib.lookupFunction<_SetRouteNative, _SetRouteDart>('wtracks_set_channel_route');
     _setMasterVolume = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>('wtracks_set_master_volume');
     _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('wtracks_configure_guides');
@@ -399,6 +415,26 @@ class WTracksEngine {
     if (ok) _setClickGain(settings.volume);
     return ok;
   }
+
+  /// As posições, laços, click e guias continuam em tempo da música quando os
+  /// arquivos carregados são uma versão processada ([timeFactor] = saída / entrada).
+  bool setTimeScale(double timeFactor) => _setTimeScale(timeFactor);
+  double get timeScale => _getTimeScale();
+
+  /// Renderiza um arquivo (síncrono; use [processTimePitchAsync] fora da UI).
+  bool processTimePitch(String input, String output, double timeFactor, double pitchFactor, bool complex, int token) {
+    final inPtr = input.toNativeUtf8(), outPtr = output.toNativeUtf8();
+    try {
+      return _processTimePitch(inPtr, outPtr, timeFactor, pitchFactor, complex, token);
+    } finally {
+      malloc.free(inPtr);
+      malloc.free(outPtr);
+    }
+  }
+
+  Future<bool> processTimePitchAsync(String input, String output, double timeFactor, double pitchFactor, bool complex, int token) =>
+      Isolate.run(() => WTracksEngine().processTimePitch(input, output, timeFactor, pitchFactor, complex, token));
+  void cancelTimePitch(int token) => _cancelTimePitch(token);
 
   bool setChannelRoute(int channelIndex, ChannelRoute route) =>
       _setChannelRoute(channelIndex, route.outputBase, route.mono);

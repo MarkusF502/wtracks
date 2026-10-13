@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'song_section.dart';
 import 'guide_cue.dart';
+import 'time_pitch_settings.dart';
 
 /// Saída do canal no mixer nativo (contrato BusChannelAU): estéreo usa a base
 /// e a seguinte; mono mistura (L+R)/2 numa única saída. Em um dispositivo
@@ -219,6 +220,7 @@ class Track {
   final List<GuideCue> guideCues;
   final bool guidesEnabled;
   final double masterVolume; // 0.0 - 2.0, ganho comum do mixer
+  final TimePitchSettings timePitch;
   final int schemaVersion;
   final List<SongSection> sections;
   final String id;
@@ -232,6 +234,7 @@ class Track {
     this.guideCues = const [],
     this.guidesEnabled = true,
     this.masterVolume = 1.0,
+    this.timePitch = const TimePitchSettings(),
     this.schemaVersion = currentSchemaVersion,
     this.sections = const [],
     required this.id,
@@ -246,6 +249,7 @@ class Track {
     List<GuideCue>? guideCues,
     bool? guidesEnabled,
     double? masterVolume,
+    TimePitchSettings? timePitch,
     List<SongSection>? sections,
     String? title,
     List<ChannelInfo>? channels,
@@ -257,6 +261,7 @@ class Track {
       guideCues: guideCues ?? this.guideCues,
       guidesEnabled: guidesEnabled ?? this.guidesEnabled,
       masterVolume: masterVolume ?? this.masterVolume,
+      timePitch: timePitch ?? this.timePitch,
       sections: sections ?? this.sections,
       id: id,
       title: title ?? this.title,
@@ -275,6 +280,7 @@ class Track {
         'guideCues': guideCues.map((c) => c.toJson()).toList(),
         'guidesEnabled': guidesEnabled,
         'masterVolume': masterVolume,
+        'timePitch': timePitch.toJson(),
         'id': id,
         'title': title,
         'channels': channels.map((c) => c.toJson()).toList(),
@@ -288,6 +294,7 @@ class Track {
   factory Track.fromJson(Map<String, dynamic> json) => Track(
         guideCues: GuideCue.fromJsonList(json['guideCues'] as List? ?? const []),
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
+        timePitch: TimePitchSettings.fromJson(json['timePitch']),
         masterVolume: ((json['masterVolume'] as num?)?.toDouble() ?? 1.0).clamp(0.0, 2.0),
         schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
         sections: SongSection.fromJsonList(json['sections'] as List? ?? const []),
