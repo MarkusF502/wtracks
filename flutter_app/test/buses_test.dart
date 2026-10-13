@@ -200,9 +200,11 @@ void main() {
     expect(await c.read(currentTrackProvider.notifier).load(sampleTrack(id: 'song', channels: 2).copyWith(buses: [_band])), true);
     await tester.pumpWidget(UncontrolledProviderScope(container: c, child: const MaterialApp(home: PerformanceScreen())));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('BUS BANDA'), findsOneWidget);
+    await tester.tap(find.byTooltip('Faixas (toque para buses)'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Banda · D'), findsOneWidget); // saída direita marcada junto ao nome
     expect(find.byKey(const Key('meter-bus-0')), findsOneWidget);
-    await tester.tap(find.text('M').last);
+    await tester.tap(find.byTooltip('Mutar Banda'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(engine.busSettings[0]!.muted, true);
     expect(tester.takeException(), isNull);

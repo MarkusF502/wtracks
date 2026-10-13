@@ -275,6 +275,9 @@ class FakeEngine implements WTracksEngine {
   bool get midiOutputOpen => openedMidi != null;
   @override
   void setMidiClockEnabled(bool enabled) => midiClock = enabled;
+  bool midiCuesMuted = false;
+  @override
+  void setMidiCuesMuted(bool muted) => midiCuesMuted = muted;
   @override
   int get midiDroppedCount => 0;
   @override

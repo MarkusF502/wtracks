@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/engine_provider.dart';
 import 'models/engine_error.dart';
-import 'screens/library_screen.dart';
+import 'screens/performance_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: WTracksApp()));
@@ -25,7 +25,7 @@ class WTracksApp extends ConsumerWidget {
         brightness: Brightness.dark,
         useMaterial3: true,
       ),
-      home: const LibraryScreen(),
+      home: const PerformanceScreen(),
       builder: (context, child) => Column(children: [
         if (!engine.ready)
           Material(color: Colors.red.shade900, child: SafeArea(bottom: false,

@@ -345,6 +345,7 @@ void main() {
       findsOneWidget,
     );
     await tester.pumpWidget(const SizedBox());
+    c.dispose(); // a performance (tela inicial) liga o polling da entrada MIDI mapeada
   });
 
   testWidgets('trocar track na performance e sair durante waveform não lança', (
@@ -411,7 +412,7 @@ void main() {
 
   for (final cached in [false, true]) {
     testWidgets(
-      'seek por ${cached ? 'waveform: toque e arraste' : 'slider após falha'}',
+      'seek por toque na waveform ${cached ? 'com picos' : 'sem picos (falha na extração)'}',
       (tester) async {
         final persistence = WavePersistence();
         if (cached) persistence.cache['t1'] = [0.1, 1, 0.2];
@@ -425,21 +426,16 @@ void main() {
           ),
         );
         await tester.pump(const Duration(milliseconds: 200));
-        if (cached) {
-          final waveform = find.byWidgetPredicate(
-            (w) =>
-                w is GestureDetector &&
-                w.onTapDown != null &&
-                w.onHorizontalDragUpdate != null,
-          );
-          await tester.tap(waveform);
-          await tester.drag(waveform, const Offset(80, 0));
-        } else {
-          final slider = find.byWidgetPredicate(
-            (w) => w is Slider && w.max == 100,
-          );
-          await tester.tap(slider);
-        }
+        // A waveform rola sob a agulha: arrastar só move a vista, tocar busca o ponto.
+        final waveform = find.byWidgetPredicate(
+          (w) =>
+              w is GestureDetector &&
+              w.onTapDown != null &&
+              w.onHorizontalDragUpdate != null,
+        );
+        await tester.drag(waveform, const Offset(-80, 0));
+        expect(engine.calls.where((s) => s.startsWith('seek(')), isEmpty);
+        await tester.tap(waveform);
         expect(engine.calls.where((s) => s.startsWith('seek(')), isNotEmpty);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());

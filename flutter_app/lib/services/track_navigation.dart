@@ -36,5 +36,7 @@ Future<void> openTrack(BuildContext context, WidgetRef ref, Track track, {Setlis
   } else {
     session.end();
   }
-  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PerformanceScreen()));
+  // O Playback é uma tela só: a performance vira a raiz e biblioteca/setlists abrem por cima dela.
+  Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const PerformanceScreen()), (_) => false);
 }

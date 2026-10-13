@@ -32,6 +32,13 @@ class SettingsScreen extends ConsumerWidget {
           value: settings.stereoSplit,
           onChanged: (v) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(stereoSplit: v)),
         ),
+        SwitchListTile(
+          key: const Key('waveform-grid'),
+          title: const Text('Grade da waveform'),
+          subtitle: const Text('Linhas de compasso sobre a waveform'),
+          value: settings.waveformGrid,
+          onChanged: (v) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(waveformGrid: v)),
+        ),
         _DirectoryTile(
           key: const Key('custom-clicks'),
           title: 'Pasta de clicks personalizados',

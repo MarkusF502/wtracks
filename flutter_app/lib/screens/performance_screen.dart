@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../widgets/dialog_text_controller.dart';
 import '../providers/engine_provider.dart';
 import '../providers/waveform_provider.dart';
+import '../services/dynamic_guides.dart' show TempoSegment;
 import '../utils/tap_tempo.dart';
 import 'section_editor_screen.dart';
 import 'guide_editor_screen.dart';
@@ -20,12 +21,18 @@ import 'mixer_automation_screen.dart';
 import 'song_ending_sheet.dart';
 import 'buses_screen.dart';
 import 'control_mapping_screen.dart';
+import 'library_screen.dart';
+import 'setlists_screen.dart';
+import 'settings_screen.dart';
+import 'remote_screen.dart';
+import 'import_screen.dart';
 import '../providers/control_provider.dart';
 import '../providers/meter_provider.dart';
 
-// Layout inspirado no Playback (barra de transporte no topo, faixa da setlist, waveform com as seções e o mixer
-// embaixo com a coluna do Master), com as cores dos storyboards. Proporções, botões e agrupamentos são escolha
-// própria: não é uma cópia da tela do iOS.
+// Tela única no modelo do Playback (guia do usuário, docs/playback-analysis/ui/helpcenter): barra superior, faixa da
+// setlist, waveform das seções e o painel de faixas/buses com o console e o Master. Biblioteca, setlists, edição da
+// música e ajustes abrem por cima dela. Cores medidas nas capturas; proporções e o que não aparece no guia são escolha
+// própria.
 const _bg = kStageBg;
 const _panelBg = kStagePanel;
 const _button = kStageButton;
@@ -33,7 +40,7 @@ const _border = kStageBorder;
 const _text = kStageText;
 const _textDim = kStageTextDim;
 const _textFaint = kStageTextFaint;
-const _accent = kAccent; // tampas dos faders e posição
+const _accent = kStageFaderLine;
 
 String _formatTime(double seconds) {
   final total = seconds.isFinite ? seconds.floor() : 0;
@@ -42,29 +49,30 @@ String _formatTime(double seconds) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
+String _clock(double seconds) {
+  final total = seconds.isFinite ? seconds.floor() : 0;
+  return '${(total ~/ 60).toString().padLeft(2, '0')}:${(total % 60).toString().padLeft(2, '0')}';
+}
+
+/// Modo de edição da setlist (Playback: EDIT → DONE).
+final performanceEditProvider = StateProvider<bool>((ref) => false);
+
+/// O que o painel de baixo mostra (Playback: botão do console alterna Tracks / Buses / Waveform no iPhone).
+enum _Pane { tracks, buses, waveform }
+
+final _paneProvider = StateProvider<_Pane?>((ref) => null);
+
 class PerformanceScreen extends ConsumerWidget {
   const PerformanceScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final track = ref.watch(currentTrackProvider);
-    // NÃO observamos transportProvider aqui de propósito: ele muda a cada 100ms (polling da posição) e reconstruiria
-    // a tela inteira, mixer incluído. Só os widgets que dependem da posição (_TimeBox, _WaveformTimeline, botões de
-    // transporte e de laço) o observam.
+    // NÃO observamos transportProvider aqui: ele muda a cada 100ms e reconstruiria a tela inteira, mixer incluído.
     ref.watch(controlProvider.select((c) => c.inputOpen)); // mantém a leitura da entrada MIDI mapeada
-
-    if (track == null) {
-      return const Scaffold(
-        backgroundColor: _bg,
-        body: Center(
-          child: Text('Nenhuma música carregada.', style: TextStyle(color: _textDim)),
-        ),
-      );
-    }
 
     return Scaffold(
       backgroundColor: _bg,
-      // Atalhos de teclado (Keyboard Mapping) e entrada MIDI mapeada ficam ativos enquanto a performance está aberta.
       body: Focus(
         autofocus: true,
         onKeyEvent: (_, event) {
@@ -76,12 +84,15 @@ class PerformanceScreen extends ConsumerWidget {
           child: LayoutBuilder(builder: (context, constraints) {
             final wide = constraints.maxWidth >= 600;
             final short = constraints.maxHeight < 500;
+            if (track == null) return _EmptyPerformance(wide: wide);
+            // No celular deitado a waveform divide o painel de baixo com o mixer (Playback no iPhone).
+            final pane = ref.watch(_paneProvider) ?? (short ? _Pane.waveform : _Pane.tracks);
             return Column(
               children: [
-                _TransportBar(track: track, wide: wide),
-                _SongStrip(track: track, compact: short),
-                _WaveformTimeline(track: track, height: short ? 60 : 84),
-                Expanded(child: _Mixer(track: track)),
+                _TopBar(track: track, wide: wide),
+                _SetlistRow(track: track, compact: short),
+                if (!short) _WaveformView(track: track, height: wide ? 132 : 104),
+                Expanded(child: _BottomPane(track: track, pane: pane, short: short)),
               ],
             );
           }),
@@ -91,101 +102,275 @@ class PerformanceScreen extends ConsumerWidget {
   }
 }
 
-Future<void> _renameTrack(BuildContext context, WidgetRef ref, Track track) async {
-  final newTitle = await showDialog<String>(
-    context: context,
-    builder: (ctx) => DialogTextController(
-      initialText: track.title,
-      builder: (controller) => AlertDialog(
-        backgroundColor: _panelBg,
-        title: const Text('Renomear música', style: TextStyle(color: _text)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: _text),
-          decoration: const InputDecoration(
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _border)),
-            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _accent)),
-          ),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    ),
-  );
-  if (!context.mounted) return;
-
-  final trimmed = newTitle?.trim();
-  if (trimmed == null || trimmed.isEmpty || trimmed == track.title) return;
-
-  ref.read(currentTrackProvider.notifier).renameCurrent(trimmed);
-
-  // Se a música já estava salva na biblioteca, persiste o novo nome também -- senão a renomeação só sobrevive em
-  // memória.
-  final alreadySaved = ref.read(trackLibraryProvider).any((t) => t.id == track.id);
-  if (alreadySaved) {
-    await ref.read(trackLibraryProvider.notifier).saveCurrent();
-  }
-}
-
-Future<void> _save(BuildContext context, WidgetRef ref) async {
-  final messenger = ScaffoldMessenger.of(context);
-  try {
-    await ref.read(trackLibraryProvider.notifier).saveCurrent();
-    if (!context.mounted) return;
-    messenger.showSnackBar(const SnackBar(content: Text('Música salva.')));
-  } catch (e) {
-    if (!context.mounted) return;
-    messenger.showSnackBar(SnackBar(content: Text('Falha ao salvar: $e')));
-  }
-}
-
-/// Barra de transporte (Playback: tempo/compasso, tempo decorrido, PAD, anterior, play, fade, EDIT, setlist, menu).
-/// No lugar do PAD (fora do escopo) fica o liga/desliga do click; "Anterior" volta ao início (RTZ) e a navegação
-/// entre músicas fica na faixa da setlist. Em telas estreitas a barra quebra em duas linhas (escolha própria).
-class _TransportBar extends ConsumerWidget {
-  final Track track;
+/// Sem música: a faixa da setlist mostra só "ADICIONAR MÚSICA" (Playback: "ADD A SONG").
+class _EmptyPerformance extends ConsumerWidget {
   final bool wide;
-  const _TransportBar({required this.track, required this.wide});
+  const _EmptyPerformance({required this.wide});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canPop = Navigator.of(context).canPop();
-    final info = <Widget>[
-      if (canPop)
-        _SquareButton(
-          tooltip: 'Voltar',
-          width: 36,
-          onTap: () => Navigator.of(context).maybePop(),
-          child: const Icon(Icons.chevron_left, color: _textDim),
+    return Column(children: [
+      Container(
+        color: _bg,
+        padding: const EdgeInsets.all(6),
+        height: 64,
+        child: Row(children: [
+          const _TempoDisplay(track: null),
+          const SizedBox(width: 6),
+          const _TimeBox(empty: true),
+          const Spacer(),
+          _SetlistsButton(),
+          const SizedBox(width: 6),
+          const _MoreMenu(track: null),
+        ]),
+      ),
+      Expanded(
+        child: Center(
+          child: _AddSongCard(onTap: () => _addSong(context, ref, null)),
         ),
-      _TempoBox(track: track),
-      const _TimeBox(),
-      const _ClickButton(),
+      ),
+    ]);
+  }
+}
+
+class _AddSongCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AddSongCard({required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 220,
+        height: 140,
+        decoration: BoxDecoration(
+          color: _button,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _textFaint, width: 1.5),
+        ),
+        child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.add, color: _text, size: 44),
+          SizedBox(height: 6),
+          Text('ADICIONAR MÚSICA', style: TextStyle(color: _text, fontSize: 15, letterSpacing: 0.5)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Escolhe uma música da biblioteca. Na setlist em execução entra na posição [insertAt]; sem setlist, substitui a
+/// música aberta (escolha própria: o WTracks não tem "setlist atual" sempre aberta como o Playback).
+Future<void> _addSong(BuildContext context, WidgetRef ref, int? insertAt) async {
+  final chosen = await showDialog<Track>(context: context, builder: (_) => const _AddSongDialog());
+  if (chosen == null || !context.mounted) return;
+  final session = ref.read(setlistSessionProvider);
+  if (session != null && insertAt != null) {
+    if (!await ref.read(setlistSessionProvider.notifier).insertTrack(insertAt, chosen) && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A música já está na setlist.')));
+    }
+    return;
+  }
+  final ok = await ref.read(currentTrackProvider.notifier).load(chosen);
+  if (ok) ref.read(setlistSessionProvider.notifier).end();
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha ao carregar "${chosen.title}".')));
+  }
+}
+
+/// "Adicionar música" (Playback: busca + listas). Aqui: busca na biblioteca local e importação.
+class _AddSongDialog extends ConsumerStatefulWidget {
+  const _AddSongDialog();
+  @override
+  ConsumerState<_AddSongDialog> createState() => _AddSongDialogState();
+}
+
+class _AddSongDialogState extends ConsumerState<_AddSongDialog> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final library = ref.watch(trackLibraryProvider);
+    final q = _query.trim().toLowerCase();
+    final songs = [
+      for (final t in library)
+        if (q.isEmpty || t.title.toLowerCase().contains(q) || (t.artist ?? '').toLowerCase().contains(q)) t
+    ];
+    return _SheetDialog(
+      title: 'Adicionar música',
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          child: TextField(
+            key: const Key('add-song-search'),
+            autofocus: false,
+            style: const TextStyle(color: _text),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Buscar',
+              hintStyle: const TextStyle(color: _textFaint),
+              prefixIcon: const Icon(Icons.search, color: _textFaint, size: 20),
+              filled: true,
+              fillColor: kStageSheetRow,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
+            onChanged: (v) => setState(() => _query = v),
+          ),
+        ),
+        _SheetSection(children: [
+          _SheetRow(
+            label: 'Importar música…',
+            onTap: () async {
+              final navigator = Navigator.of(context);
+              final imported = await navigator.push<Track>(MaterialPageRoute(builder: (_) => const ImportScreen()));
+              if (imported != null && mounted) navigator.pop(imported);
+            },
+          ),
+        ]),
+        _SheetSection(header: 'BIBLIOTECA', children: [
+          if (songs.isEmpty) const _SheetRow(label: 'Nenhuma música encontrada', dim: true),
+          for (final song in songs)
+            _SheetRow(
+              label: song.title,
+              detail: [if ((song.artist ?? '').isNotEmpty) song.artist!, if ((song.key ?? '').isNotEmpty) song.key!].join(' · '),
+              onTap: () => Navigator.of(context).pop(song),
+            ),
+        ]),
+      ],
+    );
+  }
+}
+
+/// Painel em lista no estilo dos popovers do Playback (fundo #2C2C2E, linhas agrupadas, cabeçalhos em caixa alta).
+class _SheetDialog extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  final Widget? trailing;
+  const _SheetDialog({required this.title, required this.children, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: kStageSheet,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 640),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            height: 48,
+            child: Row(children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Fechar', style: TextStyle(color: Color(0xFF0A84FF))),
+              ),
+              Expanded(
+                child: Text(title,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
+              SizedBox(width: 72, child: trailing),
+            ]),
+          ),
+          const Divider(height: 1, color: kStageSheetRow),
+          Flexible(child: ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 12), children: children)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _SheetSection extends StatelessWidget {
+  final String? header;
+  final List<Widget> children;
+  const _SheetSection({this.header, required this.children});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (header != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: Text(header!, style: const TextStyle(color: _textFaint, fontSize: 12, letterSpacing: 0.3)),
+          ),
+        Container(
+          color: kStageSheetRow.withValues(alpha: 0.45),
+          child: Column(children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const Divider(height: 1, indent: 16, color: kStageSheetRow),
+              children[i],
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _SheetRow extends StatelessWidget {
+  final String label;
+  final String? detail;
+  final VoidCallback? onTap;
+  final bool dim, destructive;
+  final Widget? trailing;
+  const _SheetRow({required this.label, this.detail, this.onTap, this.dim = false, this.destructive = false, this.trailing});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 46),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(children: [
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(color: destructive ? kStageRed : (dim ? _textFaint : _text), fontSize: 15)),
+            ),
+            if (detail != null && detail!.isNotEmpty)
+              Flexible(
+                child: Text(detail!,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _textFaint, fontSize: 14)),
+              ),
+            ?trailing,
+            if (onTap != null && trailing == null) const Icon(Icons.chevron_right, color: _textFaint, size: 20),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Barra superior (Playback: compasso/BPM, tempo, PAD, voltar ao início, play, fade, EDIT, setlists, menu). No lugar
+/// do PAD (fora do escopo) fica o liga/desliga do click. Abaixo de 600 px quebra em duas linhas (escolha própria).
+class _TopBar extends ConsumerWidget {
+  final Track track;
+  final bool wide;
+  const _TopBar({required this.track, required this.wide});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final info = <Widget>[
+      _TempoDisplay(track: track),
+      _TimeBox(narrow: !wide),
+      _ClickButton(narrow: !wide),
     ];
     final actions = <Widget>[
-      _SquareButton(
-        tooltip: 'Seções',
-        width: 56,
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => SectionEditorScreen(trackId: track.id))),
-        child: const Text('EDITAR', style: TextStyle(color: _textDim, fontSize: 11, letterSpacing: 0.5)),
-      ),
+      _EditButton(track: track),
+      _SetlistsButton(),
       _MoreMenu(track: track),
     ];
     const transport = _TransportButtons();
     return Container(
-      color: _panelBg,
-      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+      color: _bg,
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
       child: wide
           ? SizedBox(
-              height: 52,
+              height: 56,
               child: Row(children: [
                 ..._spaced(info),
                 const SizedBox(width: 6),
@@ -195,10 +380,7 @@ class _TransportBar extends ConsumerWidget {
               ]),
             )
           : Column(children: [
-              SizedBox(
-                height: 48,
-                child: Row(children: [..._spaced(info), const Spacer(), ..._spaced(actions)]),
-              ),
+              SizedBox(height: 48, child: Row(children: [..._spaced(info), const Spacer(), const SizedBox(width: 6), ..._spaced(actions)])),
               const SizedBox(height: 6),
               const SizedBox(height: 48, child: transport),
             ]),
@@ -210,33 +392,24 @@ class _TransportBar extends ConsumerWidget {
       ];
 }
 
-/// Botão retangular escuro da barra (Playback: TransportEditButton, TransportPadButton...).
-class _SquareButton extends StatelessWidget {
+/// Botão escuro da barra (Playback: fundo #131516, mais escuro que a tela, cantos de 6 px).
+class _BarButton extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final String? tooltip;
   final double? width;
-  final bool active;
-  final Color activeColor;
-  const _SquareButton({
-    required this.child,
-    this.onTap,
-    this.tooltip,
-    this.width,
-    this.active = false,
-    this.activeColor = kStageGreen,
-  });
+  final bool highlighted;
+  const _BarButton({required this.child, this.onTap, this.onLongPress, this.tooltip, this.width, this.highlighted = false});
 
   @override
   Widget build(BuildContext context) {
     Widget button = Material(
-      color: active ? activeColor.withValues(alpha: 0.12) : _button,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-        side: BorderSide(color: active ? activeColor : _border),
-      ),
+      color: highlighted ? const Color(0xFF26292B) : _button,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: const BorderSide(color: Color(0xFF0E0F10))),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(6),
         child: SizedBox(width: width, height: double.infinity, child: Center(child: child)),
       ),
@@ -246,33 +419,34 @@ class _SquareButton extends StatelessWidget {
   }
 }
 
-/// Liga/desliga o click (ocupa o lugar do PAD do Playback, que está fora do escopo).
+/// Liga/desliga o click (no lugar do PAD do Playback, que está fora do escopo).
 class _ClickButton extends ConsumerWidget {
-  const _ClickButton();
+  final bool narrow;
+  const _ClickButton({this.narrow = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(clickEnabledProvider);
-    return _SquareButton(
+    return _BarButton(
       tooltip: enabled ? 'Desligar click' : 'Ligar click',
-      width: 52,
-      active: enabled,
-      onTap: () {
-        ref.read(clickEnabledProvider.notifier).state = !enabled;
-        ref.read(engineProvider).setClickEnabled(!enabled);
-      },
-      child: Text('CLICK',
-          style: TextStyle(
-              color: enabled ? kStageGreen : _textFaint, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+      width: narrow ? 48 : 52,
+      onTap: () => _setClick(ref, !enabled),
+      child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text('CLICK', style: TextStyle(color: enabled ? kStageGreen : _textFaint, fontSize: 13))),
     );
   }
 }
 
-/// Os três botões grandes: voltar ao início, play/pausa e fade de 5 s (Playback: RTZ/Previous, PlayPause, Fade).
+void _setClick(WidgetRef ref, bool enabled) {
+  ref.read(clickEnabledProvider.notifier).state = enabled;
+  ref.read(engineProvider).setClickEnabled(enabled);
+}
+
+/// Voltar ao início, play/pausa e fade (Playback: TransportRTZButton, PlayPause, Fade; ícones de contorno).
 class _TransportButtons extends ConsumerWidget {
   const _TransportButtons();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // `select` reconstrói só quando estes campos mudam, não a cada tick de posição.
     final isPlaying = ref.watch(transportProvider.select((t) => t.isPlaying));
     final prerolling = ref.watch(transportProvider.select((t) => t.prerolling));
     final fading = ref.watch(transportProvider.select((t) => t.fading));
@@ -280,48 +454,101 @@ class _TransportButtons extends ConsumerWidget {
     final playColor = prerolling ? kStageYellow : kStageGreen;
     return Row(children: [
       Expanded(
-        child: _SquareButton(
-          tooltip: 'Parar e voltar ao início',
-          onTap: notifier.stop,
-          child: const Icon(Icons.stop, color: _textDim, size: 26),
+        child: _BarButton(
+          tooltip: 'Voltar ao início',
+          onTap: () => notifier.seekTo(0),
+          child: CustomPaint(size: const Size(30, 26), painter: _RtzIconPainter(_textDim)),
         ),
       ),
       const SizedBox(width: 6),
       Expanded(
         flex: 2,
-        child: _SquareButton(
+        child: _BarButton(
           tooltip: prerolling ? 'Contagem' : (isPlaying ? 'Pausar' : 'Tocar'),
-          active: isPlaying || prerolling,
-          activeColor: playColor,
           onTap: isPlaying ? notifier.pause : notifier.play,
-          child: Icon(prerolling ? Icons.av_timer : (isPlaying ? Icons.pause : Icons.play_arrow),
-              color: playColor, size: 32),
+          child: prerolling
+              ? const Icon(Icons.av_timer, color: kStageYellow, size: 30)
+              : CustomPaint(size: const Size(26, 28), painter: _PlayIconPainter(playColor, paused: !isPlaying)),
         ),
       ),
       const SizedBox(width: 6),
       Expanded(
-        child: _SquareButton(
+        child: _BarButton(
           tooltip: 'Fade de 5 segundos',
-          active: fading,
-          activeColor: kStageOrange,
+          highlighted: fading,
           onTap: () => notifier.fadeOut(),
-          child: CustomPaint(size: const Size(26, 18), painter: _FadeIconPainter(fading ? kStageOrange : _textDim)),
+          child: CustomPaint(size: const Size(40, 24), painter: _FadeIconPainter(fading ? kStageOrange : const Color(0xFF919191))),
         ),
       ),
     ]);
   }
 }
 
-/// Rampa descendente do botão de fade (Playback: TransportFadeButton).
+/// |◁ de contorno.
+class _RtzIconPainter extends CustomPainter {
+  final Color color;
+  const _RtzIconPainter(this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawRRect(RRect.fromLTRBR(2, 1, 8, size.height - 1, const Radius.circular(1.5)), paint);
+    canvas.drawPath(
+        Path()
+          ..moveTo(size.width - 2, 1)
+          ..lineTo(11, size.height / 2)
+          ..lineTo(size.width - 2, size.height - 1)
+          ..close(),
+        paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RtzIconPainter old) => old.color != color;
+}
+
+/// ▷ de contorno (ou ‖ quando tocando).
+class _PlayIconPainter extends CustomPainter {
+  final Color color;
+  final bool paused;
+  const _PlayIconPainter(this.color, {required this.paused});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeJoin = StrokeJoin.round;
+    if (paused) {
+      canvas.drawPath(
+          Path()
+            ..moveTo(3, 1)
+            ..lineTo(size.width - 2, size.height / 2)
+            ..lineTo(3, size.height - 1)
+            ..close(),
+          paint);
+    } else {
+      canvas.drawRRect(RRect.fromLTRBR(4, 1, 10, size.height - 1, const Radius.circular(1.5)), paint);
+      canvas.drawRRect(RRect.fromLTRBR(size.width - 10, 1, size.width - 4, size.height - 1, const Radius.circular(1.5)), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlayIconPainter old) => old.color != color || old.paused != paused;
+}
+
+/// Rampa descendente do fade (Playback: TransportFadeButton).
 class _FadeIconPainter extends CustomPainter {
   final Color color;
   const _FadeIconPainter(this.color);
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path()
-      ..moveTo(1, 1)
-      ..lineTo(size.width - 1, size.height - 1)
-      ..lineTo(1, size.height - 1)
+      ..moveTo(2, 1)
+      ..quadraticBezierTo(size.width * 0.3, size.height * 0.9, size.width - 1, size.height - 1)
+      ..lineTo(2, size.height - 1)
       ..close();
     canvas.drawPath(
         path,
@@ -336,121 +563,309 @@ class _FadeIconPainter extends CustomPainter {
   bool shouldRepaint(covariant _FadeIconPainter old) => old.color != color;
 }
 
-class _MoreMenu extends ConsumerWidget {
+/// EDIT: toque entra/sai do modo de edição da setlist; segurar abre os outros modos (Playback: Setlist, MIDI Cues,
+/// MIDI Mapping, Song Sections). Aqui os modos de gatilhos, mapeamento e seções abrem as telas próprias.
+class _EditButton extends ConsumerWidget {
   final Track track;
+  const _EditButton({required this.track});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final editing = ref.watch(performanceEditProvider);
+    void push(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    return _BarButton(
+      tooltip: editing ? 'Concluir edição' : 'Editar (segure para outros modos)',
+      width: 54,
+      highlighted: editing,
+      onTap: () => ref.read(performanceEditProvider.notifier).state = !editing,
+      onLongPress: () async {
+        final box = context.findRenderObject() as RenderBox;
+        final origin = box.localToGlobal(Offset(0, box.size.height));
+        final choice = await showMenu<String>(
+          context: context,
+          color: kStageSheet,
+          position: RelativeRect.fromLTRB(origin.dx, origin.dy, origin.dx + box.size.width, 0),
+          items: const [
+            PopupMenuItem(value: 'setlist', child: Text('Setlist')),
+            PopupMenuItem(value: 'cues', child: Text('Gatilhos MIDI')),
+            PopupMenuItem(value: 'mapping', child: Text('Mapeamento MIDI')),
+            PopupMenuItem(value: 'sections', child: Text('Seções da música')),
+          ],
+        );
+        switch (choice) {
+          case 'setlist':
+            ref.read(performanceEditProvider.notifier).state = true;
+          case 'cues':
+            push(MidiScreen(trackId: track.id));
+          case 'mapping':
+            push(const ControlMappingScreen());
+          case 'sections':
+            push(SectionEditorScreen(trackId: track.id));
+        }
+      },
+      child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(editing ? 'OK' : 'EDITAR', style: TextStyle(color: editing ? _text : _textFaint, fontSize: 13))),
+    );
+  }
+}
+
+/// Setlists (Playback: popover "Setlists" com nova, abrir, a atual e salvar como nova).
+class _SetlistsButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _BarButton(
+      tooltip: 'Setlists',
+      width: 44,
+      onTap: () => showDialog<void>(context: context, builder: (_) => const _SetlistsDialog()),
+      child: const Icon(Icons.queue_music, color: _textFaint, size: 24),
+    );
+  }
+}
+
+class _SetlistsDialog extends ConsumerWidget {
+  const _SetlistsDialog();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(setlistSessionProvider);
+    void open(Widget screen) {
+      Navigator.of(context).pop();
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    }
+
+    return _SheetDialog(title: 'Setlists', children: [
+      _SheetSection(children: [
+        _SheetRow(label: 'Abrir ou criar setlist', onTap: () => open(const SetlistsScreen())),
+        _SheetRow(label: 'Biblioteca de músicas', onTap: () => open(const LibraryScreen())),
+      ]),
+      _SheetSection(header: 'SETLIST ATUAL', children: [
+        if (session == null)
+          const _SheetRow(label: 'Nenhuma setlist aberta', dim: true)
+        else ...[
+          _SheetRow(
+            label: session.setlist.name,
+            detail: '${session.setlist.tracks.length} músicas · ${session.index + 1}/${session.setlist.tracks.length}',
+          ),
+          _SheetRow(
+            label: 'Fechar setlist',
+            destructive: true,
+            onTap: () {
+              ref.read(setlistSessionProvider.notifier).end();
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ]),
+    ]);
+  }
+}
+
+/// Menu ≡ (Playback: menu com os ajustes). Também leva à edição da música aberta.
+class _MoreMenu extends ConsumerWidget {
+  final Track? track;
   const _MoreMenu({required this.track});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     void push(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
     return Material(
       color: _button,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: const BorderSide(color: _border)),
-      child: PopupMenuButton<String>(
-        tooltip: 'Mais',
-        icon: const Icon(Icons.menu, color: _textDim),
-        onSelected: (choice) {
-          switch (choice) {
-            case 'save':
-              _save(context, ref);
-            case 'rename':
-              _renameTrack(context, ref, track);
-            case 'midi':
-              push(MidiScreen(trackId: track.id));
-            case 'pitch':
-              showModalBottomSheet<void>(
-                  context: context, isScrollControlled: true, builder: (_) => TimePitchSheet(trackId: track.id));
-            case 'guides':
-              push(GuideEditorScreen(trackId: track.id));
-            case 'tempo':
-              push(TempoMapScreen(trackId: track.id));
-            case 'mapping':
-              push(const ControlMappingScreen());
-            case 'buses':
-              push(BusesScreen(trackId: track.id));
-            case 'ending':
-              showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const SongEndingSheet());
-            case 'automation':
-              push(MixerAutomationScreen(trackId: track.id));
-          }
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'save', child: Text('Salvar música')),
-          PopupMenuItem(value: 'rename', child: Text('Renomear música')),
-          PopupMenuDivider(),
-          PopupMenuItem(value: 'tempo', child: Text('Mapa de andamento')),
-          PopupMenuItem(value: 'pitch', child: Text('Tom e andamento')),
-          PopupMenuItem(value: 'guides', child: Text('Guias')),
-          PopupMenuItem(value: 'automation', child: Text('Automação do mixer')),
-          PopupMenuItem(value: 'ending', child: Text('Fim da música e fade')),
-          PopupMenuItem(value: 'buses', child: Text('Buses e roteamento')),
-          PopupMenuItem(value: 'mapping', child: Text('Mapeamento MIDI e teclado')),
-          PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
-        ],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: const BorderSide(color: Color(0xFF0E0F10))),
+      child: SizedBox(
+        width: 44,
+        child: PopupMenuButton<String>(
+          tooltip: 'Mais',
+          color: kStageSheet,
+          icon: const Icon(Icons.menu, color: _textFaint),
+          onSelected: (choice) {
+            switch (choice) {
+              case 'song':
+                if (track != null) _showSongMenu(context, ref, track!);
+              case 'settings':
+                push(const SettingsScreen());
+              case 'library':
+                push(const LibraryScreen());
+              case 'mapping':
+                push(const ControlMappingScreen());
+              case 'remote':
+                push(const RemoteScreen());
+            }
+          },
+          itemBuilder: (_) => [
+            if (track != null) const PopupMenuItem(value: 'song', child: Text('Editar música…')),
+            const PopupMenuItem(value: 'settings', child: Text('Ajustes')),
+            const PopupMenuItem(value: 'library', child: Text('Biblioteca')),
+            const PopupMenuItem(value: 'mapping', child: Text('Mapeamento MIDI e teclado')),
+            const PopupMenuItem(value: 'remote', child: Text('Controle remoto')),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Posição atual grande e "decorrido / duração" embaixo (Playback: "00:45" sobre "0:00 / 6:58").
-class _TimeBox extends ConsumerWidget {
-  const _TimeBox();
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final position = ref.watch(transportProvider.select((t) => t.positionSeconds));
-    final length = ref.watch(transportProvider.select((t) => t.lengthSeconds));
-    const figures = [FontFeature.tabularFigures()];
-    return Container(
-      width: 84,
-      decoration: BoxDecoration(color: _button, borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(_formatTime(position),
-              style: const TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w300, fontFeatures: figures)),
-          Text('-${_formatTime(math.max(0, length - position))} / ${_formatTime(length)}',
-              maxLines: 1,
-              style: const TextStyle(color: _textFaint, fontSize: 9, fontFeatures: figures)),
-        ],
-      ),
-    );
-  }
+/// Menu "Editar música" (Playback: popover do "…" no cartão, com arranjo, conteúdo, tom e andamento, duração, pad e
+/// MIDI out). Aqui cada grupo abre a tela/painel que o WTracks já tem.
+Future<void> _showSongMenu(BuildContext context, WidgetRef ref, Track track) {
+  return showDialog<void>(context: context, builder: (_) => _SongMenuDialog(track: track));
 }
 
-/// Andamento e compasso (Playback: TransportTempoTimeSignatureButton). Toque abre o metrônomo.
-class _TempoBox extends ConsumerWidget {
+class _SongMenuDialog extends ConsumerWidget {
   final Track track;
-  const _TempoBox({required this.track});
+  const _SongMenuDialog({required this.track});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final click = track.clickSettings;
-    return _SquareButton(
-      tooltip: 'Metrônomo e andamento',
-      width: 60,
-      onTap: () => _showBpmDialog(context, ref, ref.read(transportProvider).isPlaying),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic, children: [
-            Text(click.bpm.round().toString(),
-                style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w500)),
-            const SizedBox(width: 2),
-            const Text('BPM', style: TextStyle(color: _textFaint, fontSize: 8)),
-            if (click.calibrated) ...[
-              const SizedBox(width: 2),
-              const Icon(Icons.check_circle, color: kStageGreen, size: 9),
-            ],
-          ]),
-          Container(height: 1, width: 36, color: _border, margin: const EdgeInsets.symmetric(vertical: 2)),
-          Text('${click.timeSignatureNumerator}/${click.timeSignatureDenominator}',
-              style: const TextStyle(color: _textDim, fontSize: 12)),
+    final current = ref.watch(currentTrackProvider);
+    final song = current?.id == track.id ? current! : track;
+    final navigator = Navigator.of(context);
+    void push(Widget screen) {
+      navigator.pop();
+      navigator.push(MaterialPageRoute<void>(builder: (_) => screen));
+    }
+
+    void sheet(Widget child) {
+      navigator.pop();
+      showModalBottomSheet<void>(context: navigator.context, isScrollControlled: true, builder: (_) => child);
+    }
+
+    final click = song.clickSettings;
+    return _SheetDialog(
+      title: song.title,
+      trailing: TextButton(
+        onPressed: () {
+          navigator.pop();
+          _save(navigator.context, ref);
+        },
+        child: const Text('Salvar', style: TextStyle(color: Color(0xFF0A84FF), fontWeight: FontWeight.w600)),
+      ),
+      children: [
+        _SheetSection(header: 'MÚSICA', children: [
+          _SheetRow(label: 'Nome', detail: song.title, onTap: () {
+            navigator.pop();
+            _renameTrack(navigator.context, ref, song);
+          }),
+        ]),
+        _SheetSection(header: 'TOM E ANDAMENTO', children: [
+          _SheetRow(label: 'Tom e andamento', detail: song.key ?? '', onTap: () => sheet(TimePitchSheet(trackId: song.id))),
+          _SheetRow(label: 'Metrônomo', detail: '${click.bpm.round()} BPM · ${click.timeSignatureNumerator}/${click.timeSignatureDenominator}', onTap: () {
+            navigator.pop();
+            showMetronomeSheet(navigator.context, ref, song, ref.read(transportProvider).isPlaying);
+          }),
+          _SheetRow(label: 'Mapa de andamento', onTap: () => push(TempoMapScreen(trackId: song.id))),
+        ]),
+        _SheetSection(header: 'DURAÇÃO', children: [
+          _SheetRow(label: 'Fim da música e fade', detail: song.endFade ? 'Fade de 5 s' : '', onTap: () => sheet(const SongEndingSheet())),
+        ]),
+        _SheetSection(header: 'MAPA DA MÚSICA', children: [
+          _SheetRow(label: 'Seções', detail: '${song.sections.length}', onTap: () => push(SectionEditorScreen(trackId: song.id))),
+          _SheetRow(label: 'Guias', onTap: () => push(GuideEditorScreen(trackId: song.id))),
+        ]),
+        _SheetSection(header: 'MIXER', children: [
+          _SheetRow(label: 'Automação do mixer', detail: '${song.mixerAutomation.length}', onTap: () => push(MixerAutomationScreen(trackId: song.id))),
+          _SheetRow(label: 'Buses e roteamento', detail: '${song.buses.length}', onTap: () => push(BusesScreen(trackId: song.id))),
+        ]),
+        _SheetSection(header: 'MIDI OUT', children: [
+          _SheetRow(label: 'MIDI, automações e timecode', onTap: () => push(MidiScreen(trackId: song.id))),
+        ]),
+      ],
+    );
+  }
+}
+
+Future<void> _renameTrack(BuildContext context, WidgetRef ref, Track track) async {
+  final newTitle = await showDialog<String>(
+    context: context,
+    builder: (ctx) => DialogTextController(
+      initialText: track.title,
+      builder: (controller) => AlertDialog(
+        backgroundColor: kStageSheet,
+        title: const Text('Renomear música', style: TextStyle(color: _text)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: _text),
+          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(controller.text), child: const Text('Salvar')),
         ],
+      ),
+    ),
+  );
+  if (!context.mounted) return;
+  final trimmed = newTitle?.trim();
+  if (trimmed == null || trimmed.isEmpty || trimmed == track.title) return;
+  ref.read(currentTrackProvider.notifier).renameCurrent(trimmed);
+  // Se a música já estava salva na biblioteca, persiste o novo nome também.
+  if (ref.read(trackLibraryProvider).any((t) => t.id == track.id)) {
+    await ref.read(trackLibraryProvider.notifier).saveCurrent();
+  }
+}
+
+Future<void> _save(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await ref.read(trackLibraryProvider.notifier).saveCurrent();
+    messenger.showSnackBar(const SnackBar(content: Text('Música salva.')));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Falha ao salvar: $e')));
+  }
+}
+
+/// Tempo atual grande e "decorrido / duração" embaixo (Playback: "00:00" sobre "0:00 / 4:43"). Toque abre a edição.
+class _TimeBox extends ConsumerWidget {
+  final bool empty, narrow;
+  const _TimeBox({this.empty = false, this.narrow = false});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sem música não observa o transporte (o polling de 100 ms só começa quando há o que tocar).
+    final position = empty ? 0.0 : ref.watch(transportProvider.select((t) => t.positionSeconds));
+    final length = empty ? 0.0 : ref.watch(transportProvider.select((t) => t.lengthSeconds));
+    const figures = [FontFeature.tabularFigures()];
+    final track = ref.read(currentTrackProvider);
+    return _BarButton(
+      tooltip: 'Editar música',
+      width: narrow ? 80 : 92,
+      onTap: empty || track == null ? null : () => _showSongMenu(context, ref, track),
+      child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(empty ? '--:--' : _clock(position),
+            style: const TextStyle(color: _text, fontSize: 22, fontWeight: FontWeight.w300, fontFeatures: figures)),
+        Text(empty ? '-- / --' : '${_formatTime(position)} / ${_formatTime(length)}',
+            maxLines: 1, style: const TextStyle(color: _textDim, fontSize: 11, fontFeatures: figures)),
+      ])),
+    );
+  }
+}
+
+/// BPM sobre o compasso, sem moldura (Playback: TransportTempoTimeSignatureButton). Acompanha o mapa de andamento
+/// durante a música. Toque abre o metrônomo.
+class _TempoDisplay extends ConsumerWidget {
+  final Track? track;
+  const _TempoDisplay({required this.track});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = track;
+    final position = t == null || t.tempoChanges.isEmpty ? 0.0 : ref.watch(transportProvider.select((s) => s.positionSeconds));
+    final segment = t == null ? null : TempoSegment.at(position, t.clickSettings, t.tempoChanges);
+    return InkWell(
+      onTap: t == null ? null : () => showMetronomeSheet(context, ref, t, ref.read(transportProvider).isPlaying),
+      child: SizedBox(
+        width: 46,
+        child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(segment == null ? '' : segment.bpm.round().toString(), style: const TextStyle(color: _text, fontSize: 16)),
+          Container(height: 1, width: 34, color: _textFaint, margin: const EdgeInsets.symmetric(vertical: 3)),
+          Text(segment == null ? '' : '${segment.numerator}/${segment.denominator}',
+              style: const TextStyle(color: _text, fontSize: 16)),
+          if (t != null) const Text('BPM', style: TextStyle(color: _textFaint, fontSize: 7, height: 1)),
+        ])),
       ),
     );
   }
+}
 
-  void _showBpmDialog(BuildContext context, WidgetRef ref, bool isPlaying) {
+/// Metrônomo: BPM, tap tempo, compasso, timbre, ganhos das subdivisões e offset do 1º tempo.
+void showMetronomeSheet(BuildContext context, WidgetRef ref, Track track, bool isPlaying) {
     double tempBpm = track.clickSettings.bpm;
     bool calibrated = track.clickSettings.calibrated;
     // Vive no escopo de _showBpmDialog (fora do StatefulBuilder) pra
@@ -795,160 +1210,208 @@ class _TempoBox extends ConsumerWidget {
     );
   }
 
-}
 
-/// Faixa das músicas (Playback: cartões da setlist com o título e o tom, seta de transição e ▷ na música atual).
-/// Sem setlist, mostra só a música aberta. Toque no cartão atual renomeia; nos outros, carrega a música.
-class _SongStrip extends ConsumerWidget {
+/// Faixa da setlist (Playback: cartões com capa, "Título (Tom)", selo da transição no canto e ▷ verde na atual). Parado,
+/// um toque seleciona a música; tocando, é preciso tocar duas vezes (no Playback isso faz um crossfade; aqui troca de
+/// música -- escolha própria até existir crossfade no motor). No modo de edição: (−) remove, (…) edita, (+) adiciona.
+class _SetlistRow extends ConsumerWidget {
   final Track track;
   final bool compact;
-  const _SongStrip({required this.track, required this.compact});
+  const _SetlistRow({required this.track, required this.compact});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(setlistSessionProvider);
+    final editing = ref.watch(performanceEditProvider);
+    final playing = ref.watch(transportProvider.select((t) => t.isPlaying));
     final inSession = session != null && session.current.id == track.id;
     final songs = inSession ? session.setlist.tracks : [track];
     final current = inSession ? session.index : 0;
     final notifier = ref.read(setlistSessionProvider.notifier);
-    final cardWidth = compact ? 128.0 : 156.0;
+    final cardWidth = compact ? 120.0 : 178.0;
+    final artHeight = compact ? 44.0 : 82.0;
     return Container(
       color: _bg,
-      padding: EdgeInsets.fromLTRB(6, 6, 6, inSession ? 0 : 6),
-      child: Column(children: [
-        SizedBox(
-          height: compact ? 44 : 58,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: songs.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 6),
-            itemBuilder: (context, i) {
-              final song = i == current ? track : songs[i];
-              return _SongCard(
-                song: song,
-                width: cardWidth,
-                current: i == current,
-                cuesNext: inSession && i < songs.length - 1 && song.transition == SongTransition.cueNextSong,
-                onTap: i == current ? () => _renameTrack(context, ref, track) : () => notifier.go(i),
-              );
-            },
-          ),
-        ),
-        if (inSession) _SetlistCaption(session: session, track: track),
+      height: artHeight + (compact ? 34 : 38),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+        itemCount: songs.length,
+        itemBuilder: (context, i) {
+          final song = i == current ? track : songs[i];
+          final last = i == songs.length - 1;
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _SongCard(
+              song: song,
+              width: cardWidth,
+              artHeight: artHeight,
+              current: i == current,
+              editing: editing,
+              badge: inSession && !last ? song.transition : null,
+              onTransition: i == current ? () => _chooseTransition(context, ref) : null,
+              onSelect: i == current ? null : (playing ? null : () => notifier.go(i)),
+              onDoubleTap: i == current || !playing ? null : () => notifier.go(i),
+              onRemove: inSession && i != current ? () => notifier.removeAt(i) : null,
+              onMenu: i == current ? () => _showSongMenu(context, ref, track) : null,
+              onAdd: () => _addSong(context, ref, inSession ? i + 1 : null),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Transições (Playback: Cue Next Song, Stay In Song, Continue Pad, AutoLink, Overlap, Crossfade). O WTracks tem as
+  /// duas primeiras; o pad está fora do escopo e as outras três ainda não existem no motor.
+  Future<void> _chooseTransition(BuildContext context, WidgetRef ref) async {
+    final current = ref.read(currentTrackProvider);
+    if (current == null) return;
+    final choice = await showDialog<SongTransition>(
+      context: context,
+      builder: (ctx) => _SheetDialog(title: 'Transição', children: [
+        _SheetSection(children: [
+          for (final (value, label) in const [
+            (SongTransition.cueNextSong, 'Preparar a próxima música'),
+            (SongTransition.stayInSong, 'Continuar na música'),
+          ])
+            _SheetRow(
+              label: label,
+              onTap: () => Navigator.of(ctx).pop(value),
+              trailing: Icon(current.transition == value ? Icons.check : null, color: const Color(0xFF0A84FF), size: 20),
+            ),
+        ]),
       ]),
     );
+    if (choice == null) return;
+    ref.read(currentTrackProvider.notifier).setTransition(choice);
+    try {
+      await ref.read(trackLibraryProvider.notifier).saveCurrent();
+    } catch (_) {}
   }
 }
 
 class _SongCard extends StatelessWidget {
   final Track song;
-  final double width;
-  final bool current, cuesNext;
-  final VoidCallback onTap;
-  const _SongCard({required this.song, required this.width, required this.current, required this.cuesNext, required this.onTap});
+  final double width, artHeight;
+  final bool current, editing;
+  final SongTransition? badge;
+  final VoidCallback? onSelect, onDoubleTap, onRemove, onMenu, onAdd, onTransition;
+  const _SongCard({
+    required this.song,
+    required this.width,
+    required this.artHeight,
+    required this.current,
+    required this.editing,
+    required this.badge,
+    this.onSelect,
+    this.onDoubleTap,
+    this.onRemove,
+    this.onMenu,
+    this.onAdd,
+    this.onTransition,
+  });
 
   @override
   Widget build(BuildContext context) {
     // Sem capa no nosso modelo: um bloco colorido derivado do título (escolha própria).
     final hue = (song.title.hashCode % 360).abs().toDouble();
-    final top = HSLColor.fromAHSL(1, hue, 0.35, 0.30).toColor();
-    final bottom = HSLColor.fromAHSL(1, (hue + 40) % 360, 0.35, 0.16).toColor();
+    final top = HSLColor.fromAHSL(1, hue, 0.30, 0.34).toColor();
+    final bottom = HSLColor.fromAHSL(1, (hue + 40) % 360, 0.30, 0.16).toColor();
     final key = song.key;
-    return Tooltip(
-      message: current ? 'Renomear música' : 'Abrir ${song.title}',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: SizedBox(
-          width: width,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: current ? _text : _border, width: current ? 1.5 : 1),
-                  gradient: LinearGradient(colors: [top, bottom], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                ),
-                child: Stack(children: [
-                  Positioned(
-                    left: 8,
-                    bottom: 2,
-                    child: Text(
-                      song.title.isEmpty ? '' : song.title.substring(0, 1).toUpperCase(),
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 20, fontWeight: FontWeight.w700),
-                    ),
+    return SizedBox(
+      width: width,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          height: artHeight,
+          child: Stack(clipBehavior: Clip.none, children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: onSelect,
+                onDoubleTap: onDoubleTap,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: current ? _text : Colors.transparent, width: 1.5),
+                    gradient: LinearGradient(colors: [top, bottom], begin: Alignment.topLeft, end: Alignment.bottomRight),
                   ),
-                  if (cuesNext)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(topRight: Radius.circular(5), bottomLeft: Radius.circular(5)),
-                        ),
-                        child: const Icon(Icons.arrow_forward, size: 12, color: Colors.black),
-                      ),
-                    ),
-                ]),
+                  alignment: Alignment.center,
+                  child: Text(song.title.isEmpty ? '' : song.title.substring(0, 1).toUpperCase(),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.22), fontSize: artHeight * 0.5, fontWeight: FontWeight.w700)),
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            Row(children: [
-              if (current) const Icon(Icons.play_arrow_outlined, size: 13, color: kStageGreen),
-              Expanded(
-                child: Text(
-                  key == null || key.isEmpty ? song.title : '${song.title} ($key)',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: current ? _text : _textDim, fontSize: 11, fontWeight: current ? FontWeight.w600 : FontWeight.w400),
+            if (badge != null)
+              Positioned(
+                right: -12,
+                top: -4,
+                child: Tooltip(
+                  message: 'Transição',
+                  child: GestureDetector(
+                    onTap: onTransition,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2B2D2E),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: current ? kStageGreen : const Color(0xFF2B2D2E), width: 1.5),
+                      ),
+                      child: Icon(badge == SongTransition.stayInSong ? Icons.keyboard_tab : Icons.arrow_right_alt,
+                          size: 16, color: _text),
+                    ),
+                  ),
                 ),
               ),
-            ]),
+            if (editing && onRemove != null)
+              Positioned(left: 10, top: artHeight / 2 - 13, child: _CircleAction(icon: Icons.remove, color: kStageRed, tooltip: 'Remover da setlist', onTap: onRemove!)),
+            if (editing && onMenu != null)
+              Positioned(left: width / 2 - 13, top: artHeight / 2 - 13, child: _CircleAction(icon: Icons.more_horiz, color: const Color(0xFF2B2D2E), tooltip: 'Editar música', onTap: onMenu!)),
+            if (editing && onAdd != null)
+              Positioned(right: -13, bottom: -6, child: _CircleAction(icon: Icons.add, color: const Color(0xFF2B2D2E), tooltip: 'Adicionar música', onTap: onAdd!)),
           ]),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          if (current) const Icon(Icons.play_arrow_outlined, size: 18, color: kStageGreen),
+          Expanded(
+            child: Text(
+              key == null || key.isEmpty ? song.title : '${song.title} ($key)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: _text, fontSize: 14, fontWeight: current ? FontWeight.w600 : FontWeight.w400),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _CircleAction extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _CircleAction({required this.icon, required this.color, required this.tooltip, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: Icon(icon, size: 18, color: Colors.white),
         ),
       ),
     );
   }
 }
 
-/// Posição na setlist, a próxima música e a navegação.
-class _SetlistCaption extends ConsumerWidget {
-  final SetlistSession session;
-  final Track track;
-  const _SetlistCaption({required this.session, required this.track});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(setlistSessionProvider.notifier);
-    final next = session.next;
-    final label = next == null
-        ? 'Última música'
-        : (track.transition == SongTransition.cueNextSong ? 'Próxima: ${next.title}' : 'Fica na música · depois: ${next.title}');
-    Widget nav(IconData icon, String tooltip, VoidCallback? onTap) => Tooltip(
-          message: tooltip,
-          child: InkWell(
-            onTap: onTap,
-            child: SizedBox(width: 32, height: 22, child: Icon(icon, size: 16, color: onTap == null ? _border : _textDim)),
-          ),
-        );
-    return SizedBox(
-      height: 22,
-      child: Row(children: [
-        Text('${session.index + 1}/${session.setlist.tracks.length}', style: const TextStyle(color: _textFaint, fontSize: 11)),
-        const SizedBox(width: 8),
-        Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _textDim, fontSize: 11))),
-        nav(Icons.skip_previous, 'Música anterior', session.previous == null ? null : notifier.previous),
-        nav(Icons.skip_next, 'Próxima música', next == null ? null : notifier.next),
-      ]),
-    );
-  }
-}
-
-/// Sigla e cor da seção no waveform (Playback: selos "V1", "R1", "I"...). A cor pela inicial do nome é escolha
-/// própria: o Playback colore pelo tipo de seção, que o nosso modelo não tem.
+/// Sigla da seção (Playback: selos "Co", "I", "V1", "R1"...).
 String _sectionBadge(String name) {
   final trimmed = name.trim();
   if (trimmed.isEmpty) return '?';
@@ -957,29 +1420,59 @@ String _sectionBadge(String name) {
   return badge.length > 3 ? badge.substring(0, 3) : badge;
 }
 
+/// Cor da seção pelo nome. O Playback colore pelo tipo de seção (Intro #5DA4B5, Verso #92278F, Refrão laranja,
+/// contagem cinza, medidos nas capturas); o nosso modelo não tem tipo, então a inicial decide (escolha própria).
 Color _sectionColor(String name) {
   final n = name.trim().toLowerCase();
   if (n.startsWith('v')) return kStagePurple; // verso, verse
   if (n.startsWith('r') || n.startsWith('c')) return kStageOrange; // refrão, coro, chorus
   if (n.startsWith('p') || n.startsWith('b')) return kStageBlue; // ponte, pré-refrão, bridge
-  if (n.startsWith('i') || n.startsWith('o') || n.startsWith('f') || n.startsWith('e')) return kStageGreen;
-  return kStageYellow;
+  if (n.startsWith('i')) return kStageTeal; // intro
+  if (n.startsWith('o') || n.startsWith('f') || n.startsWith('e')) return kStageGreen; // outro, final, ending
+  return kStageGrey;
 }
 
-/// Waveform com as seções coloridas, selo e botão de laço por seção, e a agulha de posição. Toque/arrasto busca; o
-/// laço de uma seção liga com um toque no ícone (segurar enfileira como próxima seção). Sem waveform (falha ou
-/// nunca gerada), cai num slider simples -- o seek continua funcionando.
-class _WaveformTimeline extends ConsumerStatefulWidget {
+/// Início de cada compasso até [length] (grade da waveform), seguindo o mapa de andamento.
+List<double> _barTimes(Track track, double length) {
+  final bars = <double>[];
+  var t = track.clickSettings.beatOffsetSeconds;
+  while (t < length && bars.length < 4000) {
+    bars.add(t);
+    final segment = TempoSegment.at(t + 1e-6, track.clickSettings, track.tempoChanges);
+    final barLength = segment.beatSeconds(track.clickSettings.bpmUnit) * segment.numerator;
+    if (!(barLength > 0.05)) break;
+    var next = t + barLength;
+    // Uma mudança de andamento no meio do compasso reinicia a grade nela.
+    for (final change in track.tempoChanges) {
+      if (change.startSeconds > t + 1e-6 && change.startSeconds < next) {
+        next = change.startSeconds;
+        break;
+      }
+    }
+    t = next;
+  }
+  return bars;
+}
+
+/// Waveform rolante (Playback: a música passa sob uma agulha fixa à esquerda; seções em caixas coloridas com selo e
+/// botão de laço; grade de compassos). Arrastar rola a vista (volta a seguir a agulha 5 s depois); tocar busca o
+/// ponto. Laço da seção: um toque arma uma repetição dela (desliga se já ativo); no modo de edição liga/desliga o laço
+/// infinito predefinido. Toque duplo no selo pula para a seção (o "Live ReOrder" do Playback espera o fim da seção
+/// atual; aqui o salto é imediato -- escolha própria).
+class _WaveformView extends ConsumerStatefulWidget {
   final Track track;
   final double height;
-
-  const _WaveformTimeline({required this.track, required this.height});
-
+  const _WaveformView({required this.track, required this.height});
   @override
-  ConsumerState<_WaveformTimeline> createState() => _WaveformTimelineState();
+  ConsumerState<_WaveformView> createState() => _WaveformViewState();
 }
 
-class _WaveformTimelineState extends ConsumerState<_WaveformTimeline> {
+class _WaveformViewState extends ConsumerState<_WaveformView> {
+  double? _manualStart; // início da vista em segundos enquanto o usuário rola
+  DateTime _lastScroll = DateTime.fromMillisecondsSinceEpoch(0);
+  List<double> _bars = const [];
+  Object? _barsKey;
+
   @override
   void initState() {
     super.initState();
@@ -987,9 +1480,10 @@ class _WaveformTimelineState extends ConsumerState<_WaveformTimeline> {
   }
 
   @override
-  void didUpdateWidget(covariant _WaveformTimeline oldWidget) {
+  void didUpdateWidget(covariant _WaveformView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.track.id != widget.track.id) {
+      _manualStart = null;
       WidgetsBinding.instance.addPostFrameCallback((_) => _load());
     }
   }
@@ -999,103 +1493,114 @@ class _WaveformTimelineState extends ConsumerState<_WaveformTimeline> {
     ref.read(waveformProvider.notifier).loadFor(widget.track);
   }
 
-  void _seek(double seconds) => ref.read(transportProvider.notifier).seekTo(seconds);
-
-  void _handleSeek(Offset localPosition, double width) {
-    final length = ref.read(transportProvider).lengthSeconds;
-    if (length <= 0 || width <= 0) return;
-    final fraction = (localPosition.dx / width).clamp(0.0, 1.0);
-    _seek(fraction * length);
+  void _seek(double seconds) {
+    _manualStart = null;
+    ref.read(transportProvider.notifier).seekTo(seconds);
   }
 
-  Future<void> _loop(SongSection section, {bool queue = false}) async {
-    if (queue && !ref.read(transportProvider).loopEnabled) return;
-    final ok = await ref.read(currentTrackProvider.notifier).setSectionLoop(section, queue: queue);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Não foi possível preparar o loop desta seção.')));
+  Future<void> _loop(SongSection section) async {
+    final transport = ref.read(transportProvider);
+    if (transport.activeSection(section)) {
+      ref.read(transportProvider.notifier).disableLoop();
+      return;
     }
+    // Uma repetição: duas passagens pela seção (o motor conta passagens).
+    final ok = await ref.read(currentTrackProvider.notifier).setSectionLoop(section.copyWith(loopCount: 2));
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível preparar o loop desta seção.')));
+    }
+  }
+
+  Future<void> _updateSections(List<SongSection> sections) async {
+    final notifier = ref.read(currentTrackProvider.notifier);
+    if (!notifier.updateSections(widget.track.id, sections)) return;
+    try {
+      await ref.read(trackLibraryProvider.notifier).saveCurrent();
+    } catch (_) {}
+  }
+
+  Future<void> _deleteSection(SongSection section) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kStageSheet,
+        title: Text('Excluir "${section.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (confirmed == true) await _updateSections(widget.track.sections.where((s) => s.id != section.id).toList());
   }
 
   @override
   Widget build(BuildContext context) {
     final waveform = ref.watch(waveformProvider);
     final transport = ref.watch(transportProvider);
-    final length = transport.lengthSeconds > 0 ? transport.lengthSeconds : 1.0;
-    final sections = widget.track.sections;
-
-    final Widget content;
-    if (waveform.isGenerating) {
-      content = const Center(child: Text('Gerando waveform...', style: TextStyle(color: _textFaint, fontSize: 12)));
-    } else if (waveform.peaks == null) {
-      content = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Center(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: _text,
-              inactiveTrackColor: _border,
-              thumbColor: _text,
-              overlayColor: _text.withValues(alpha: 0.15),
-            ),
-            child: Slider(
-              value: transport.positionSeconds.clamp(0, length),
-              max: length,
-              onChanged: (_) {},
-              onChangeEnd: _seek,
-            ),
-          ),
-        ),
-      );
-    } else {
-      final progress = (transport.positionSeconds / length).clamp(0.0, 1.0).toDouble();
-      content = LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          return GestureDetector(
-            onTapDown: (details) => _handleSeek(details.localPosition, width),
-            onHorizontalDragUpdate: (details) => _handleSeek(details.localPosition, width),
-            child: CustomPaint(
-              size: Size(width, constraints.maxHeight),
-              painter: _WaveformPainter(peaks: waveform.peaks!, progress: progress),
-            ),
-          );
-        },
-      );
+    final editing = ref.watch(performanceEditProvider);
+    final grid = ref.watch(appSettingsProvider.select((s) => s.waveformGrid));
+    final track = widget.track;
+    final length = transport.lengthSeconds;
+    final key = (track.id, track.clickSettings, track.tempoChanges, length);
+    if (_barsKey != key) {
+      _barsKey = key;
+      _bars = length > 0 ? _barTimes(track, length) : const [];
     }
+    if (_manualStart != null && DateTime.now().difference(_lastScroll) > const Duration(seconds: 5)) _manualStart = null;
 
     return Container(
       height: widget.height,
-      decoration: const BoxDecoration(
-        color: _panelBg,
-        border: Border.symmetric(horizontal: BorderSide(color: _border)),
-      ),
+      color: _panelBg,
       child: LayoutBuilder(builder: (context, constraints) {
         final width = constraints.maxWidth;
-        double x(double seconds) => (seconds / length).clamp(0.0, 1.0) * width;
-        return Stack(children: [
+        final pps = (width / 45).clamp(6.0, 40.0); // pixels por segundo: ~45 s visíveis
+        final playheadX = math.max(40.0, width * 0.07);
+        final viewStart = _manualStart ?? (transport.positionSeconds - playheadX / pps);
+        double x(double t) => (t - viewStart) * pps;
+        final visible = [
+          for (final s in track.sections)
+            if (x(s.endSeconds) > 0 && x(s.startSeconds) < width) s
+        ];
+        return Stack(clipBehavior: Clip.hardEdge, children: [
           Positioned.fill(
-            child: CustomPaint(
-              painter: _SectionsPainter(
-                sections: sections,
-                lengthSeconds: transport.lengthSeconds,
-                active: [for (final s in sections) transport.activeSection(s)],
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (d) {
+                if (length > 0) _seek((viewStart + d.localPosition.dx / pps).clamp(0.0, length));
+              },
+              onHorizontalDragUpdate: (d) => setState(() {
+                _lastScroll = DateTime.now();
+                final start = (_manualStart ?? viewStart) - d.delta.dx / pps;
+                _manualStart = start.clamp(-playheadX / pps, math.max(0.0, length - playheadX / pps));
+              }),
+              child: CustomPaint(
+                painter: _WaveformPainter(
+                  peaks: waveform.peaks,
+                  lengthSeconds: length,
+                  viewStart: viewStart,
+                  pixelsPerSecond: pps,
+                  playheadX: x(transport.positionSeconds),
+                  sections: track.sections,
+                  activeLoop: [for (final s in track.sections) transport.activeSection(s)],
+                  bars: grid ? _bars : const [],
+                  cues: [for (final c in track.automationCues) c.timeSeconds],
+                  generating: waveform.isGenerating,
+                ),
               ),
             ),
           ),
-          Positioned.fill(child: content),
-          if (transport.lengthSeconds > 0)
-            for (final section in sections) ..._sectionControls(section, x(section.startSeconds), x(section.endSeconds), transport),
+          for (final s in visible) ..._sectionControls(s, x(s.startSeconds), x(s.endSeconds), width, transport, editing),
           if (transport.loopPass > 0)
             Positioned(
-              right: 6,
-              bottom: 4,
+              right: 8,
+              bottom: 6,
               child: IgnorePointer(
                 child: Container(
                   key: const Key('loop-pass'),
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
-                    color: _bg.withValues(alpha: 0.8),
+                    color: _bg.withValues(alpha: 0.85),
                     border: Border.all(color: kStageGreen),
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -1111,51 +1616,74 @@ class _WaveformTimelineState extends ConsumerState<_WaveformTimeline> {
     );
   }
 
-  List<Widget> _sectionControls(SongSection section, double left, double right, TransportState transport) {
+  List<Widget> _sectionControls(SongSection section, double left, double right, double width, TransportState transport, bool editing) {
     final color = _sectionColor(section.name);
     final active = transport.activeSection(section);
     final queued = transport.queuedSection(section);
+    final loopColor = active ? kStageGreen : (queued ? kStageYellow : (section.presetInfiniteLoop ? kStageOrange : const Color(0xFF686F71)));
+    // Selo e laço ficam presos às bordas da vista enquanto a seção aparece (a caixa pode passar da tela).
+    final badgeLeft = math.max(left + 8, 6.0);
+    final loopLeft = math.min(right - 44, width - 44);
+    final visibleWidth = math.min(right, width) - math.max(left, 0);
     return [
       Positioned(
-        left: left + 4,
-        top: 4,
+        left: badgeLeft,
+        top: 8,
         child: Tooltip(
           message: section.name,
           child: GestureDetector(
-            onTap: () => _seek(section.playStart),
+            onDoubleTap: () => _seek(section.playStart),
             child: Container(
-              width: 22,
-              height: 22,
+              width: 26,
+              height: 26,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _bg.withValues(alpha: 0.75),
+                color: _panelBg.withValues(alpha: 0.6),
                 shape: BoxShape.circle,
                 border: Border.all(color: color, width: 1.5),
               ),
-              child: Text(_sectionBadge(section.name),
-                  style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w700)),
+              child: Text(_sectionBadge(section.name), style: const TextStyle(color: _text, fontSize: 10)),
             ),
           ),
         ),
       ),
-      if (right - left >= 60)
+      if (editing)
         Positioned(
-          left: right - 26,
-          top: 4,
+          left: badgeLeft,
+          top: widget.height / 2 - 4,
+          child: _CircleAction(icon: Icons.remove, color: kStageRed, tooltip: 'Excluir seção', onTap: () => _deleteSection(section)),
+        ),
+      if (editing && visibleWidth > 110)
+        Positioned(
+          left: loopLeft + 10,
+          top: widget.height / 2 - 4,
+          child: _CircleAction(
+            icon: Icons.add,
+            color: const Color(0xFF2B2D2E),
+            tooltip: 'Adicionar seção',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SectionEditorScreen(trackId: widget.track.id))),
+          ),
+        ),
+      if (visibleWidth >= 80)
+        Positioned(
+          left: loopLeft,
+          top: 8,
           child: Tooltip(
-            message: 'Repetir ${section.name}',
+            message: editing ? 'Laço infinito predefinido: ${section.name}' : 'Repetir ${section.name}',
             child: GestureDetector(
-              onTap: () => active ? ref.read(transportProvider.notifier).disableLoop() : _loop(section),
-              onLongPress: () => _loop(section, queue: true),
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: _bg.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: active ? kStageGreen : (queued ? kStageYellow : _border)),
-                ),
-                child: Icon(Icons.repeat, size: 14, color: active ? kStageGreen : (queued ? kStageYellow : _textDim)),
+              onTap: () => editing
+                  ? _updateSections([
+                      for (final s in widget.track.sections)
+                        s.id == section.id ? s.copyWith(presetInfiniteLoop: !s.presetInfiniteLoop) : s
+                    ])
+                  : _loop(section),
+              onLongPress: transport.loopEnabled
+                  ? () => ref.read(currentTrackProvider.notifier).setSectionLoop(section, queue: true)
+                  : null,
+              child: SizedBox(
+                width: 36,
+                height: 24,
+                child: CustomPaint(painter: _LoopIconPainter(loopColor, infinite: section.presetInfiniteLoop && editing)),
               ),
             ),
           ),
@@ -1164,41 +1692,156 @@ class _WaveformTimelineState extends ConsumerState<_WaveformTimeline> {
   }
 }
 
-/// Fundo das seções: faixa colorida translúcida e linha de início (laço ativo mais forte).
-class _SectionsPainter extends CustomPainter {
-  final List<SongSection> sections;
-  final double lengthSeconds;
-  final List<bool> active;
-  _SectionsPainter({required this.sections, required this.lengthSeconds, required this.active});
-
+/// Ícone de laço do Playback (contorno de pílula aberta) e o ∞ do laço infinito.
+class _LoopIconPainter extends CustomPainter {
+  final Color color;
+  final bool infinite;
+  const _LoopIconPainter(this.color, {this.infinite = false});
   @override
   void paint(Canvas canvas, Size size) {
-    if (lengthSeconds <= 0 || size.width <= 0) return;
-    for (var i = 0; i < sections.length; i++) {
-      final s = sections[i];
-      final left = (s.startSeconds / lengthSeconds).clamp(0.0, 1.0) * size.width;
-      final right = (s.endSeconds / lengthSeconds).clamp(0.0, 1.0) * size.width;
-      if (right <= left) continue;
-      final color = _sectionColor(s.name);
-      canvas.drawRect(Rect.fromLTRB(left, 0, right, size.height),
-          Paint()..color = color.withValues(alpha: active[i] ? 0.30 : 0.13));
-      canvas.drawRect(Rect.fromLTWH(left, 0, 1, size.height), Paint()..color = color.withValues(alpha: 0.7));
-      // Trechos cortados (trim) ficam escurecidos.
-      final dim = Paint()..color = Colors.black.withValues(alpha: 0.55);
-      if (s.trimStartSeconds > 0) {
-        canvas.drawRect(Rect.fromLTRB(left, 0, (s.playStart / lengthSeconds).clamp(0.0, 1.0) * size.width, size.height), dim);
-      }
-      if (s.trimEndSeconds > 0) {
-        canvas.drawRect(Rect.fromLTRB((s.playEnd / lengthSeconds).clamp(0.0, 1.0) * size.width, 0, right, size.height), dim);
-      }
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    final h = size.height * 0.62, w = size.width * 0.86;
+    final rect = Rect.fromCenter(center: size.center(Offset.zero), width: w, height: h);
+    if (infinite) {
+      final r = h / 2;
+      canvas.drawCircle(Offset(rect.left + r, rect.center.dy), r, paint);
+      canvas.drawCircle(Offset(rect.right - r, rect.center.dy), r, paint);
+      return;
     }
+    final path = Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(h / 2)));
+    // Abertura no topo, à direita (como o símbolo do Playback).
+    final metric = path.computeMetrics().first;
+    canvas.drawPath(metric.extractPath(metric.length * 0.06, metric.length * 0.94), paint);
   }
 
   @override
-  bool shouldRepaint(covariant _SectionsPainter old) =>
-      old.sections != sections || old.lengthSeconds != lengthSeconds || !_sameFlags(old.active, active);
+  bool shouldRepaint(covariant _LoopIconPainter old) => old.color != color || old.infinite != infinite;
+}
 
-  static bool _sameFlags(List<bool> a, List<bool> b) {
+class _WaveformPainter extends CustomPainter {
+  final List<double>? peaks;
+  final double lengthSeconds, viewStart, pixelsPerSecond, playheadX;
+  final List<SongSection> sections;
+  final List<bool> activeLoop;
+  final List<double> bars, cues;
+  final bool generating;
+
+  _WaveformPainter({
+    required this.peaks,
+    required this.lengthSeconds,
+    required this.viewStart,
+    required this.pixelsPerSecond,
+    required this.playheadX,
+    required this.sections,
+    required this.activeLoop,
+    required this.bars,
+    required this.cues,
+    required this.generating,
+  });
+
+  double _x(double t) => (t - viewStart) * pixelsPerSecond;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final top = 4.0, bottom = size.height - 10;
+    final mid = (top + bottom) / 2;
+    // Seções: caixas arredondadas com fundo e borda na cor da seção.
+    for (var i = 0; i < sections.length; i++) {
+      final s = sections[i];
+      final rect = RRect.fromLTRBR(_x(s.startSeconds) + 1, top, _x(s.endSeconds) - 1, bottom, const Radius.circular(8));
+      if (rect.right < 0 || rect.left > size.width) continue;
+      final color = _sectionColor(s.name);
+      canvas.drawRRect(rect, Paint()..color = color.withValues(alpha: activeLoop[i] ? 0.22 : 0.10));
+      canvas.drawRRect(
+          rect,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..color = (activeLoop[i] ? kStageGreen : const Color(0xFF3A3C3E)));
+      // Trechos cortados (trim) escurecidos.
+      final dim = Paint()..color = Colors.black.withValues(alpha: 0.5);
+      if (s.trimStartSeconds > 0) canvas.drawRect(Rect.fromLTRB(_x(s.startSeconds), top, _x(s.playStart), bottom), dim);
+      if (s.trimEndSeconds > 0) canvas.drawRect(Rect.fromLTRB(_x(s.playEnd), top, _x(s.endSeconds), bottom), dim);
+    }
+    // Grade de compassos.
+    final barPaint = Paint()..color = Colors.white.withValues(alpha: 0.16);
+    for (final b in bars) {
+      final x = _x(b);
+      if (x < 0) continue;
+      if (x > size.width) break;
+      canvas.drawRect(Rect.fromLTWH(x, top, 1, bottom - top), barPaint);
+    }
+    // Waveform, tingida pela seção em que cada barra cai.
+    final p = peaks;
+    if (p != null && p.isNotEmpty && lengthSeconds > 0) {
+      final secondsPerPeak = lengthSeconds / p.length;
+      final step = math.max(1, (1.5 / (secondsPerPeak * pixelsPerSecond)).ceil());
+      final first = math.max(0, (viewStart / secondsPerPeak).floor());
+      final last = math.min(p.length, ((viewStart + size.width / pixelsPerSecond) / secondsPerPeak).ceil() + 1);
+      final width = math.max(1.0, secondsPerPeak * step * pixelsPerSecond - 0.6);
+      var sectionIndex = 0;
+      for (var i = first - first % step; i < last; i += step) {
+        final t = i * secondsPerPeak;
+        while (sectionIndex < sections.length && sections[sectionIndex].endSeconds <= t) {
+          sectionIndex++;
+        }
+        final inSection = sectionIndex < sections.length && sections[sectionIndex].startSeconds <= t;
+        final tint = inSection ? _sectionColor(sections[sectionIndex].name) : Colors.white;
+        final color = Color.lerp(Colors.white, tint, 0.22)!.withValues(alpha: 0.82);
+        var peak = 0.0;
+        for (var j = i; j < math.min(i + step, p.length); j++) {
+          peak = math.max(peak, p[j]);
+        }
+        final h = peak.clamp(0.0, 1.0) * (bottom - top) * 0.82;
+        canvas.drawRect(Rect.fromLTWH(_x(t), mid - h / 2, width, h), Paint()..color = color);
+      }
+    } else {
+      canvas.drawRect(Rect.fromLTWH(_x(0), mid - 0.5, lengthSeconds * pixelsPerSecond, 1),
+          Paint()..color = Colors.white.withValues(alpha: 0.35));
+      if (generating) {
+        final tp = TextPainter(
+          text: const TextSpan(text: 'Gerando waveform...', style: TextStyle(color: _textFaint, fontSize: 12)),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(size.width / 2 - tp.width / 2, mid + 6));
+      }
+    }
+    // Gatilhos MIDI: triângulos laranja sob a waveform.
+    final cuePaint = Paint()..color = kStageOrange;
+    for (final c in cues) {
+      final x = _x(c);
+      if (x < -5 || x > size.width + 5) continue;
+      canvas.drawPath(
+          Path()
+            ..moveTo(x - 5, size.height)
+            ..lineTo(x, size.height - 6)
+            ..lineTo(x + 5, size.height)
+            ..close(),
+          cuePaint);
+    }
+    // Agulha.
+    canvas.drawRect(Rect.fromLTWH(playheadX - 1, 0, 2, size.height - 2), Paint()..color = Colors.white);
+    canvas.drawRect(Rect.fromLTWH(playheadX - 4, 0, 8, 2), Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WaveformPainter old) =>
+      old.peaks != peaks ||
+      old.viewStart != viewStart ||
+      old.pixelsPerSecond != pixelsPerSecond ||
+      old.playheadX != playheadX ||
+      old.sections != sections ||
+      old.bars != bars ||
+      old.cues.length != cues.length ||
+      old.generating != generating ||
+      old.lengthSeconds != lengthSeconds ||
+      !_same(old.activeLoop, activeLoop);
+
+  static bool _same(List<bool> a, List<bool> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
@@ -1207,50 +1850,13 @@ class _SectionsPainter extends CustomPainter {
   }
 }
 
-class _WaveformPainter extends CustomPainter {
-  final List<double> peaks;
-  final double progress; // 0.0 - 1.0
 
-  _WaveformPainter({required this.peaks, required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (peaks.isEmpty || size.width <= 0 || size.height <= 0) return;
-
-    final barWidth = size.width / peaks.length;
-    final centerY = size.height / 2;
-    final playedBars = (peaks.length * progress).round();
-
-    final playedPaint = Paint()..color = const Color(0xFFE6E6E6);
-    final remainingPaint = Paint()..color = const Color(0xFF8A8A8F);
-
-    // Deixa 1px de respiro entre as barras quando há espaço -- com barWidth < 1px desenha a barra cheia (um
-    // `clamp(1.0, barWidth)` lançaria ArgumentError: min > max).
-    final rectWidth = barWidth > 1.0 ? barWidth - 1.0 : barWidth;
-    final usable = size.height * 0.8;
-
-    for (var i = 0; i < peaks.length; i++) {
-      final barHeight = math.min(usable, (peaks[i].clamp(0.0, 1.0)) * usable);
-      final left = i * barWidth;
-      final rect = Rect.fromLTWH(left, centerY - barHeight / 2, rectWidth, barHeight);
-      canvas.drawRect(rect, i < playedBars ? playedPaint : remainingPaint);
-    }
-    // Agulha de posição.
-    final x = progress * size.width;
-    canvas.drawRect(Rect.fromLTWH(x - 1, 0, 2, size.height), Paint()..color = Colors.white);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WaveformPainter oldDelegate) {
-    return oldDelegate.peaks != peaks || oldDelegate.progress != progress;
-  }
-}
-
-/// Mixer: canais e buses em faixas verticais roláveis; à direita, automação, laços e o Master (Playback: MixerView com
-/// MixerModeButton, MixerLoopButton e MixerMasterFader).
-class _Mixer extends ConsumerWidget {
+/// Painel de baixo: faixas ou buses (ou a waveform no celular deitado), o console e o Master.
+class _BottomPane extends ConsumerWidget {
   final Track track;
-  const _Mixer({required this.track});
+  final _Pane pane;
+  final bool short;
+  const _BottomPane({required this.track, required this.pane, required this.short});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1258,77 +1864,343 @@ class _Mixer extends ConsumerWidget {
     // Com a automação agindo, os faders mostram os valores que o motor está aplicando.
     final mix = ref.watch(automatedMixProvider);
     final masterVolume = mix?.master ?? track.masterVolume;
-
     return Container(
       color: _bg,
-      padding: const EdgeInsets.fromLTRB(4, 6, 6, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: track.channels.length + track.buses.length,
-              itemBuilder: (context, index) {
-                if (index >= track.channels.length) {
-                  final b = index - track.channels.length;
-                  final bus = track.buses[b];
-                  return _MixerChannelStrip(
-                    index: b,
-                    isBus: true,
-                    label: 'BUS ${bus.name.toUpperCase()}',
-                    color: _textDim,
-                    volume: mix != null && b < mix.busVolumes.length ? mix.busVolumes[b] : bus.volume,
-                    muted: mix != null && b < mix.busMutes.length ? mix.busMutes[b] : bus.muted,
-                    soloed: bus.soloed,
-                    route: bus.route,
-                    onRouteToggled: () => notifier.updateBus(
-                        bus.copyWith(route: ChannelRoute.values[(bus.route.index + 1) % ChannelRoute.values.length])),
-                    onVolumeChanged: (v) => notifier.updateBus(bus.copyWith(volume: v)),
-                    onMuteToggled: () => notifier.updateBus(bus.copyWith(muted: !bus.muted)),
-                    onSoloToggled: () => notifier.toggleBusSolo(bus.id),
-                  );
-                }
-                final channel = track.channels[index];
-                return _MixerChannelStrip(
-                  index: index,
-                  label: channel.label,
-                  color: _colorForChannel(index),
-                  volume: mix != null && index < mix.volumes.length ? mix.volumes[index] : channel.volume,
-                  muted: mix != null && index < mix.mutes.length ? mix.mutes[index] : channel.muted,
-                  soloed: channel.soloed,
-                  route: channel.route,
-                  onRouteToggled: () => notifier.setChannelRoute(
-                      index, ChannelRoute.values[(channel.route.index + 1) % ChannelRoute.values.length]),
-                  onVolumeChanged: (v) => notifier.setChannelVolume(index, v),
-                  onMuteToggled: () => notifier.setChannelMuted(index, !channel.muted),
-                  onSoloToggled: () => notifier.toggleChannelSolo(index),
-                );
-              },
-            ),
-          ),
-          Container(width: 1, color: _border, margin: const EdgeInsets.symmetric(horizontal: 6)),
-          _MixerControls(track: track),
-          const SizedBox(width: 6),
-          _MasterStrip(volume: masterVolume, onChanged: notifier.setMasterVolume),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(4, 8, 6, 6),
+      child: Row(children: [
+        Expanded(
+          child: switch (pane) {
+            _Pane.waveform => LayoutBuilder(
+                builder: (_, c) => _WaveformView(track: track, height: c.maxHeight),
+              ),
+            _Pane.buses => _BusStrips(track: track),
+            _Pane.tracks => _TrackStrips(track: track),
+          },
+        ),
+        const SizedBox(width: 4),
+        _Console(track: track, pane: pane, short: short),
+        const SizedBox(width: 8),
+        _MasterStrip(volume: masterVolume, onChanged: notifier.setMasterVolume),
+      ]),
     );
   }
 }
 
-/// Coluna de controles ao lado do Master: AUTO (automação do mixer), laço da seção atual e laço infinito.
-class _MixerControls extends ConsumerWidget {
+/// Faixas: o click do WTracks (gerado pelo motor) primeiro, com ▶ para abrir as subdivisões (Playback: segurar o fader
+/// do Click abre Acento, 1/4, 1/8 e 1/16), depois os canais da música.
+class _TrackStrips extends ConsumerStatefulWidget {
   final Track track;
-  const _MixerControls({required this.track});
+  const _TrackStrips({required this.track});
+  @override
+  ConsumerState<_TrackStrips> createState() => _TrackStripsState();
+}
+
+class _TrackStripsState extends ConsumerState<_TrackStrips> {
+  bool _subdivisions = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final track = widget.track;
+    final notifier = ref.read(currentTrackProvider.notifier);
+    final mix = ref.watch(automatedMixProvider);
+    final editing = ref.watch(performanceEditProvider);
+    final clickOn = ref.watch(clickEnabledProvider);
+    final click = track.clickSettings;
+    void clickGain(ClickSettings next) => notifier.updateClickSettings(next);
+    final strips = <Widget>[
+      _Strip(
+        label: 'Metrônomo',
+        expandable: true,
+        expanded: _subdivisions,
+        onExpand: () => setState(() => _subdivisions = !_subdivisions),
+        volume: click.volume,
+        max: 2,
+        muted: !clickOn,
+        onMute: () => _setClick(ref, !clickOn),
+        onVolume: (v) => clickGain(click.copyWith(volume: v)),
+      ),
+      if (_subdivisions)
+        for (final (label, value, apply) in <(String, double, ClickSettings Function(double))>[
+          ('Acento', click.accentGain, (v) => click.copyWith(accentGain: v)),
+          ('1/4', click.quarterGain, (v) => click.copyWith(quarterGain: v)),
+          ('1/8', click.eighthGain, (v) => click.copyWith(eighthGain: v)),
+          ('1/16', click.sixteenthGain, (v) => click.copyWith(sixteenthGain: v)),
+        ])
+          _Strip(label: label, volume: value, max: 2, dimLabel: true, onVolume: (v) => clickGain(apply(v))),
+      for (var i = 0; i < track.channels.length; i++)
+        _Strip(
+          key: ValueKey('channel-$i'),
+          label: track.channels[i].label,
+          meter: _ChannelMeter(index: i),
+          volume: mix != null && i < mix.volumes.length ? mix.volumes[i] : track.channels[i].volume,
+          muted: mix != null && i < mix.mutes.length ? mix.mutes[i] : track.channels[i].muted,
+          soloed: track.channels[i].soloed,
+          route: track.channels[i].route,
+          onSolo: () => notifier.toggleChannelSolo(i),
+          onMute: editing
+              ? () => _chooseOutput(context, track.channels[i].label, track.channels[i].route,
+                  (r) => notifier.setChannelRoute(i, r))
+              : () => notifier.setChannelMuted(i, !track.channels[i].muted),
+          onVolume: (v) => notifier.setChannelVolume(i, v),
+        ),
+    ];
+    return LayoutBuilder(builder: (context, c) {
+      // As faixas se alargam até 110 px quando cabem todas (Playback no iPad: ~120 px).
+      final width = (c.maxWidth / strips.length).clamp(66.0, 110.0);
+      return ListView(scrollDirection: Axis.horizontal, children: [for (final s in strips) SizedBox(width: width, child: s)]);
+    });
+  }
+}
+
+class _BusStrips extends ConsumerWidget {
+  final Track track;
+  const _BusStrips({required this.track});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(currentTrackProvider.notifier);
+    final mix = ref.watch(automatedMixProvider);
+    final editing = ref.watch(performanceEditProvider);
+    if (track.buses.isEmpty) {
+      return Center(
+        child: TextButton(
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BusesScreen(trackId: track.id))),
+          child: const Text('Nenhum bus. Criar buses…', style: TextStyle(color: _textDim)),
+        ),
+      );
+    }
+    return LayoutBuilder(builder: (context, c) => ListView(scrollDirection: Axis.horizontal, children: [
+      for (var b = 0; b < track.buses.length; b++)
+        SizedBox(width: (c.maxWidth / track.buses.length).clamp(66.0, 110.0), child:
+        _Strip(
+          key: ValueKey('bus-${track.buses[b].id}'),
+          label: track.buses[b].name,
+          meter: _ChannelMeter(index: b, isBus: true),
+          volume: mix != null && b < mix.busVolumes.length ? mix.busVolumes[b] : track.buses[b].volume,
+          muted: mix != null && b < mix.busMutes.length ? mix.busMutes[b] : track.buses[b].muted,
+          soloed: track.buses[b].soloed,
+          route: track.buses[b].route,
+          onSolo: () => notifier.toggleBusSolo(track.buses[b].id),
+          onMute: editing
+              ? () => _chooseOutput(context, track.buses[b].name, track.buses[b].route,
+                  (r) => notifier.updateBus(track.buses[b].copyWith(route: r)))
+              : () => notifier.updateBus(track.buses[b].copyWith(muted: !track.buses[b].muted)),
+          onVolume: (v) => notifier.updateBus(track.buses[b].copyWith(volume: v)),
+        )),
+    ]));
+  }
+}
+
+/// Saída de uma faixa ou bus (Playback: no modo de edição, tocar no nome abre "Select Output").
+Future<void> _chooseOutput(BuildContext context, String name, ChannelRoute current, ValueChanged<ChannelRoute> apply) async {
+  final choice = await showDialog<ChannelRoute>(
+    context: context,
+    builder: (ctx) => _SheetDialog(title: 'Saída: $name', children: [
+      _SheetSection(children: [
+        for (final (route, label) in const [
+          (ChannelRoute.stereo, 'Estéreo'),
+          (ChannelRoute.left, 'Esquerda (mono)'),
+          (ChannelRoute.right, 'Direita (mono)'),
+        ])
+          _SheetRow(
+            label: label,
+            onTap: () => Navigator.of(ctx).pop(route),
+            trailing: Icon(route == current ? Icons.check : null, color: const Color(0xFF0A84FF), size: 20),
+          ),
+      ]),
+    ]),
+  );
+  if (choice != null) apply(choice);
+}
+
+/// Faixa do mixer (Playback: "S" no alto, fader com traços dos dois lados e tampa com linha ciano, medidor fino à
+/// esquerda e o nome embaixo; tocar no nome muta).
+class _Strip extends StatelessWidget {
+  final String label;
+  final double volume, max;
+  final bool muted, soloed, expandable, expanded, dimLabel;
+  final ChannelRoute route;
+  final Widget? meter;
+  final VoidCallback? onSolo, onMute, onExpand;
+  final ValueChanged<double> onVolume;
+  const _Strip({
+    super.key,
+    required this.label,
+    required this.volume,
+    this.max = 1,
+    this.muted = false,
+    this.soloed = false,
+    this.expandable = false,
+    this.expanded = false,
+    this.dimLabel = false,
+    this.route = ChannelRoute.stereo,
+    this.meter,
+    this.onSolo,
+    this.onMute,
+    this.onExpand,
+    required this.onVolume,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final routeMark = switch (route) { ChannelRoute.stereo => '', ChannelRoute.left => ' · E', ChannelRoute.right => ' · D' };
+    return SizedBox(
+      child: Column(children: [
+        SizedBox(
+          height: 26,
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (onSolo != null)
+              Tooltip(
+                message: 'Solo $label',
+                child: GestureDetector(
+                  onTap: onSolo,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: soloed ? kStageYellow : const Color(0xFF2B2D2E),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text('S', style: TextStyle(color: soloed ? Colors.black : const Color(0xFF8E9091), fontSize: 11)),
+                  ),
+                ),
+              ),
+                      const SizedBox(width: 30),
+          ]),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            SizedBox(width: 3, child: meter ?? const SizedBox()),
+            const SizedBox(width: 4),
+            SizedBox(width: 50, child: _Fader(value: volume, max: max, muted: muted, onChanged: onVolume)),
+            const SizedBox(width: 7),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Tooltip(
+          message: onMute == null ? label : 'Mutar $label',
+          child: InkWell(
+            onTap: onMute,
+            child: SizedBox(
+              height: 24,
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Flexible(
+                  child: Text(
+                    '$label$routeMark',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: muted ? kStageRed : (dimLabel ? _textFaint : _text),
+                      fontSize: 12,
+                      decoration: muted ? TextDecoration.lineThrough : null,
+                      decorationColor: kStageRed,
+                    ),
+                  ),
+                ),
+                if (expandable)
+                  GestureDetector(
+                    onTap: onExpand,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 3),
+                      child: Icon(expanded ? Icons.arrow_left : Icons.arrow_right, size: 16, color: _textFaint),
+                    ),
+                  ),
+              ]),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Fader vertical com traços dos dois lados e tampa escura com a linha ciano (Playback: MixerTrackFaderCapView).
+/// Muda só arrastando (Playback: "press and hold any fader"), para um toque acidental não mexer no volume.
+class _Fader extends StatelessWidget {
+  final double value, max;
+  final bool muted;
+  final ValueChanged<double> onChanged;
+  const _Fader({super.key, required this.value, this.max = 1, this.muted = false, required this.onChanged});
+
+  static const capHeight = 30.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final travel = math.max(1.0, c.maxHeight - capHeight);
+      return Semantics(
+        slider: true,
+        value: '${(value / max * 100).round()}%',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragUpdate: (d) => onChanged((value - d.delta.dy / travel * max).clamp(0.0, max)),
+          child: CustomPaint(
+            size: Size(c.maxWidth, c.maxHeight),
+            painter: _FaderPainter(fraction: (value / max).clamp(0.0, 1.0), muted: muted),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _FaderPainter extends CustomPainter {
+  final double fraction;
+  final bool muted;
+  const _FaderPainter({required this.fraction, required this.muted});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const capH = _Fader.capHeight;
+    final cx = size.width / 2;
+    final travel = size.height - capH;
+    // Traços dos dois lados do trilho.
+    final tick = Paint()..color = kStageTick;
+    const ticks = 11;
+    for (var i = 0; i <= ticks; i++) {
+      final y = capH / 2 + travel * i / ticks;
+      canvas.drawRect(Rect.fromLTWH(cx - 22, y, 12, 1), tick);
+      canvas.drawRect(Rect.fromLTWH(cx + 10, y, 12, 1), tick);
+    }
+    // Trilho (fenda preta).
+    canvas.drawRRect(RRect.fromLTRBR(cx - 2.5, capH / 2, cx + 2.5, size.height - capH / 2, const Radius.circular(2)),
+        Paint()..color = Colors.black);
+    // Tampa.
+    final top = travel * (1 - fraction);
+    final cap = RRect.fromLTRBR(cx - 22, top, cx + 22, top + capH, const Radius.circular(3));
+    canvas.drawRRect(cap, Paint()..color = const Color(0xFF111415));
+    final groove = Paint()..color = const Color(0xFF1E2224);
+    for (var y = top + 5; y < top + capH - 3; y += 4) {
+      canvas.drawRect(Rect.fromLTWH(cx - 19, y, 38, 1), groove);
+    }
+    canvas.drawRRect(cap, Paint()
+      ..style = PaintingStyle.stroke
+      ..color = const Color(0xFF2E3234));
+    canvas.drawRect(Rect.fromLTWH(cx - 17, top + capH / 2 - 1, 34, 2), Paint()..color = muted ? _textFaint : _accent);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FaderPainter old) => old.fraction != fraction || old.muted != muted;
+}
+
+/// Console entre as faixas e o Master (Playback: alternar painel, MUTE MIDI, Laço e Laço infinito). AUTO (automação
+/// do mixer) é do WTracks.
+class _Console extends ConsumerWidget {
+  final Track track;
+  final _Pane pane;
+  final bool short;
+  const _Console({required this.track, required this.pane, required this.short});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sections = track.sections;
     // Só reconstrói quando a seção sob a agulha ou o estado do laço muda, não a cada tick de posição.
-    final at = ref.watch(transportProvider.select((t) => sections.indexWhere(
-        (s) => t.positionSeconds >= s.playStart && t.positionSeconds < s.playEnd)));
+    final at = ref.watch(transportProvider.select((t) =>
+        sections.indexWhere((s) => t.positionSeconds >= s.playStart && t.positionSeconds < s.playEnd)));
     final loopEnabled = ref.watch(transportProvider.select((t) => t.loopEnabled));
     final repeats = ref.watch(transportProvider.select((t) => t.loopRepeats));
+    final midiMuted = ref.watch(midiCuesMutedProvider);
     final section = at >= 0 ? sections[at] : null;
     final transport = ref.read(transportProvider.notifier);
     final trackNotifier = ref.read(currentTrackProvider.notifier);
@@ -1341,50 +2213,69 @@ class _MixerControls extends ConsumerWidget {
       }
     }
 
-    // "Laço": usa as repetições da própria seção; "Laço infinito": repete até soltar (escolha própria de mapeamento
-    // para MixerLoopButton / "Inf Loop").
+    // Laço: arma uma repetição da seção atual (duas passagens), depois a música segue; laço infinito: repete até
+    // tocar de novo (Playback: Loop / Infinite Loop).
     final finite = loopEnabled && repeats > 0;
     final infinite = loopEnabled && repeats == 0;
-    Widget cell(Widget child) => SizedBox(width: 52, height: 36, child: child);
+    final panes = [_Pane.tracks, _Pane.buses, if (short) _Pane.waveform];
+    Widget cell(Widget child, {Key? key}) => SizedBox(key: key, width: 60, height: short ? 38 : 50, child: child);
     return SizedBox(
-      width: 52,
+      width: 60,
       child: SingleChildScrollView(
         child: Column(children: [
+          cell(_BarButton(
+            tooltip: switch (pane) {
+              _Pane.tracks => 'Faixas (toque para buses)',
+              _Pane.buses => short ? 'Buses (toque para a waveform)' : 'Buses (toque para faixas)',
+              _Pane.waveform => 'Waveform (toque para faixas)',
+            },
+            onTap: () => ref.read(_paneProvider.notifier).state = panes[(panes.indexOf(pane) + 1) % panes.length],
+            child: Icon(
+                switch (pane) { _Pane.tracks => Icons.tune, _Pane.buses => Icons.call_split, _Pane.waveform => Icons.graphic_eq },
+                color: _textDim, size: 24),
+          )),
+          const SizedBox(height: 8),
+          cell(_BarButton(
+            tooltip: midiMuted ? 'Reativar MIDI' : 'Silenciar gatilhos MIDI',
+            highlighted: midiMuted,
+            onTap: () => ref.read(midiCuesMutedProvider.notifier).set(!midiMuted),
+            child: Text('MUTE\nMIDI',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: midiMuted ? kStageRed : _textFaint, fontSize: 10, height: 1.2, letterSpacing: 0.5)),
+          )),
+          const SizedBox(height: 8),
+          cell(_BarButton(
+            tooltip: finite ? 'Desativar loop' : 'Repetir seção atual',
+            highlighted: finite,
+            onTap: finite ? () => transport.disableLoop() : (section == null ? null : () => loop(section.copyWith(loopCount: 2))),
+            child: SizedBox(
+                width: 30,
+                height: 20,
+                child: CustomPaint(painter: _LoopIconPainter(finite ? kStageGreen : (section == null ? _border : _textFaint)))),
+          )),
+          const SizedBox(height: 8),
+          cell(_BarButton(
+            tooltip: infinite ? 'Desativar loop' : 'Laço infinito na seção atual',
+            highlighted: infinite,
+            onTap: infinite ? () => transport.disableLoop() : (section == null ? null : () => loop(section.copyWith(loopCount: 0))),
+            child: SizedBox(
+                width: 30,
+                height: 20,
+                child: CustomPaint(
+                    painter: _LoopIconPainter(infinite ? kStageGreen : (section == null ? _border : _textFaint), infinite: true))),
+          )),
           if (track.mixerAutomation.isNotEmpty) ...[
-            SizedBox(
+            const SizedBox(height: 8),
+            cell(
               key: const Key('transport-automation'),
-              width: 52,
-              height: 36,
-              child: _SquareButton(
+              _BarButton(
                 tooltip: 'Automação do mixer',
-                active: track.automationEnabled,
+                highlighted: track.automationEnabled,
                 onTap: () => trackNotifier.setAutomationEnabled(!track.automationEnabled),
-                child: Text('AUTO',
-                    style: TextStyle(
-                        color: track.automationEnabled ? kStageGreen : _textFaint,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600)),
+                child: Text('AUTO', style: TextStyle(color: track.automationEnabled ? kStageGreen : _textFaint, fontSize: 11)),
               ),
             ),
-            const SizedBox(height: 6),
           ],
-          cell(_SquareButton(
-            tooltip: finite ? 'Desativar loop' : 'Repetir seção atual',
-            active: finite,
-            onTap: finite
-                ? () => transport.disableLoop()
-                : (section == null ? null : () => loop(section)),
-            child: Icon(Icons.repeat, size: 20, color: finite ? kStageGreen : (section == null ? _border : _textDim)),
-          )),
-          const SizedBox(height: 6),
-          cell(_SquareButton(
-            tooltip: infinite ? 'Desativar loop' : 'Laço infinito na seção atual',
-            active: infinite,
-            onTap: infinite
-                ? () => transport.disableLoop()
-                : (section == null ? null : () => loop(section.copyWith(loopCount: 0))),
-            child: Icon(Icons.all_inclusive, size: 20, color: infinite ? kStageGreen : (section == null ? _border : _textDim)),
-          )),
         ]),
       ),
     );
@@ -1399,226 +2290,19 @@ class _MasterStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 64,
+      width: 72,
       child: Column(children: [
         Expanded(
           child: Row(children: [
             const _MasterMeter(),
-            Expanded(
-              child: _Fader(
-                key: const Key('master-volume'),
-                value: volume.clamp(0.0, 2.0),
-                max: 2,
-                color: _accent,
-                onChanged: onChanged,
-              ),
-            ),
+            Expanded(child: _Fader(key: const Key('master-volume'), value: volume.clamp(0.0, 2.0), max: 2, onChanged: onChanged)),
           ]),
         ),
-        const Text('Master', style: TextStyle(color: _text, fontSize: 11)),
+        const SizedBox(height: 4),
+        const Text('Master', style: TextStyle(color: _text, fontSize: 12)),
         Text('${(volume * 100).round()}%',
-            style: const TextStyle(color: _textFaint, fontSize: 10, fontFeatures: [FontFeature.tabularFigures()])),
+            style: const TextStyle(color: _textFaint, fontSize: 9, fontFeatures: [FontFeature.tabularFigures()])),
       ]),
-    );
-  }
-}
-
-/// Fader vertical com tampa (Playback: MixerTrackFaderCapView): trilho fino e tampa escura com a linha na cor do
-/// canal.
-class _Fader extends StatelessWidget {
-  final double value, max;
-  final Color color;
-  final ValueChanged<double> onChanged;
-  const _Fader({super.key, required this.value, this.max = 1, required this.color, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return RotatedBox(
-      quarterTurns: 3,
-      child: SliderTheme(
-        data: SliderTheme.of(context).copyWith(
-          trackHeight: 2,
-          activeTrackColor: color.withValues(alpha: 0.55),
-          inactiveTrackColor: _border,
-          thumbShape: _FaderCapShape(color),
-          overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-          overlayColor: color.withValues(alpha: 0.12),
-        ),
-        child: Slider(value: value, max: max, onChanged: onChanged),
-      ),
-    );
-  }
-}
-
-class _FaderCapShape extends SliderComponentShape {
-  final Color line;
-  const _FaderCapShape(this.line);
-
-  // No sistema do slider (horizontal, antes da rotação): estreita ao longo do trilho, larga atravessando.
-  static const _size = Size(14, 28);
-
-  @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) => _size;
-
-  @override
-  void paint(PaintingContext context, Offset center,
-      {required Animation<double> activationAnimation,
-      required Animation<double> enableAnimation,
-      required bool isDiscrete,
-      required TextPainter labelPainter,
-      required RenderBox parentBox,
-      required SliderThemeData sliderTheme,
-      required TextDirection textDirection,
-      required double value,
-      required double textScaleFactor,
-      required Size sizeWithOverflow}) {
-    final canvas = context.canvas;
-    final rect = Rect.fromCenter(center: center, width: _size.width, height: _size.height);
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), Paint()..color = const Color(0xFF3A3B40));
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..color = const Color(0xFF55565C));
-    canvas.drawRect(Rect.fromCenter(center: center, width: 2, height: _size.height - 6), Paint()..color = line);
-  }
-}
-
-const _channelPalette = [
-  Color(0xFFFF3B4E),
-  Color(0xFFFFC107),
-  Color(0xFFF5A020),
-  Color(0xFFA78BFA),
-  Color(0xFF00C896),
-  Color(0xFF5B7CF5),
-  Color(0xFFF03060),
-  Color(0xFF00E5FF),
-];
-
-Color _colorForChannel(int index) => _channelPalette[index % _channelPalette.length];
-
-class _MixerChannelStrip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final double volume; // 0.0 - 1.0
-  final int index; // canal (ou bus) no motor (medidor)
-  final bool isBus;
-  final bool muted;
-  final bool soloed;
-  final ChannelRoute route;
-  final VoidCallback onRouteToggled;
-  final ValueChanged<double> onVolumeChanged;
-  final VoidCallback onMuteToggled;
-  final VoidCallback onSoloToggled;
-
-  const _MixerChannelStrip({
-    required this.label,
-    required this.color,
-    required this.volume,
-    required this.index,
-    this.isBus = false,
-    required this.muted,
-    required this.soloed,
-    required this.route,
-    required this.onRouteToggled,
-    required this.onVolumeChanged,
-    required this.onMuteToggled,
-    required this.onSoloToggled,
-  });
-
-  String get _volumeLabel {
-    if (volume >= 0.995) return '0 dB';
-    if (volume <= 0.005) return '-∞';
-    final db = ((volume - 1.0) * 60).round();
-    return '$db dB';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final labelColor = muted ? _textFaint : _textDim;
-    return Container(
-      width: 60,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        color: isBus ? const Color(0xFF101114) : null,
-        border: const Border(right: BorderSide(color: Color(0xFF16171A))),
-      ),
-      child: Column(
-        children: [
-          _RoundToggle(label: 'S', active: soloed, activeColor: kStageYellow, onTap: onSoloToggled),
-          Expanded(
-            child: Row(children: [
-              const SizedBox(width: 4),
-              _ChannelMeter(index: index, isBus: isBus),
-              Expanded(
-                child: _Fader(
-                  value: volume.clamp(0.0, 1.0),
-                  color: muted ? _textFaint : _accent,
-                  onChanged: onVolumeChanged,
-                ),
-              ),
-            ]),
-          ),
-          Text(_volumeLabel,
-              style: TextStyle(color: labelColor, fontSize: 9, fontFeatures: const [FontFeature.tabularFigures()])),
-          const SizedBox(height: 3),
-          _MixerToggleButton(label: 'M', active: muted, activeColor: kStageRed, onTap: onMuteToggled, height: 22),
-          const SizedBox(height: 3),
-          _MixerToggleButton(
-            label: switch (route) { ChannelRoute.stereo => 'ST', ChannelRoute.left => 'L', ChannelRoute.right => 'R' },
-            active: route != ChannelRoute.stereo,
-            activeColor: kStageBlue,
-            onTap: onRouteToggled,
-            height: 20,
-          ),
-          const SizedBox(height: 3),
-          Row(children: [
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(left: 2, right: 3),
-              decoration: BoxDecoration(color: muted ? _border : color, shape: BoxShape.circle),
-            ),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: muted ? _textFaint : _text, fontSize: 10),
-              ),
-            ),
-          ]),
-        ],
-      ),
-    );
-  }
-}
-
-/// Botão redondo de solo no topo da faixa (Playback: "S" sobre o fader).
-class _RoundToggle extends StatelessWidget {
-  final String label;
-  final bool active;
-  final Color activeColor;
-  final VoidCallback onTap;
-  const _RoundToggle({required this.label, required this.active, required this.activeColor, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: active ? activeColor : _button,
-      shape: CircleBorder(side: BorderSide(color: active ? activeColor : _border)),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: Center(
-            child: Text(label,
-                style: TextStyle(color: active ? Colors.black : _textFaint, fontSize: 10, fontWeight: FontWeight.w700)),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1635,10 +2319,10 @@ class _MeterBar extends StatelessWidget {
         ? kStageRed
         : level >= 48 / 60
             ? kStageYellow
-            : kStageGreen;
+            : kStageMeterGreen;
     return Container(
       width: thickness,
-      color: const Color(0xFF1A1B1E),
+      color: Colors.black,
       child: FractionallySizedBox(
         alignment: Alignment.bottomCenter,
         heightFactor: level.clamp(0.0, 1.0),
@@ -1659,7 +2343,7 @@ class _ChannelMeter extends ConsumerWidget {
       return index < levels.length ? levels[index] : 0.0;
     }));
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: _Fader.capHeight / 2),
       child: _MeterBar(key: Key(isBus ? 'meter-bus-$index' : 'meter-$index'), level: level),
     );
   }
@@ -1672,58 +2356,12 @@ class _MasterMeter extends ConsumerWidget {
     final outputs = ref.watch(meterProvider.select((m) => m.outputs));
     double at(int i) => i < outputs.length ? outputs[i] : 0.0;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: _Fader.capHeight / 2),
       child: Row(children: [
         _MeterBar(key: const Key('meter-master-l'), level: at(0), thickness: 4),
-        const SizedBox(width: 2),
+        const SizedBox(width: 4),
         _MeterBar(key: const Key('meter-master-r'), level: at(1), thickness: 4),
       ]),
-    );
-  }
-}
-
-class _MixerToggleButton extends StatelessWidget {
-  final String label;
-  final bool active;
-  final Color activeColor;
-  final VoidCallback onTap;
-  final double height;
-
-  const _MixerToggleButton({
-    required this.label,
-    required this.active,
-    required this.activeColor,
-    required this.onTap,
-    this.height = 26,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: active ? activeColor : _button,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: BorderSide(color: active ? activeColor : _border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: SizedBox(
-          width: 48,
-          height: height,
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? Colors.white : _textDim,
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

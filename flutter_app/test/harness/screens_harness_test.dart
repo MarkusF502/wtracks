@@ -121,14 +121,18 @@ void main() {
       final bg = mockBackgroundChannel();
       await pumpScreen(tester, const PerformanceScreen(), size: portrait, engine: engine, loaded: tracks[0]);
 
-      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.tap(find.byTooltip('Tocar'));
       await tester.pump(const Duration(milliseconds: 200));
       expect(engine.calls, contains('play'));
-      expect(find.byIcon(Icons.pause), findsOneWidget);
+      expect(find.byTooltip('Pausar'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.stop));
+      await tester.tap(find.byTooltip('Voltar ao início'));
       await tester.pump(const Duration(milliseconds: 200));
-      expect(engine.calls, contains('stop'));
+      expect(engine.calls, contains('seek(0.0)'));
+
+      await tester.tap(find.byTooltip('Pausar'));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(engine.calls, contains('pause'));
       expect(bg.map((c) => c.method), ['requestNotificationPermission', 'start', 'stop']);
       await unmount(tester);
     });

@@ -72,7 +72,9 @@ class LibraryScreen extends ConsumerWidget {
       // (mesmo fluxo de antes) -- só refletimos isso navegando pra
       // performance e deixando o usuário decidir se quer salvar.
       if (!context.mounted) return;
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PerformanceScreen()));
+      // O Playback é uma tela só: a performance vira a raiz e biblioteca/setlists abrem por cima dela.
+      Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const PerformanceScreen()), (_) => false);
     }
   }
 

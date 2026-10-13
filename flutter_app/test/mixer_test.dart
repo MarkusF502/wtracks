@@ -81,19 +81,34 @@ void main() {
 
   group('PerformanceScreen mixer', () {
     for (final (label, size) in [('retrato', portrait), ('paisagem', landscape)]) {
-      testWidgets('route button cycles ST -> L -> R and the master slider reaches the engine ($label)', (tester) async {
+      testWidgets('name tap mutes, edit mode picks the output, and the master fader reaches the engine ($label)', (tester) async {
         final engine = FakeEngine();
         final c = await pumpScreen(tester, const PerformanceScreen(), size: size, engine: engine, loaded: sampleTrack());
-        await tester.ensureVisible(find.text('ST').first);
-        await tester.tap(find.text('ST').first);
+        if (size == landscape) {
+          await tester.tap(find.byTooltip('Waveform (toque para faixas)')); // celular deitado começa na waveform
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        // Fora do modo de edição, tocar no nome muta; no modo de edição, escolhe a saída (Playback: "Select Output").
+        await tester.tap(find.byTooltip('Mutar Click'));
         await tester.pump(const Duration(milliseconds: 100));
-        expect(engine.routes[0], ChannelRoute.left);
-        await tester.tap(find.text('L').first);
+        expect(c.read(currentTrackProvider)!.channels[0].muted, true);
+        await tester.tap(find.byTooltip('Editar (segure para outros modos)'));
         await tester.pump(const Duration(milliseconds: 100));
-        expect(engine.routes[0], ChannelRoute.right);
-        await tester.tap(find.text('R').first);
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(engine.routes[0], ChannelRoute.stereo);
+        for (final (label, route) in [
+          ('Esquerda (mono)', ChannelRoute.left),
+          ('Direita (mono)', ChannelRoute.right),
+          ('Estéreo', ChannelRoute.stereo),
+        ]) {
+          await tester.tap(find.byTooltip('Mutar Click'));
+          for (var i = 0; i < 6; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          await tester.tap(find.text(label));
+          for (var i = 0; i < 6; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(engine.routes[0], route);
+        }
         await tester.drag(find.byKey(const Key('master-volume')), const Offset(0, 40));
         await tester.pump(const Duration(milliseconds: 100));
         expect(engine.masterVolume, lessThan(1));

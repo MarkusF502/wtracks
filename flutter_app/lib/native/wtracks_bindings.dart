@@ -279,6 +279,7 @@ class WTracksEngine {
   late final _VoidFnDart _midiClose;
   late final _BoolFnDart _midiIsOpen;
   late final _SetClickEnabledDart _setMidiClockEnabled;
+  late final _SetClickEnabledDart _setMidiCuesMuted;
   late final _SendMidiDart _sendMidi;
   late final _ConfigureCuesDart _configureCues;
   late final _PollCuesDart _pollCues;
@@ -426,6 +427,7 @@ class WTracksEngine {
     _midiClose = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_output');
     _midiIsOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_midi_output_open');
     _setMidiClockEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_midi_clock_enabled');
+    _setMidiCuesMuted = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_midi_cues_muted');
     _sendMidi = _lib.lookupFunction<_SendMidiNative, _SendMidiDart>('wtracks_send_midi');
     _configureCues = _lib.lookupFunction<_ConfigureCuesNative, _ConfigureCuesDart>('wtracks_configure_cues');
     _pollCues = _lib.lookupFunction<_PollCuesNative, _PollCuesDart>('wtracks_poll_cues');
@@ -659,6 +661,9 @@ class WTracksEngine {
   void closeMidiOutput() => _midiClose();
   bool get midiOutputOpen => _midiIsOpen();
   void setMidiClockEnabled(bool enabled) => _setMidiClockEnabled(enabled);
+
+  /// Console MUTE MIDI: suspende os gatilhos MIDI (notas presas são soltas).
+  void setMidiCuesMuted(bool muted) => _setMidiCuesMuted(muted);
   int get midiDroppedCount => _midiDropped();
 
   bool sendMidi(List<int> bytes) {

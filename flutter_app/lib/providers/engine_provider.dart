@@ -104,6 +104,18 @@ final midiControllerProvider = NotifierProvider<MidiController, MidiState>(MidiC
 /// Click ligado no transporte (o motor guarda o estado; aqui fica a interface).
 final clickEnabledProvider = StateProvider<bool>((ref) => false);
 
+/// Console "MUTE MIDI": gatilhos MIDI suspensos (o estado vale para a sessão, não é salvo -- escolha própria).
+class MidiCuesMutedNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool muted) {
+    ref.read(engineProvider).setMidiCuesMuted(muted);
+    state = muted;
+  }
+}
+
+final midiCuesMutedProvider = NotifierProvider<MidiCuesMutedNotifier, bool>(MidiCuesMutedNotifier.new);
+
 /// Última automação entregue pelo motor (para a interface mostrar).
 final firedAutomationProvider = StateProvider<AutomationCue?>((ref) => null);
 
@@ -1283,6 +1295,37 @@ class SetlistSessionNotifier extends Notifier<SetlistSession?> {
     final ok = await ref.read(currentTrackProvider.notifier).load(track);
     if (ok && identical(state, session)) state = SetlistSession(session.setlist, index);
     return ok;
+  }
+
+  /// Edição da setlist em execução (Playback: modo de edição do repertório). Persiste a setlist e mantém a música atual
+  /// selecionada; a atual não pode ser removida (escolha própria).
+  Future<bool> _replaceTracks(List<Track> tracks) async {
+    final session = state;
+    if (session == null) return false;
+    final current = session.current.id;
+    final index = tracks.indexWhere((t) => t.id == current);
+    if (index < 0) return false;
+    final updated = session.setlist.copyWith(tracks: List.unmodifiable(tracks));
+    await ref.read(persistenceServiceProvider).saveSetlist(updated);
+    ref.read(setlistLibraryProvider.notifier).syncSetlist(updated);
+    if (identical(state, session)) state = SetlistSession(updated, index);
+    return true;
+  }
+
+  /// Insere [track] na posição [index] (0..n); músicas repetidas não entram.
+  Future<bool> insertTrack(int index, Track track) {
+    final session = state;
+    if (session == null || session.setlist.tracks.any((t) => t.id == track.id)) return Future.value(false);
+    final tracks = [...session.setlist.tracks]..insert(index.clamp(0, session.setlist.tracks.length), track);
+    return _replaceTracks(tracks);
+  }
+
+  Future<bool> removeAt(int index) {
+    final session = state;
+    if (session == null || index == session.index || index < 0 || index >= session.setlist.tracks.length) {
+      return Future.value(false);
+    }
+    return _replaceTracks([...session.setlist.tracks]..removeAt(index));
   }
 
   Future<bool> next() => go((state?.index ?? -2) + 1);

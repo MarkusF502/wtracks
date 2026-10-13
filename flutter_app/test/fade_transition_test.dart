@@ -130,14 +130,16 @@ void main() {
     c.read(setlistSessionProvider.notifier).begin(Setlist(id: 's', name: 'S', tracks: tracks), 0);
     await tester.pumpWidget(UncontrolledProviderScope(container: c, child: const MaterialApp(home: PerformanceScreen())));
     await tester.pump(const Duration(milliseconds: 150));
-    expect(find.text('Próxima: Segunda'), findsOneWidget);
-    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text('Primeira (G)'), findsOneWidget); // a faixa da setlist mostra as duas músicas
+    expect(find.text('Segunda (G)'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Fade de 5 segundos'));
     await tester.pump(const Duration(milliseconds: 150));
     expect(engine.calls, contains('fadeOut(5.0)'));
 
     await tester.tap(find.byTooltip('Mais'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar música…'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fim da música e fade'));
     for (var i = 0; i < 10; i++) {
