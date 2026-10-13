@@ -80,6 +80,10 @@ WTRACKS_API bool wtracks_configure_cues(const double* times, const uint8_t* midi
 WTRACKS_API int wtracks_poll_cues(uint32_t* out, int maxCount);
 WTRACKS_API uint64_t wtracks_get_midi_dropped();
 
+// Linear timecode (rateIndex 0..10 per the Playback rate table), written to one output channel after the master stage.
+WTRACKS_API bool wtracks_configure_timecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain);
+WTRACKS_API void wtracks_set_timecode_enabled(bool enabled);
+
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
 WTRACKS_API void wtracks_set_guides_enabled(bool enabled);

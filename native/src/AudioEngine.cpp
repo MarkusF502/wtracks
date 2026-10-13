@@ -478,6 +478,7 @@ void AudioEngine::applyClickScale()
 {
     // Caller holds channelsLock. Beats are laid out on the processed timeline.
     clickTimeline.bpm=userClickBpm/timeScale; clickTimeline.offset=userClickOffset*timeScale; clickTimeline.reset();
+    timecode.onsetSeconds=userTimecodeOnset*timeScale; timecode.reset();
     midiClock.bpm=clickTimeline.bpm; midiClock.offset=clickTimeline.offset; midiClock.bpmUnit=clickTimeline.bpmUnit;
 }
 
@@ -524,6 +525,19 @@ bool AudioEngine::loadClickBank(const std::array<juce::String,4>& paths)
 }
 
 void AudioEngine::setGuidesEnabled(bool enabled) { guidesEnabled=enabled; }
+
+bool AudioEngine::configureTimecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain)
+{
+    if (!TimecodeGenerator::valid(rateIndex,startFrame,onsetSeconds,gain) || outputChannel < 0 || outputChannel > 63) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid timecode configuration"); return false;
+    }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    timecode.rateIndex=rateIndex; timecode.startFrame=startFrame; timecode.gain=gain; userTimecodeOnset=onsetSeconds;
+    timecode.onsetSeconds=onsetSeconds*timeScale; timecodeOutput=outputChannel; timecode.reset();
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
+void AudioEngine::setTimecodeEnabled(bool enabled) { timecodeEnabled=enabled; }
 
 bool AudioEngine::configureGuides(const double* times, const char** paths, const float* gains, int count)
 {
@@ -705,6 +719,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 
         scratchBuffer.setSize(2, samplesPerBlockExpected);
         guideScratch.setSize(1,samplesPerBlockExpected);
+        timecodeScratch.setSize(1,samplesPerBlockExpected);
 
         for (auto& channel : channels)
             if (channel.resampler != nullptr)
@@ -792,6 +807,10 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         });
         masterRamp.set(masterVolume);
         applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
+        if (timecodeEnabled.load() && timecodeOutput < info.buffer->getNumChannels()) {  // after the master stage: timecode keeps its own level
+            timecodeScratch.clear(); timecode.render(timecodeScratch.getWritePointer(0),count,position,currentSampleRate);
+            info.buffer->addFrom(timecodeOutput,info.startSample+written,timecodeScratch,0,0,count);
+        }
         currentSamplePosition=position+count; written+=count;
         normalizeLoopPosition();
         if (!loopEnabled && position+count >= end) { currentSamplePosition=end; playing=false; break; }

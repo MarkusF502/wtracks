@@ -12,6 +12,7 @@
 #include "MidiClock.h"
 #include "CueTimeline.h"
 #include "MidiRouter.h"
+#include "Timecode.h"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -103,6 +104,10 @@ public:
     bool configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count);
     int pollCues(uint32_t* out, int maxCount);
     uint64_t getMidiDroppedCount() const;
+    // Linear timecode on one output channel (0 = first). Runs in real time on the processed timeline at the nominal rate;
+    // `onsetSeconds` is song time. Independent of mute, solo and master volume. See Timecode.h.
+    bool configureTimecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain);
+    void setTimecodeEnabled(bool enabled);
     bool configureGuides(const double* times, const char** paths, const float* gains, int count);
     void setGuidesEnabled(bool enabled);
 
@@ -151,6 +156,11 @@ private:
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
     GainRamp masterRamp;
+    TimecodeGenerator timecode;
+    juce::AudioBuffer<float> timecodeScratch;
+    std::atomic<bool> timecodeEnabled { false };
+    int timecodeOutput = 1;
+    double userTimecodeOnset = 0.0;
     MidiClockTimeline midiClock;
     CueTimeline cueTimeline;
     MidiRouter midiRouter;

@@ -199,6 +199,14 @@ bool wtracks_configure_cues(const double* times, const uint8_t* midiBytes, const
 int wtracks_poll_cues(uint32_t* out, int maxCount) { return engine ? engine->pollCues(out, maxCount) : 0; }
 uint64_t wtracks_get_midi_dropped() { return engine ? engine->getMidiDroppedCount() : 0; }
 
+bool wtracks_configure_timecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return engine ? engine->configureTimecode(rateIndex, startFrame, onsetSeconds, outputChannel, gain) : false;
+}
+
+void wtracks_set_timecode_enabled(bool enabled) { if (engine) engine->setTimecodeEnabled(enabled); }
+
 bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
