@@ -55,6 +55,9 @@ WTRACKS_API bool wtracks_is_playing();
 WTRACKS_API void wtracks_set_channel_volume(int channelIndex, float volume);
 WTRACKS_API void wtracks_set_channel_muted(int channelIndex, bool muted);
 WTRACKS_API int wtracks_get_channel_count();
+// Output base channel and mono flag (BusChannel contract): stereo = base, base+1; mono = (L+R)/2 -> base.
+WTRACKS_API bool wtracks_set_channel_route(int channelIndex, int outputBase, bool mono);
+WTRACKS_API void wtracks_set_master_volume(float volume);
 
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);

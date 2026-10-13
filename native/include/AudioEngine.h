@@ -7,6 +7,7 @@
 #include <atomic>
 #include "ClickTimeline.h"
 #include "GuideTimeline.h"
+#include "MixerStage.h"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -29,7 +30,8 @@ struct Channel
     double fileSampleRate = 44100.0;
     float volume = 1.0f;
     bool muted = false;
-    int outputBus = 0;
+    GainRamp ramp;
+    ChannelRoute route;
 };
 
 class AudioEngine : public juce::AudioSource
@@ -67,6 +69,8 @@ public:
 
     void setChannelVolume(int channelIndex, float volume);
     void setChannelMuted(int channelIndex, bool muted);
+    bool setChannelRoute(int channelIndex, int outputBase, bool mono);
+    void setMasterVolume(float volume);
     int getChannelCount() const;
 
     void setClickEnabled(bool enabled);
@@ -120,6 +124,8 @@ private:
     int preparedBlockSize = 0;
     double preparedSampleRate = 44100.0;
 
+    float masterVolume = 1.0f;
+    GainRamp masterRamp;
     GuideTimeline guideTimeline;
     juce::AudioBuffer<float> guideScratch;
     std::atomic<bool> guidesEnabled { false };

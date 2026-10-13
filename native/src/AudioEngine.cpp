@@ -387,6 +387,22 @@ void AudioEngine::setChannelMuted(int channelIndex, bool muted)
         channels[static_cast<size_t>(channelIndex)].muted = muted;
 }
 
+bool AudioEngine::setChannelRoute(int channelIndex, int outputBase, bool mono)
+{
+    // Whether the route fits the device is decided at render time (invalid routes are silent).
+    if (outputBase < 0 || outputBase > 63) { setLastError(EngineErrorCode::FormatMismatch,"Invalid channel route"); return false; }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size())) { setLastError(EngineErrorCode::FormatMismatch,"Invalid channel index"); return false; }
+    channels[static_cast<size_t>(channelIndex)].route={outputBase,mono}; return true;
+}
+
+void AudioEngine::setMasterVolume(float volume)
+{
+    if (!std::isfinite(volume)) return;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    masterVolume = juce::jlimit(0.0f, 2.0f, volume);
+}
+
 int AudioEngine::getChannelCount() const
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
@@ -593,6 +609,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     if (!playing.load() || channels.empty() || !isPrepared || preparedBlockSize <= 0) return;
     const auto& first=channels.front();
     const int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
+    const float rampStep=GainRamp::stepFor(currentSampleRate);
     int written=0;
     while (written < info.numSamples) {
         normalizeLoopPosition();
@@ -612,14 +629,17 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                     for (int ch=0;ch<2;++ch) scratchBuffer.setSample(ch,sample,data.getSample(ch,a)+alpha*(data.getSample(ch,b)-data.getSample(ch,a)));
                 }
             } else { juce::AudioSourceChannelInfo source(&scratchBuffer,0,count); channel.resampler->getNextAudioBlock(source); }
-            if (channel.muted || channel.volume <= 0) continue;
-            for (int output=0;output<info.buffer->getNumChannels();++output)
-                info.buffer->addFrom(output,info.startSample+written,scratchBuffer,juce::jmin(output,scratchBuffer.getNumChannels()-1),0,count,channel.volume);
+            channel.ramp.set(channel.muted ? 0.0f : channel.volume);
+            if (channel.ramp.silent()) continue;
+            mixStem(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
+                    info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp,rampStep);
         }
         clickTimeline.render(*info.buffer,info.startSample+written,count,position,currentSampleRate,clickEnabled.load());
         guideScratch.clear(); guideTimeline.render(guideScratch.getWritePointer(0),count,position,currentSampleRate,guidesEnabled.load());
         for(int output=0;output<info.buffer->getNumChannels();++output)
             info.buffer->addFrom(output,info.startSample+written,guideScratch,0,0,count);
+        masterRamp.set(masterVolume);
+        applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
         currentSamplePosition=position+count; written+=count;
         normalizeLoopPosition();
         if (!loopEnabled && position+count >= end) { currentSamplePosition=end; playing=false; break; }

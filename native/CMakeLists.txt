@@ -54,6 +54,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         src/WaveformExtractor.cpp
         tests/GuideTimelineTests.cpp
         tests/GuideEngineTests.cpp
+        tests/MixerTests.cpp
         tests/LoopTests.cpp
         tests/ReadAheadTests.cpp
         tests/ClickTimelineTests.cpp

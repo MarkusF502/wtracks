@@ -116,6 +116,16 @@ void wtracks_set_channel_muted(int channelIndex, bool muted)
     if (engine) engine->setChannelMuted(channelIndex, muted);
 }
 
+bool wtracks_set_channel_route(int channelIndex, int outputBase, bool mono)
+{
+    return engine ? engine->setChannelRoute(channelIndex, outputBase, mono) : false;
+}
+
+void wtracks_set_master_volume(float volume)
+{
+    if (engine) engine->setMasterVolume(volume);
+}
+
 int wtracks_get_channel_count()
 {
     return engine ? engine->getChannelCount() : 0;
