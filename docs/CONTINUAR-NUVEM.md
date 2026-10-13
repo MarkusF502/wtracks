@@ -32,16 +32,24 @@ flutter analyze && flutter test
 
 Click sample-exato com 4 vozes, mapa de andamento/compasso (`TempoMap.h`), MIDI clock na mesma grade; reprodução com read-ahead; seções com loops atual/próximo, **loops contados** e **loops predefinidos automáticos** (nativo); guias sample-exatas (541 WAVs); mixer com rampa de 10 ms, rota por canal (estéreo/esq./dir.) e volume geral; tom/andamento por renderização offline própria (vocoder de fase) + `setTimeScale` (tudo em tempo da música); MIDI (clock, 0xFA/FB/FC, cues com mensagem, router com thread de despacho, saída `juce::MidiOutput`); timecode LTC (11 taxas do binário, drop-frame, 50/60 fps com rótulo à metade). Telas: guias, seções (com contagem de repetições, laço automático, guia, contagem), mapa de andamento, MIDI/automações/timecode, tom e andamento. Menu "Mais" no `PerformanceScreen`.
 
-## Próximos ciclos (nesta ordem; detalhes e evidência em `playback-feature-inventory.md`)
+## Ciclos concluídos na sessão em nuvem (2026-10)
 
-1. **Guias dinâmicas a partir das seções** (`GuideCue(cueType, sectionTypeID, cueSequenceTimecode, songMapElementStartTimecode, cueEnabled, cueFilePath, replacementCountCueFilePath)`): gerar, em Dart, a lista de `GuideCue` derivada de `SongSection` + mapa de andamento + configurações (idioma/gênero extraídos do nome dos arquivos `guidecue-{count,section}-<lang>-<gender>-<nome>`, "Contar ao entrar em cada seção", "Pré-roll de seção"). Os flags `playGuideCue`/`playCountIn` das seções já existem. Contagem ao saltar para o início de uma seção (pré-roll) ainda não existe — exige apoio do motor (tocar um compasso antes sem os stems) e é escolha própria.
-2. **Automação de mixer** (hoje só há cues MIDI): `AutomationCue{name, transitionBeats, sequenceTimecode, applyTransitionLengthCorrection, items[AutomationItem{automationID, value}]}`. Pontos na linha do tempo que movem faders de canal/bus/master em `transitionBeats` batidas antes do ponto (rampa linear; mute/unmute instantâneo), com snapshot, copiar/colar, salvar por arranjo. Implementar no motor (agenda por sample, como `CueTimeline`) e UI de edição.
-3. **Fade de saída** (botão de transporte "5 Second Fade Out", `SongArrangement.endFade`, `excludeFromFade`) e **transições de setlist** (cue próxima música / ficar na música, `storedTransition`).
-4. **Medidores VU** por canal e master (picos no motor, leitura por FFI sem alocar no callback) e nível padrão de fader 80% (opção).
-5. **Buses**: `SongBus{volume, muted}` por música, `GlobalBus`, roteamento track→bus→canal de saída (`OutputRouting`/`OutputChannel`), opção "enviar click & guia para a esquerda e faixas para a direita", master por música.
-6. **MIDI**: bancos/buses (`MIDIBank`, `MIDIBus{port, channel, enabled, allChannels}`, `MIDIEvent{note, velocity, duration, type, bank, bus}`), copiar/colar cues de seção; **MIDI de entrada com mapeamento** (`ControlMapping{mappingID, mappingTypeID, intValue1..3, stringValue1}`) e atalhos de teclado.
-7. Pastas de sons personalizados (click/guias), trim de seção (`storedStart/EndTimeTrimOffset`), contagem de repetições na UI de transporte, reconstrução visual (a UI do iOS não foi decodificada; use os textos em `main-ui-strings.txt` e Material 3 escuro).
-8. Opcional/baixa prioridade: Playback Remote (servidor WebSocket local).
+1–8 do plano anterior estão feitos (guias dinâmicas e pré-roll; automação do mixer; fade e transições de setlist;
+medidores e fader 80%; buses e roteamento; MIDI com bancos/buses/eventos, entrada mapeada e teclado; trim de seção,
+contador de laço e pastas de sons personalizados; controle remoto local com protocolo próprio). Depois da chegada do
+pacote de evidências (pseudocódigo, nibs, Assets.car) foram corrigidos: regra das guias (nome em silêncio durante laço),
+fade do fim (dispara o fade de 5 s em `fadeStartTimecode`), rampa de 20 ms do mixer. Detalhes, evidências e escolhas
+próprias por item em `docs/playback-analysis/playback-feature-inventory.md`.
+
+## Pendências
+
+- Reconstrução visual a partir de `docs/playback-analysis/ui/` (árvores de views, cores, `Assets.car`) — sessão local.
+- Itens ainda "escolha própria" sem evidência localizada: matemática da rampa de automação e
+  `applyTransitionLengthCorrection`, valores de `storedTransition` (3 e 4 aparecem no binário), seção de tipo 7 e cues de
+  tipo 1 das guias, curva do fade, balística do VU, porta por bus MIDI, protocolo do Playback Remote.
+- Teste intermitente conhecido: `stabilization_harness_test.dart` "JSON atômico" (falhou 2 vezes em ~15 execuções
+  completas; código de persistência anterior a estes ciclos).
+- Hardware não testado: MIDI real (entrada/saída), X32, iPhone, Android físico.
 
 ## Ao terminar cada ciclo
 
