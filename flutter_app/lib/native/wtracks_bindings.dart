@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/engine_error.dart';
 import '../models/track.dart';
 import '../models/guide_cue.dart';
+import '../services/dynamic_guides.dart';
 import '../models/automation_cue.dart';
 import '../models/timecode_settings.dart';
 import '../models/tempo_change.dart';
@@ -104,6 +105,10 @@ typedef _LoopSnapshotNative = Void Function(Pointer<Double>);
 typedef _LoopSnapshotDart = void Function(Pointer<Double>);
 typedef _ConfigureGuidesNative = Bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, Int32);
 typedef _ConfigureGuidesDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, int);
+typedef _ConfigureGuidesExNative = Bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Pointer<Utf8>>, Pointer<Double>, Pointer<Float>, Int32);
+typedef _ConfigureGuidesExDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Pointer<Utf8>>, Pointer<Double>, Pointer<Float>, int);
+typedef _ConfigurePrerollNative = Bool Function(Bool, Pointer<Double>, Int32, Pointer<Pointer<Utf8>>, Int32);
+typedef _ConfigurePrerollDart = bool Function(bool, Pointer<Double>, int, Pointer<Pointer<Utf8>>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
 typedef _SetRouteDart = bool Function(int, int, bool);
 typedef _ProcessTimePitchNative = Bool Function(Pointer<Utf8>, Pointer<Utf8>, Double, Double, Bool, Int64);
@@ -226,6 +231,9 @@ class WTracksEngine {
   late final _SetRouteDart _setChannelRoute;
   late final _ClickGainDart _setMasterVolume;
   late final _ConfigureGuidesDart _configureGuides;
+  late final _ConfigureGuidesExDart _configureGuidesEx;
+  late final _ConfigurePrerollDart _configurePreroll;
+  late final _IsPlayingDart _isPrerolling;
   late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
     _lib = _openLibrary();
@@ -343,6 +351,9 @@ class WTracksEngine {
     _setChannelRoute = _lib.lookupFunction<_SetRouteNative, _SetRouteDart>('wtracks_set_channel_route');
     _setMasterVolume = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>('wtracks_set_master_volume');
     _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('wtracks_configure_guides');
+    _configureGuidesEx = _lib.lookupFunction<_ConfigureGuidesExNative, _ConfigureGuidesExDart>('wtracks_configure_guides_ex');
+    _configurePreroll = _lib.lookupFunction<_ConfigurePrerollNative, _ConfigurePrerollDart>('wtracks_configure_preroll');
+    _isPrerolling = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_is_prerolling');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
@@ -600,6 +611,82 @@ class WTracksEngine {
       return _configureGuides(times,nativePaths,gains,count);
     } finally { for(final p in strings) { malloc.free(p); } calloc.free(times); calloc.free(gains); calloc.free(nativePaths); }
   }
+  /// Agenda de guias manuais + dinâmicas. [paths] leva cada nome de recurso ao WAV preparado.
+  bool configureGuideSchedule(List<ScheduledGuide> guides, Map<String, String> paths) {
+    if (guides.length > 4096) return false;
+    final count = guides.length, slots = count == 0 ? 1 : count;
+    final times = calloc<Double>(slots), targets = calloc<Double>(slots), gains = calloc<Float>(slots);
+    final normal = calloc<Pointer<Utf8>>(slots), replacement = calloc<Pointer<Utf8>>(slots);
+    final strings = <Pointer<Utf8>>[];
+    Pointer<Utf8> path(String? name) {
+      if (name == null) return nullptr;
+      final file = paths[name];
+      if (file == null) throw ArgumentError('Recurso de guia não preparado: $name');
+      final value = file.toNativeUtf8();
+      strings.add(value);
+      return value;
+    }
+    try {
+      for (var i = 0; i < count; i++) {
+        final g = guides[i];
+        times[i] = g.timeSeconds;
+        targets[i] = g.targetSeconds;
+        gains[i] = g.gain;
+        normal[i] = path(g.resource);
+        replacement[i] = path(g.replacement);
+      }
+      return _configureGuidesEx(times, normal, replacement, targets, gains, count);
+    } on ArgumentError {
+      return false;
+    } finally {
+      for (final p in strings) {
+        malloc.free(p);
+      }
+      calloc.free(times);
+      calloc.free(targets);
+      calloc.free(gains);
+      calloc.free(normal);
+      calloc.free(replacement);
+    }
+  }
+
+  Future<bool> configureGuideScheduleAsync(List<ScheduledGuide> guides, Map<String, String> paths) =>
+      Isolate.run(() => WTracksEngine().configureGuideSchedule(guides, paths));
+
+  /// Pré-roll de seção: um compasso de click e contagem antes de tocar a partir de [starts] (segundos da música).
+  /// [countPaths][k] fala "k+1" (null = silêncio).
+  bool configurePreroll(bool enabled, List<double> starts, List<String?> countPaths) {
+    if (starts.length > 4096 || countPaths.length > 16) return false;
+    final startSlots = starts.isEmpty ? 1 : starts.length, countSlots = countPaths.isEmpty ? 1 : countPaths.length;
+    final nativeStarts = calloc<Double>(startSlots);
+    final nativeCounts = calloc<Pointer<Utf8>>(countSlots);
+    final strings = <Pointer<Utf8>>[];
+    try {
+      for (var i = 0; i < starts.length; i++) {
+        nativeStarts[i] = starts[i];
+      }
+      for (var i = 0; i < countPaths.length; i++) {
+        final path = countPaths[i];
+        if (path == null) continue;
+        final value = path.toNativeUtf8();
+        strings.add(value);
+        nativeCounts[i] = value;
+      }
+      return _configurePreroll(enabled, nativeStarts, starts.length, nativeCounts, countPaths.length);
+    } finally {
+      for (final p in strings) {
+        malloc.free(p);
+      }
+      calloc.free(nativeStarts);
+      calloc.free(nativeCounts);
+    }
+  }
+
+  Future<bool> configurePrerollAsync(bool enabled, List<double> starts, List<String?> countPaths) =>
+      Isolate.run(() => WTracksEngine().configurePreroll(enabled, starts, countPaths));
+
+  bool get isPrerolling => _isPrerolling();
+
   List<double> get loopState {
     final values = calloc<Double>(6);
     try { _getLoopState(values); return List.generate(6, (i) => values[i]); }

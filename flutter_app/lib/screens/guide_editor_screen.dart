@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/guide_cue.dart';
+import '../models/song_section.dart';
 import '../providers/engine_provider.dart';
+import '../services/dynamic_guides.dart';
 import '../theme/app_colors.dart';
+import 'guide_settings_sheet.dart';
 
 class GuideEditorScreen extends ConsumerStatefulWidget {
   final String trackId;
@@ -66,6 +69,16 @@ class _GuideEditorScreenState extends ConsumerState<GuideEditorScreen> {
         backgroundColor: kPanelBg,
         title: const Text('Guias'),
         actions: [
+          IconButton(
+            tooltip: 'Configurar guias',
+            icon: const Icon(Icons.record_voice_over_outlined),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              backgroundColor: kPanelBg,
+              isScrollControlled: true,
+              builder: (_) => const GuideSettingsSheet(),
+            ),
+          ),
           if (active)
             Switch(
               value: track!.guidesEnabled,
@@ -89,10 +102,19 @@ class _GuideEditorScreenState extends ConsumerState<GuideEditorScreen> {
               error: (e, st) => const Center(
                 child: Text('Não foi possível carregar os recursos de guia.'),
               ),
-              data: (_) => track!.guideCues.isEmpty
-                  ? const Center(child: Text('Adicione as guias da música.'))
-                  : ListView(
-                      children: track.guideCues
+              data: (_) => ListView(
+                      children: [
+                        _SectionGuidesCard(sections: track!.sections, plan: ref.watch(dynamicGuidePlanProvider)),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                          child: Text('Guias manuais', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        if (track.guideCues.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: Text('Adicione as guias da música.')),
+                          ),
+                        ...track.guideCues
                           .map(
                             (cue) => Card(
                               color: kPanelBg,
@@ -132,10 +154,68 @@ class _GuideEditorScreenState extends ConsumerState<GuideEditorScreen> {
                                 ),
                               ),
                             ),
-                          )
-                          .toList(),
+                          ),
+                      ],
                     ),
             ),
+    );
+  }
+}
+
+/// Resumo das guias geradas a partir das seções (somente leitura; edita-se nas seções e nas preferências).
+class _SectionGuidesCard extends StatelessWidget {
+  final List<SongSection> sections;
+  final DynamicGuidePlan? plan;
+  const _SectionGuidesCard({required this.sections, required this.plan});
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = this.plan;
+    final rows = <Widget>[];
+    if (plan != null) {
+      for (final section in sections) {
+        final cues = plan.cues.where((c) => c.sectionId == section.id).toList();
+        if (cues.isEmpty) continue;
+        final spoken = <String>[
+          if (cues.any((c) => c.cueType == GuideCueType.section)) 'nome',
+          for (final c in cues)
+            if (c.cueType == GuideCueType.count && c.cueFilePath != null) c.cueFilePath!.split('-').last,
+        ];
+        rows.add(ListTile(
+          dense: true,
+          title: Text(section.name),
+          subtitle: Text('${cues.first.cueSequenceTimecode.toStringAsFixed(2)}s · ${spoken.join(', ')}'),
+        ));
+      }
+    }
+    return Card(
+      color: kPanelBg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ListTile(
+            title: Text('Guias das seções', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('Geradas pelas seções: nome no compasso anterior e contagem. Ajuste em "Configurar guias".'),
+          ),
+          if (plan == null)
+            const Padding(padding: EdgeInsets.fromLTRB(16, 0, 16, 16), child: Text('Carregando vozes…'))
+          else if (rows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text('Nenhuma seção com guia ou contagem.'),
+            )
+          else
+            ...rows,
+          if (plan != null && plan.missingSectionNames.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                'Sem áudio nesta voz: ${plan.missingSectionNames.join(', ')}',
+                style: const TextStyle(color: Colors.orangeAccent),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:flutter_app/models/track.dart';
 import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/services/persistence_service.dart';
 import 'package:flutter_app/models/guide_cue.dart';
+import 'package:flutter_app/services/dynamic_guides.dart';
 import 'package:flutter_app/models/automation_cue.dart';
 import 'package:flutter_app/models/timecode_settings.dart';
 import 'package:flutter_app/models/tempo_change.dart';
@@ -240,6 +241,37 @@ class FakeEngine implements WTracksEngine {
   bool configureGuides(List<GuideCue> cues,List<String> paths) { if(failGuides) return false; configuredGuides=cues; return true; }
   @override
   Future<bool> configureGuidesAsync(List<GuideCue> cues,List<String> paths) async => configureGuides(cues,paths);
+  List<ScheduledGuide> configuredSchedule = [];
+  Map<String, String> configuredSchedulePaths = {};
+  @override
+  bool configureGuideSchedule(List<ScheduledGuide> guides, Map<String, String> paths) {
+    if (failGuides) return false;
+    configuredSchedule = guides;
+    configuredSchedulePaths = paths;
+    return true;
+  }
+  @override
+  Future<bool> configureGuideScheduleAsync(List<ScheduledGuide> guides, Map<String, String> paths) async =>
+      configureGuideSchedule(guides, paths);
+  bool prerollEnabled = false;
+  List<double> prerollStarts = [];
+  List<String?> prerollCountPaths = [];
+  int prerollCalls = 0;
+  bool failPreroll = false;
+  @override
+  bool configurePreroll(bool enabled, List<double> starts, List<String?> countPaths) {
+    prerollCalls++;
+    if (failPreroll) return false;
+    prerollEnabled = enabled;
+    prerollStarts = starts;
+    prerollCountPaths = countPaths;
+    return true;
+  }
+  @override
+  Future<bool> configurePrerollAsync(bool enabled, List<double> starts, List<String?> countPaths) async =>
+      configurePreroll(enabled, starts, countPaths);
+  @override
+  bool get isPrerolling => false;
   ClickSettings? configuredClick;
   @override
   bool configureClick(ClickSettings settings) {

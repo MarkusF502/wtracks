@@ -784,6 +784,7 @@ class _Transport extends ConsumerWidget {
     // `select` pra só reconstruir este widget quando isPlaying de fato
     // muda (não a cada tick de posição/duração do polling de 100ms).
     final isPlaying = ref.watch(transportProvider.select((t) => t.isPlaying));
+    final prerolling = ref.watch(transportProvider.select((t) => t.prerolling));
     final transportNotifier = ref.read(transportProvider.notifier);
     final onPlayPause = isPlaying ? transportNotifier.pause : transportNotifier.play;
 
@@ -808,7 +809,7 @@ class _Transport extends ConsumerWidget {
             }
           ),
           _TransportButton(icon: Icons.stop, accent: const Color(0xFFFF3B4E), onTap: onStop),
-          _PlayButton(isPlaying: isPlaying, onTap: onPlayPause),
+          _PlayButton(isPlaying: isPlaying, prerolling: prerolling, onTap: onPlayPause),
           
           // Indicador de BPM clicável
           GestureDetector(
@@ -871,9 +872,10 @@ class _TransportButton extends StatelessWidget {
 
 class _PlayButton extends StatelessWidget {
   final bool isPlaying;
+  final bool prerolling; // contagem do pré-roll antes da seção
   final VoidCallback onTap;
 
-  const _PlayButton({required this.isPlaying, required this.onTap});
+  const _PlayButton({required this.isPlaying, this.prerolling = false, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -886,8 +888,11 @@ class _PlayButton extends StatelessWidget {
         child: SizedBox(
           width: 64,
           height: 64,
-          child: Icon(isPlaying ? Icons.pause : Icons.play_arrow,
-              color: isPlaying ? _accent : _bg, size: 28),
+          child: Tooltip(
+            message: prerolling ? 'Contagem' : (isPlaying ? 'Pausar' : 'Tocar'),
+            child: Icon(prerolling ? Icons.av_timer : (isPlaying ? Icons.pause : Icons.play_arrow),
+                color: isPlaying ? _accent : _bg, size: 28),
+          ),
         ),
       ),
     );
