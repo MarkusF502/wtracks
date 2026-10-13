@@ -5,6 +5,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_core/juce_core.h>
 #include <atomic>
+#include "ClickTimeline.h"
 #include <memory>
 #include <vector>
 
@@ -55,6 +56,10 @@ public:
     void setClickTimeSignature(int numerator, int denominator);
     void setClickOffsetSeconds(double offsetSeconds);
 
+    bool configureClick(double bpm, int numerator, int denominator, int bpmUnit, double offset, double accent, double quarter, double eighth, double sixteenth);
+    bool loadClickSound(int voice, const juce::String& path);
+    void setClickGain(float gain);
+
     // Tratamento de Erros Blindado
     juce::String getLastError() const;
     EngineErrorCode getLastErrorCode() const;
@@ -75,7 +80,6 @@ private:
 
     std::atomic<bool> playing { false };
     std::atomic<int64_t> currentSamplePosition { 0 };
-    std::atomic<int64_t> samplesPerBeat { 0 };
 
     juce::AudioBuffer<float> scratchBuffer;
 
@@ -83,19 +87,9 @@ private:
     int preparedBlockSize = 0;
     double preparedSampleRate = 44100.0;
 
+    ClickTimeline clickTimeline;
     std::atomic<bool> clickEnabled { false };
-    double clickBpm = 120.0;
     double currentSampleRate = 44100.0;
-
-    juce::AudioBuffer<float> clickBufferAccent; 
-    juce::AudioBuffer<float> clickBufferNormal; 
-
-    std::atomic<int> timeSignatureNumerator { 4 };
-    std::atomic<int> currentBeatIndex { 0 };
-    std::atomic<int64_t> clickReadPosition { -1 };
-
-    std::atomic<int64_t> clickOffsetSamples { 0 };
-    double clickOffsetSecondsValue = 0.0; // guardado só pra recalcular clickOffsetSamples se o sample rate mudar
 
     // Guarda o ultimo erro para a interface Dart consultar com segurança
     juce::String lastError { "" };

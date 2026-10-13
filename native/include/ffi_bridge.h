@@ -40,6 +40,10 @@ WTRACKS_API void wtracks_set_channel_muted(int channelIndex, bool muted);
 WTRACKS_API int wtracks_get_channel_count();
 
 // Click track
+// Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.
+WTRACKS_API bool wtracks_configure_click(double bpm, int numerator, int denominator, int bpmUnit, double offset, double accent, double quarter, double eighth, double sixteenth);
+WTRACKS_API bool wtracks_load_click_sound(int voice, const char* path);
+WTRACKS_API void wtracks_set_click_gain(float gain);
 WTRACKS_API void wtracks_set_click_enabled(bool enabled);
 WTRACKS_API void wtracks_set_click_bpm(double bpm);
 WTRACKS_API void wtracks_set_click_time_signature(int numerator, int denominator);

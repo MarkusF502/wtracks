@@ -2,6 +2,7 @@
 #include "../include/AudioEngine.h"
 #include "../include/WaveformExtractor.h"
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #if defined(__ANDROID__)
@@ -20,18 +21,22 @@ Java_com_example_flutter_1app_MainActivity_initJuceContext(JNIEnv *env, jobject 
 #endif
 
 static std::unique_ptr<wtracks::AudioEngine> engine;
+// An isolated click decoder must finish before its owning engine is destroyed.
+static std::mutex engineLifetimeMutex;
 static juce::String globalLastErrorBuffer; // Variável mágica que evita falhas de ponteiro no Dart
 
 extern "C" {
 
 bool wtracks_initialise(int sampleRate, int bufferSize)
 {
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
     engine = std::make_unique<wtracks::AudioEngine>();
     return engine->initialise(sampleRate, bufferSize);
 }
 
 void wtracks_shutdown()
 {
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
     if (engine)
         engine->shutdown();
     engine.reset();
@@ -115,6 +120,19 @@ int wtracks_get_channel_count()
 {
     return engine ? engine->getChannelCount() : 0;
 }
+
+bool wtracks_configure_click(double bpm, int numerator, int denominator, int unit, double offset, double accent, double quarter, double eighth, double sixteenth)
+{
+    return engine && engine->configureClick(bpm,numerator,denominator,unit,offset,accent,quarter,eighth,sixteenth);
+}
+bool wtracks_load_click_sound(int voice, const char* path)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->loadClickSound(voice, path ? juce::String::fromUTF8(path) : juce::String()); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Click sound loading failed"); return false; }
+}
+void wtracks_set_click_gain(float gain) { if (engine) engine->setClickGain(gain); }
 
 void wtracks_set_click_enabled(bool enabled)
 {

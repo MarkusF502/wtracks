@@ -123,8 +123,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         playing = false; // Pausa por segurança
         channels = std::move(newChannels);
         currentSamplePosition = 0;
-        currentBeatIndex = 0;
-        clickReadPosition = -1;
+        clickTimeline.reset();
     }
 
     DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
@@ -175,11 +174,9 @@ void AudioEngine::pause()
 void AudioEngine::stop()
 {
     playing = false;
-    currentSamplePosition = 0;
-    currentBeatIndex = 0;      
-    clickReadPosition = -1;
-
     const juce::SpinLock::ScopedLockType lock(channelsLock);
+    currentSamplePosition = 0;
+    clickTimeline.reset();
     for (auto& channel : channels)
         if (channel.readerSource != nullptr)
         {
@@ -190,9 +187,10 @@ void AudioEngine::stop()
 
 void AudioEngine::seekToSeconds(double seconds)
 {
-    currentSamplePosition = static_cast<int64_t>(seconds * currentSampleRate);
-
+    if (!std::isfinite(seconds) || seconds < 0) return;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
+    seconds = channels.empty() ? 0.0 : juce::jmin(seconds, channels.front().readerSource->getTotalLength() / channels.front().fileSampleRate);
+    currentSamplePosition = static_cast<int64_t>(seconds * currentSampleRate);
     for (auto& channel : channels)
         if (channel.readerSource != nullptr)
         {
@@ -200,17 +198,7 @@ void AudioEngine::seekToSeconds(double seconds)
             channel.resampler->flushBuffers();
         }
 
-    if (samplesPerBeat > 0) {
-        const int64_t offsetSamples = clickOffsetSamples.load();
-        const int64_t effectivePosition = currentSamplePosition.load() - offsetSamples;
-        if (effectivePosition >= 0) {
-            int64_t totalBeatsElapsed = effectivePosition / samplesPerBeat;
-            currentBeatIndex = static_cast<int>(totalBeatsElapsed % timeSignatureNumerator);
-        } else {
-            currentBeatIndex = 0; // ainda não chegou no 1º tempo -- estado neutro
-        }
-    }
-    clickReadPosition = -1;
+    clickTimeline.reset();
 }
 
 double AudioEngine::getCurrentPositionSeconds() const
@@ -259,51 +247,81 @@ void AudioEngine::setClickEnabled(bool enabled)
     clickEnabled = enabled;
 }
 
+bool AudioEngine::configureClick(double bpm, int numerator, int denominator, int unit, double offset,
+                                 double accent, double quarter, double eighth, double sixteenth)
+{
+    const std::array<double,4> levels {{accent,quarter,eighth,sixteenth}};
+    if (!ClickTimeline::valid(bpm,numerator,denominator,unit,offset,levels)) {
+        setLastError(EngineErrorCode::FormatMismatch, "Invalid click configuration"); return false;
+    }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    clickTimeline.bpm=bpm; clickTimeline.numerator=numerator; clickTimeline.denominator=denominator;
+    clickTimeline.bpmUnit=unit; clickTimeline.offset=offset; clickTimeline.gains=levels;
+    clickTimeline.reset();
+    return true;
+}
+
 void AudioEngine::setClickBpm(double bpm)
 {
-    clickBpm = bpm;
-    samplesPerBeat = static_cast<int64_t>((60.0 / bpm) * currentSampleRate);
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (!std::isfinite(bpm) || bpm < 1 || bpm > 1000) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click BPM"); return; }
+    clickTimeline.bpm=bpm; clickTimeline.reset();
 }
-
 void AudioEngine::setClickTimeSignature(int numerator, int denominator)
 {
-    if (numerator > 0)
-        timeSignatureNumerator = numerator;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (numerator < 1 || numerator > 64 || !ClickTimeline::unitValid(denominator)) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click meter"); return; }
+    clickTimeline.numerator=numerator; clickTimeline.denominator=denominator; clickTimeline.reset();
 }
-
 void AudioEngine::setClickOffsetSeconds(double offsetSeconds)
 {
-    clickOffsetSecondsValue = offsetSeconds;
-    clickOffsetSamples = static_cast<int64_t>(offsetSeconds * currentSampleRate);
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (!std::isfinite(offsetSeconds) || offsetSeconds < 0 || offsetSeconds > 86400) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click offset"); return; }
+    clickTimeline.offset=offsetSeconds; clickTimeline.reset();
+}
+void AudioEngine::setClickGain(float gain)
+{
+    if (!std::isfinite(gain) || gain < 0 || gain > 2) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click gain"); return; }
+    const juce::SpinLock::ScopedLockType lock(channelsLock); clickTimeline.masterGain=gain;
+}
+bool AudioEngine::loadClickSound(int voice, const juce::String& path)
+{
+    if (voice < 0 || voice > 3) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click voice"); return false; }
+    juce::AudioBuffer<float> decoded;
+    double rate=44100;
+    if (path.isNotEmpty()) {
+        juce::AudioFormatManager loader; loader.registerBasicFormats();
+        std::unique_ptr<juce::AudioFormatReader> reader(loader.createReaderFor(juce::File(path)));
+        if (!reader || reader->lengthInSamples <= 0 || !std::isfinite(reader->sampleRate) || reader->sampleRate < 8000 || reader->sampleRate > 192000
+            || reader->lengthInSamples > reader->sampleRate*10) { setLastError(EngineErrorCode::FileUnreadable,"Click sound unavailable or exceeds ten seconds"); return false; }
+        rate=reader->sampleRate; decoded.setSize(1,static_cast<int>(reader->lengthInSamples));
+        if (!reader->read(&decoded,0,decoded.getNumSamples(),0,true,false)) { setLastError(EngineErrorCode::FileUnreadable,"Click sound decoding failed"); return false; }
+    }
+    // Decoding and allocation are complete before acquiring the render lock.
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    clickTimeline.sounds[voice]=std::move(decoded); clickTimeline.soundRates[voice]=rate; clickTimeline.starts[voice]=-1;
+    return true;
 }
 
 void AudioEngine::generateClickBuffers(double sampleRate)
 {
-    const int numSamples = static_cast<int>(sampleRate * 0.03);
-    clickBufferAccent.setSize(1, numSamples);
-    clickBufferNormal.setSize(1, numSamples);
-
-    const double freqAccent = 1760.0;
-    const double freqNormal = 880.0;
-
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float envelope = 1.0f - (static_cast<float>(i) / numSamples);
-        float sampleAccent = static_cast<float>(std::sin(2.0 * juce::MathConstants<double>::pi * freqAccent * i / sampleRate)) * envelope * 0.5f;
-        float sampleNormal = static_cast<float>(std::sin(2.0 * juce::MathConstants<double>::pi * freqNormal * i / sampleRate)) * envelope * 0.5f;
-
-        clickBufferAccent.setSample(0, i, sampleAccent);
-        clickBufferNormal.setSample(0, i, sampleNormal);
+    const int length = static_cast<int>(sampleRate*0.03);
+    clickTimeline.fallbackRate=sampleRate;
+    for (int voice=0;voice<4;++voice) {
+        auto& buffer=clickTimeline.fallback[voice]; buffer.setSize(1,length);
+        const double frequency=voice==0 ? 1760.0 : voice==1 ? 880.0 : voice==2 ? 660.0 : 440.0;
+        for (int i=0;i<length;++i)
+            buffer.setSample(0,i,static_cast<float>(std::sin(2.0*juce::MathConstants<double>::pi*frequency*i/sampleRate)*(1.0-double(i)/length)*0.5));
     }
 }
 
 void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
     currentSampleRate = sampleRate;
-    setClickBpm(clickBpm);
+    clickTimeline.reset();
     mixerSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
 
-    clickOffsetSamples = static_cast<int64_t>(clickOffsetSecondsValue * currentSampleRate);
 
     generateClickBuffers(sampleRate);
 
@@ -323,6 +341,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 
 void AudioEngine::releaseResources()
 {
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
     mixerSource.releaseResources();
 
     for (auto& channel : channels)
@@ -374,55 +393,8 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         }
     }
 
-    const int64_t spb = samplesPerBeat.load(); 
-    if (clickEnabled && spb > 0)
-    {
-        auto& outBuffer = *bufferToFill.buffer;
-        const int numOutChannels = outBuffer.getNumChannels();
-
-        int64_t localSamplePos = currentSamplePosition.load();
-        int localBeatIndex = currentBeatIndex.load();
-        int64_t localClickReadPos = clickReadPosition.load();
-        const int64_t offsetSamples = clickOffsetSamples.load();
-
-        for (int i = 0; i < numSamples; ++i)
-        {
-            const int64_t globalSample = localSamplePos + i;
-            const int64_t effectiveSample = globalSample - offsetSamples;
-
-            // Antes do offset (música ainda não chegou no 1º tempo real): sem click.
-            if (effectiveSample >= 0 && effectiveSample % spb == 0)
-            {
-                // Deriva o tempo do compasso da posicao absoluta em vez de
-                // incrementar -- correto tambem logo apos um seek.
-                localBeatIndex = static_cast<int>((effectiveSample / spb) % timeSignatureNumerator);
-
-                localClickReadPos = 0;
-            }
-
-            if (localClickReadPos >= 0)
-            {
-                auto& activeBuffer = (localBeatIndex == 0) ? clickBufferAccent : clickBufferNormal;
-                
-                if (localClickReadPos < activeBuffer.getNumSamples())
-                {
-                    float clickSample = activeBuffer.getSample(0, static_cast<int>(localClickReadPos));
-                    
-                    for (int ch = 0; ch < numOutChannels; ++ch)
-                        outBuffer.addSample(ch, bufferToFill.startSample + i, clickSample);
-
-                    localClickReadPos++;
-                }
-                else
-                {
-                    localClickReadPos = -1;
-                }
-            }
-        }
-
-        currentBeatIndex.store(localBeatIndex);
-        clickReadPosition.store(localClickReadPos);
-    }
+    clickTimeline.render(*bufferToFill.buffer, bufferToFill.startSample, numSamples,
+                         currentSamplePosition.load(), currentSampleRate, clickEnabled.load());
 
     const auto& first = channels.front();
     const auto endPosition = static_cast<int64_t>(

@@ -52,6 +52,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
     add_executable(wtracks_engine_tests
         src/AudioEngine.cpp
         src/WaveformExtractor.cpp
+        tests/ClickTimelineTests.cpp
         tests/AudioEngineTests.cpp
         tests/WaveformExtractorTests.cpp
         tests/HarnessRegressionTests.cpp
