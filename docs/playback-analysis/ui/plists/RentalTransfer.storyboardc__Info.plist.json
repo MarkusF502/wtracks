@@ -1,0 +1,10 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "RentalTransferOverviewViewController": "RentalTransferOverviewViewController",
+  "RentalTransferItemSelectorViewController": "RentalTransferItemSelectorViewController",
+  "UIPageViewController-S2T-1N-iq8": "UIPageViewController-S2T-1N-iq8",
+  "UIViewController-Y6W-OH-hqX": "UIViewController-Y6W-OH-hqX"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "UIViewController-Y6W-OH-hqX",
+ "UIStoryboardVersion": 1
+}

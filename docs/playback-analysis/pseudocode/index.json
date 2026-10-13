@@ -1,0 +1,8146 @@
+{
+ "binarySha256": "2a11a6f98134ba035c9df55d0ab5cabd376597ce83980ff40704f4f42b1ad423",
+ "features": {
+  "fade": [
+   {
+    "address": "100010990",
+    "name": "MTUser::continueLoginWithUser:customerID:saveUser:completion:",
+    "bytes": 2275
+   },
+   {
+    "address": "1000294cc",
+    "name": "FUN_1000294cc",
+    "bytes": 167
+   },
+   {
+    "address": "1000294e0",
+    "name": "FUN_1000294e0",
+    "bytes": 1045
+   },
+   {
+    "address": "100029608",
+    "name": "_TtC8Playback16MixerMasterFader::awakeFromNib",
+    "bytes": 323
+   },
+   {
+    "address": "100029630",
+    "name": "FUN_100029630",
+    "bytes": 1647
+   },
+   {
+    "address": "1000297ac",
+    "name": "FUN_1000297ac",
+    "bytes": 672
+   },
+   {
+    "address": "100029848",
+    "name": "FUN_100029848",
+    "bytes": 3324
+   },
+   {
+    "address": "100029b0c",
+    "name": "_TtC8Playback16MixerMasterFader::initWithFrame:",
+    "bytes": 327
+   },
+   {
+    "address": "100029b2c",
+    "name": "FUN_100029b2c",
+    "bytes": 3188
+   },
+   {
+    "address": "100029da8",
+    "name": "_TtC8Playback16MixerMasterFader::initWithCoder:",
+    "bytes": 251
+   },
+   {
+    "address": "100029dd0",
+    "name": "FUN_100029dd0",
+    "bytes": 1040
+   },
+   {
+    "address": "100029e7c",
+    "name": "_TtC8Playback16MixerMasterFader::.cxx_destruct",
+    "bytes": 758
+   },
+   {
+    "address": "100029f34",
+    "name": "FUN_100029f34",
+    "bytes": 125
+   },
+   {
+    "address": "100029f54",
+    "name": "FUN_100029f54",
+    "bytes": 411
+   },
+   {
+    "address": "100029f8c",
+    "name": "FUN_100029f8c",
+    "bytes": 390
+   },
+   {
+    "address": "100029fc4",
+    "name": "FUN_100029fc4",
+    "bytes": 146
+   },
+   {
+    "address": "100029fd4",
+    "name": "FUN_100029fd4",
+    "bytes": 144
+   },
+   {
+    "address": "100029fe4",
+    "name": "FUN_100029fe4",
+    "bytes": 165
+   },
+   {
+    "address": "100029ff4",
+    "name": "FUN_100029ff4",
+    "bytes": 149
+   },
+   {
+    "address": "10002a004",
+    "name": "FUN_10002a004",
+    "bytes": 317
+   },
+   {
+    "address": "10002a048",
+    "name": "FUN_10002a048",
+    "bytes": 417
+   },
+   {
+    "address": "10002a09c",
+    "name": "FUN_10002a09c",
+    "bytes": 352
+   },
+   {
+    "address": "10002a0e0",
+    "name": "FUN_10002a0e0",
+    "bytes": 190
+   },
+   {
+    "address": "10002a10c",
+    "name": "FUN_10002a10c",
+    "bytes": 379
+   },
+   {
+    "address": "10002a144",
+    "name": "FUN_10002a144",
+    "bytes": 229
+   },
+   {
+    "address": "10002a174",
+    "name": "FUN_10002a174",
+    "bytes": 145
+   },
+   {
+    "address": "10002a3a4",
+    "name": "FUN_10002a3a4",
+    "bytes": 357
+   },
+   {
+    "address": "10002a3dc",
+    "name": "FUN_10002a3dc",
+    "bytes": 196
+   },
+   {
+    "address": "10002a5fc",
+    "name": "FUN_10002a5fc",
+    "bytes": 12852
+   },
+   {
+    "address": "10002afc4",
+    "name": "FUN_10002afc4",
+    "bytes": 9776
+   },
+   {
+    "address": "10002bd4c",
+    "name": "FUN_10002bd4c",
+    "bytes": 7266
+   },
+   {
+    "address": "10002c318",
+    "name": "FUN_10002c318",
+    "bytes": 11508
+   },
+   {
+    "address": "10002ccb0",
+    "name": "FUN_10002ccb0",
+    "bytes": 8503
+   },
+   {
+    "address": "10002d400",
+    "name": "FUN_10002d400",
+    "bytes": 8158
+   },
+   {
+    "address": "10002daf4",
+    "name": "FUN_10002daf4",
+    "bytes": 8191
+   },
+   {
+    "address": "10002e234",
+    "name": "FUN_10002e234",
+    "bytes": 8122
+   },
+   {
+    "address": "10002e928",
+    "name": "FUN_10002e928",
+    "bytes": 1655
+   },
+   {
+    "address": "10002ea74",
+    "name": "FUN_10002ea74",
+    "bytes": 1231
+   },
+   {
+    "address": "10002ebcc",
+    "name": "FUN_10002ebcc",
+    "bytes": 1237
+   },
+   {
+    "address": "10002ee50",
+    "name": "FUN_10002ee50",
+    "bytes": 1134
+   },
+   {
+    "address": "10002f424",
+    "name": "FUN_10002f424",
+    "bytes": 1187
+   },
+   {
+    "address": "10002f6b0",
+    "name": "FUN_10002f6b0",
+    "bytes": 11146
+   },
+   {
+    "address": "10003004c",
+    "name": "FUN_10003004c",
+    "bytes": 11134
+   },
+   {
+    "address": "100030a00",
+    "name": "FUN_100030a00",
+    "bytes": 11242
+   },
+   {
+    "address": "1000313ac",
+    "name": "FUN_1000313ac",
+    "bytes": 9103
+   },
+   {
+    "address": "100031ac4",
+    "name": "FUN_100031ac4",
+    "bytes": 9230
+   },
+   {
+    "address": "100032284",
+    "name": "FUN_100032284",
+    "bytes": 9061
+   },
+   {
+    "address": "100032fb8",
+    "name": "FUN_100032fb8",
+    "bytes": 7787
+   },
+   {
+    "address": "100033820",
+    "name": "FUN_100033820",
+    "bytes": 677
+   },
+   {
+    "address": "100033918",
+    "name": "FUN_100033918",
+    "bytes": 242
+   },
+   {
+    "address": "100033a3c",
+    "name": "FUN_100033a3c",
+    "bytes": 182
+   },
+   {
+    "address": "100033b04",
+    "name": "FUN_100033b04",
+    "bytes": 184
+   },
+   {
+    "address": "100048768",
+    "name": "FUN_100048768",
+    "bytes": 29055
+   },
+   {
+    "address": "100049f04",
+    "name": "FUN_100049f04",
+    "bytes": 1196
+   },
+   {
+    "address": "10004a110",
+    "name": "FUN_10004a110",
+    "bytes": 2499
+   },
+   {
+    "address": "10009e5dc",
+    "name": "FUN_10009e5dc",
+    "bytes": 8606
+   },
+   {
+    "address": "1000b7a84",
+    "name": "FUN_1000b7a84",
+    "bytes": 10176
+   },
+   {
+    "address": "1000bc630",
+    "name": "MTUser::postBusFaderChangedNotification",
+    "bytes": 641
+   },
+   {
+    "address": "1000cb2cc",
+    "name": "_TtC8Playback9SongTrack::.cxx_construct",
+    "bytes": 2973
+   },
+   {
+    "address": "1000cb558",
+    "name": "_TtC8Playback9SongTrack::.cxx_destruct",
+    "bytes": 1139
+   },
+   {
+    "address": "1000cbe8c",
+    "name": "FUN_1000cbe8c",
+    "bytes": 275
+   },
+   {
+    "address": "1001148d8",
+    "name": "FUN_1001148d8",
+    "bytes": 5606
+   },
+   {
+    "address": "10013a4d4",
+    "name": "_TtC8Playback9GlobalBus::.cxx_construct",
+    "bytes": 1878
+   },
+   {
+    "address": "10013a668",
+    "name": "_TtC8Playback9GlobalBus::.cxx_destruct",
+    "bytes": 796
+   },
+   {
+    "address": "10013a72c",
+    "name": "FUN_10013a72c",
+    "bytes": 275
+   },
+   {
+    "address": "100151c00",
+    "name": "FUN_100151c00",
+    "bytes": 224
+   },
+   {
+    "address": "100151ea8",
+    "name": "FUN_100151ea8",
+    "bytes": 292
+   },
+   {
+    "address": "10015380c",
+    "name": "thunk_FUN_100153810",
+    "bytes": 8167
+   },
+   {
+    "address": "100153810",
+    "name": "FUN_100153810",
+    "bytes": 8145
+   },
+   {
+    "address": "100158bc0",
+    "name": "FUN_100158bc0",
+    "bytes": 8239
+   },
+   {
+    "address": "1001644a4",
+    "name": "FUN_1001644a4",
+    "bytes": 10875
+   },
+   {
+    "address": "10016a0c4",
+    "name": "FUN_10016a0c4",
+    "bytes": 301
+   },
+   {
+    "address": "10016de20",
+    "name": "FUN_10016de20",
+    "bytes": 261
+   },
+   {
+    "address": "1001705d8",
+    "name": "FUN_1001705d8",
+    "bytes": 641
+   },
+   {
+    "address": "100171514",
+    "name": "FUN_100171514",
+    "bytes": 638
+   },
+   {
+    "address": "1001742d0",
+    "name": "FUN_1001742d0",
+    "bytes": 12343
+   },
+   {
+    "address": "1001750e4",
+    "name": "FUN_1001750e4",
+    "bytes": 28007
+   },
+   {
+    "address": "1001a52a8",
+    "name": "thunk_FUN_1001a52ac",
+    "bytes": 357
+   },
+   {
+    "address": "1001a52ac",
+    "name": "FUN_1001a52ac",
+    "bytes": 351
+   },
+   {
+    "address": "1001a52ec",
+    "name": "thunk_FUN_1001a52f0",
+    "bytes": 357
+   },
+   {
+    "address": "1001a52f0",
+    "name": "FUN_1001a52f0",
+    "bytes": 351
+   },
+   {
+    "address": "1001b0af0",
+    "name": "_TtC8Playback19TransportFadeButton::awakeFromNib",
+    "bytes": 326
+   },
+   {
+    "address": "1001b0b18",
+    "name": "FUN_1001b0b18",
+    "bytes": 3006
+   },
+   {
+    "address": "1001b0d5c",
+    "name": "_TtC8Playback19TransportFadeButton::initWithCoder:",
+    "bytes": 254
+   },
+   {
+    "address": "1001b0d84",
+    "name": "FUN_1001b0d84",
+    "bytes": 3142
+   },
+   {
+    "address": "1001b0fc4",
+    "name": "_TtC8Playback19TransportFadeButton::initWithFrame:",
+    "bytes": 330
+   },
+   {
+    "address": "1001b0fe4",
+    "name": "FUN_1001b0fe4",
+    "bytes": 942
+   },
+   {
+    "address": "1001b1070",
+    "name": "_TtC8Playback19TransportFadeButton::.cxx_destruct",
+    "bytes": 678
+   },
+   {
+    "address": "1001b1108",
+    "name": "FUN_1001b1108",
+    "bytes": 128
+   },
+   {
+    "address": "1001b1128",
+    "name": "FUN_1001b1128",
+    "bytes": 378
+   },
+   {
+    "address": "1001b1160",
+    "name": "FUN_1001b1160",
+    "bytes": 417
+   },
+   {
+    "address": "1001b1198",
+    "name": "FUN_1001b1198",
+    "bytes": 399
+   },
+   {
+    "address": "1001b11d0",
+    "name": "FUN_1001b11d0",
+    "bytes": 149
+   },
+   {
+    "address": "1001b11e0",
+    "name": "FUN_1001b11e0",
+    "bytes": 147
+   },
+   {
+    "address": "1001b11f0",
+    "name": "FUN_1001b11f0",
+    "bytes": 168
+   },
+   {
+    "address": "1001b1200",
+    "name": "FUN_1001b1200",
+    "bytes": 323
+   },
+   {
+    "address": "1001b1244",
+    "name": "FUN_1001b1244",
+    "bytes": 423
+   },
+   {
+    "address": "1001b1298",
+    "name": "FUN_1001b1298",
+    "bytes": 358
+   },
+   {
+    "address": "1001b12d8",
+    "name": "FUN_1001b12d8",
+    "bytes": 196
+   },
+   {
+    "address": "1001b12e8",
+    "name": "FUN_1001b12e8",
+    "bytes": 385
+   },
+   {
+    "address": "1001b1320",
+    "name": "FUN_1001b1320",
+    "bytes": 232
+   },
+   {
+    "address": "1001b1350",
+    "name": "FUN_1001b1350",
+    "bytes": 148
+   },
+   {
+    "address": "1001b18dc",
+    "name": "FUN_1001b18dc",
+    "bytes": 11590
+   },
+   {
+    "address": "1001b4e7c",
+    "name": "thunk_FUN_1004f2edc",
+    "bytes": 16627
+   },
+   {
+    "address": "1001bf704",
+    "name": "FUN_1001bf704",
+    "bytes": 114
+   },
+   {
+    "address": "1001e38b0",
+    "name": "_TtC8Playback17MixerPadKeyButton::blinkForLiveCrossfadeWithNotification:",
+    "bytes": 776
+   },
+   {
+    "address": "1001f3438",
+    "name": "FUN_1001f3438",
+    "bytes": 980
+   },
+   {
+    "address": "1001f3614",
+    "name": "FUN_1001f3614",
+    "bytes": 2523
+   },
+   {
+    "address": "1002008dc",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::awakeFromNib",
+    "bytes": 1002
+   },
+   {
+    "address": "10020098c",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::accessibilityIncrement",
+    "bytes": 198
+   },
+   {
+    "address": "100200998",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::accessibilityDecrement",
+    "bytes": 198
+   },
+   {
+    "address": "100200a10",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithImage:",
+    "bytes": 636
+   },
+   {
+    "address": "100200a80",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithImage:highlightedImage:",
+    "bytes": 703
+   },
+   {
+    "address": "100200b00",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithFrame:",
+    "bytes": 796
+   },
+   {
+    "address": "100200b98",
+    "name": "FUN_100200b98",
+    "bytes": 768
+   },
+   {
+    "address": "100200c34",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithCoder:",
+    "bytes": 257
+   },
+   {
+    "address": "100200c5c",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::.cxx_destruct",
+    "bytes": 388
+   },
+   {
+    "address": "100200c9c",
+    "name": "FUN_100200c9c",
+    "bytes": 131
+   },
+   {
+    "address": "10022a928",
+    "name": "FUN_10022a928",
+    "bytes": 16927
+   },
+   {
+    "address": "10024a638",
+    "name": "FUN_10024a638",
+    "bytes": 2473
+   },
+   {
+    "address": "10024a860",
+    "name": "FUN_10024a860",
+    "bytes": 2254
+   },
+   {
+    "address": "10024af10",
+    "name": "FUN_10024af10",
+    "bytes": 29868
+   },
+   {
+    "address": "10024d088",
+    "name": "FUN_10024d088",
+    "bytes": 6758
+   },
+   {
+    "address": "10024d904",
+    "name": "_TtC8Playback19MixerViewController::masterFader",
+    "bytes": 323
+   },
+   {
+    "address": "10024d924",
+    "name": "_TtC8Playback19MixerViewController::setMasterFader:",
+    "bytes": 213
+   },
+   {
+    "address": "10024d938",
+    "name": "_TtC8Playback19MixerViewController::masterFaderLabel",
+    "bytes": 333
+   },
+   {
+    "address": "10024d958",
+    "name": "_TtC8Playback19MixerViewController::setMasterFaderLabel:",
+    "bytes": 223
+   },
+   {
+    "address": "10024d96c",
+    "name": "_TtC8Playback19MixerViewController::masterFaderCapLeadingSpaceConstraint",
+    "bytes": 373
+   },
+   {
+    "address": "10024d98c",
+    "name": "_TtC8Playback19MixerViewController::setMasterFaderCapLeadingSpaceConstraint:",
+    "bytes": 279
+   },
+   {
+    "address": "10024fd50",
+    "name": "FUN_10024fd50",
+    "bytes": 4983
+   },
+   {
+    "address": "1002500a8",
+    "name": "FUN_1002500a8",
+    "bytes": 13735
+   },
+   {
+    "address": "10025160c",
+    "name": "FUN_10025160c",
+    "bytes": 1197
+   },
+   {
+    "address": "1002518e0",
+    "name": "FUN_1002518e0",
+    "bytes": 5015
+   },
+   {
+    "address": "10025278c",
+    "name": "_TtC8Playback19MixerViewController::.cxx_destruct",
+    "bytes": 2475
+   },
+   {
+    "address": "100254220",
+    "name": "_TtC8Playback19MixerViewController::masterVolumeFaderValueChanged:",
+    "bytes": 659
+   },
+   {
+    "address": "1002542cc",
+    "name": "FUN_1002542cc",
+    "bytes": 2932
+   },
+   {
+    "address": "10025473c",
+    "name": "_TtC8Playback19MixerViewController::masterVolumeFaderTouchUpInside:",
+    "bytes": 372
+   },
+   {
+    "address": "100254dd8",
+    "name": "FUN_100254dd8",
+    "bytes": 54688
+   },
+   {
+    "address": "1002572e4",
+    "name": "FUN_1002572e4",
+    "bytes": 1277
+   },
+   {
+    "address": "100257788",
+    "name": "FUN_100257788",
+    "bytes": 2192
+   },
+   {
+    "address": "100259978",
+    "name": "FUN_100259978",
+    "bytes": 5406
+   },
+   {
+    "address": "10025eef0",
+    "name": "FUN_10025eef0",
+    "bytes": 5258
+   },
+   {
+    "address": "10025f2e8",
+    "name": "FUN_10025f2e8",
+    "bytes": 5014
+   },
+   {
+    "address": "100263b6c",
+    "name": "FUN_100263b6c",
+    "bytes": 38920
+   },
+   {
+    "address": "100265ff8",
+    "name": "FUN_100265ff8",
+    "bytes": 38301
+   },
+   {
+    "address": "100268530",
+    "name": "FUN_100268530",
+    "bytes": 36043
+   },
+   {
+    "address": "10026a89c",
+    "name": "thunk_FUN_10026a8a0",
+    "bytes": 35942
+   },
+   {
+    "address": "10026a8a0",
+    "name": "FUN_10026a8a0",
+    "bytes": 35872
+   },
+   {
+    "address": "10026cf50",
+    "name": "FUN_10026cf50",
+    "bytes": 11656
+   },
+   {
+    "address": "10027397c",
+    "name": "FUN_10027397c",
+    "bytes": 39420
+   },
+   {
+    "address": "100278c90",
+    "name": "FUN_100278c90",
+    "bytes": 14925
+   },
+   {
+    "address": "100285d50",
+    "name": "_TtC8Playback8PadTrack::.cxx_construct",
+    "bytes": 3324
+   },
+   {
+    "address": "100286034",
+    "name": "_TtC8Playback8PadTrack::.cxx_destruct",
+    "bytes": 1045
+   },
+   {
+    "address": "100286624",
+    "name": "FUN_100286624",
+    "bytes": 274
+   },
+   {
+    "address": "100299c90",
+    "name": "FUN_100299c90",
+    "bytes": 5465
+   },
+   {
+    "address": "10029a084",
+    "name": "_TtC8Playback19MixerViewController::disableFadersForFadeWithNotification:",
+    "bytes": 205
+   },
+   {
+    "address": "10029a294",
+    "name": "FUN_10029a294",
+    "bytes": 4861
+   },
+   {
+    "address": "10029a624",
+    "name": "_TtC8Playback19MixerViewController::enableAllFadersWithNotification:",
+    "bytes": 200
+   },
+   {
+    "address": "1002c9a18",
+    "name": "FUN_1002c9a18",
+    "bytes": 4139
+   },
+   {
+    "address": "1002c9f34",
+    "name": "FUN_1002c9f34",
+    "bytes": 8704
+   },
+   {
+    "address": "1002ce5a8",
+    "name": "FUN_1002ce5a8",
+    "bytes": 4265
+   },
+   {
+    "address": "1002dd148",
+    "name": "FUN_1002dd148",
+    "bytes": 22002
+   },
+   {
+    "address": "1002e5438",
+    "name": "FUN_1002e5438",
+    "bytes": 11090
+   },
+   {
+    "address": "1002ea220",
+    "name": "FUN_1002ea220",
+    "bytes": 4800
+   },
+   {
+    "address": "1002f7e1c",
+    "name": "FUN_1002f7e1c",
+    "bytes": 13392
+   },
+   {
+    "address": "1002f9aa0",
+    "name": "FUN_1002f9aa0",
+    "bytes": 36197
+   },
+   {
+    "address": "100304db8",
+    "name": "FUN_100304db8",
+    "bytes": 4441
+   },
+   {
+    "address": "1003055a8",
+    "name": "FUN_1003055a8",
+    "bytes": 2311
+   },
+   {
+    "address": "100305e84",
+    "name": "FUN_100305e84",
+    "bytes": 3029
+   },
+   {
+    "address": "1003061a8",
+    "name": "FUN_1003061a8",
+    "bytes": 1232
+   },
+   {
+    "address": "100306c74",
+    "name": "FUN_100306c74",
+    "bytes": 685
+   },
+   {
+    "address": "100343d80",
+    "name": "FUN_100343d80",
+    "bytes": 31915
+   },
+   {
+    "address": "100345cf8",
+    "name": "FUN_100345cf8",
+    "bytes": 10143
+   },
+   {
+    "address": "10034acac",
+    "name": "FUN_10034acac",
+    "bytes": 15321
+   },
+   {
+    "address": "1003858e8",
+    "name": "_TtC8Playback7SongBus::.cxx_construct",
+    "bytes": 2015
+   },
+   {
+    "address": "100385a98",
+    "name": "_TtC8Playback7SongBus::.cxx_destruct",
+    "bytes": 867
+   },
+   {
+    "address": "100385f28",
+    "name": "FUN_100385f28",
+    "bytes": 273
+   },
+   {
+    "address": "100386028",
+    "name": "FUN_100386028",
+    "bytes": 1991
+   },
+   {
+    "address": "1003a6234",
+    "name": "FUN_1003a6234",
+    "bytes": 31980
+   },
+   {
+    "address": "1003c94dc",
+    "name": "FUN_1003c94dc",
+    "bytes": 129
+   },
+   {
+    "address": "1003c9504",
+    "name": "FUN_1003c9504",
+    "bytes": 129
+   },
+   {
+    "address": "1003c9530",
+    "name": "FUN_1003c9530",
+    "bytes": 128
+   },
+   {
+    "address": "1003c955c",
+    "name": "FUN_1003c955c",
+    "bytes": 127
+   },
+   {
+    "address": "1003c95a8",
+    "name": "FUN_1003c95a8",
+    "bytes": 129
+   },
+   {
+    "address": "10041800c",
+    "name": "FUN_10041800c",
+    "bytes": 9385
+   },
+   {
+    "address": "100418930",
+    "name": "FUN_100418930",
+    "bytes": 260
+   },
+   {
+    "address": "10041894c",
+    "name": "FUN_10041894c",
+    "bytes": 2788
+   },
+   {
+    "address": "100473004",
+    "name": "FUN_100473004",
+    "bytes": 11736
+   },
+   {
+    "address": "100473bdc",
+    "name": "FUN_100473bdc",
+    "bytes": 2575
+   },
+   {
+    "address": "1004da640",
+    "name": "FUN_1004da640",
+    "bytes": 45964
+   },
+   {
+    "address": "1004eaca4",
+    "name": "_TtC8Playback15SetlistItemCell::blinkForLiveCrossfadeWithNotification:",
+    "bytes": 202
+   },
+   {
+    "address": "1004f25d4",
+    "name": "FUN_1004f25d4",
+    "bytes": 7677
+   },
+   {
+    "address": "1004f2edc",
+    "name": "FUN_1004f2edc",
+    "bytes": 16617
+   },
+   {
+    "address": "1004f3f10",
+    "name": "FUN_1004f3f10",
+    "bytes": 4732
+   },
+   {
+    "address": "1004f5388",
+    "name": "FUN_1004f5388",
+    "bytes": 53508
+   },
+   {
+    "address": "1004f9cd8",
+    "name": "FUN_1004f9cd8",
+    "bytes": 22551
+   },
+   {
+    "address": "1004fc298",
+    "name": "FUN_1004fc298",
+    "bytes": 19645
+   },
+   {
+    "address": "100502030",
+    "name": "FUN_100502030",
+    "bytes": 4083
+   },
+   {
+    "address": "100502d0c",
+    "name": "FUN_100502d0c",
+    "bytes": 11807
+   },
+   {
+    "address": "100504280",
+    "name": "FUN_100504280",
+    "bytes": 6021
+   },
+   {
+    "address": "1005066b0",
+    "name": "FUN_1005066b0",
+    "bytes": 1193
+   },
+   {
+    "address": "10050cb68",
+    "name": "FUN_10050cb68",
+    "bytes": 10543
+   },
+   {
+    "address": "1005464a8",
+    "name": "FUN_1005464a8",
+    "bytes": 1098
+   },
+   {
+    "address": "10056c0c8",
+    "name": "FUN_10056c0c8",
+    "bytes": 5120
+   },
+   {
+    "address": "10057f46c",
+    "name": "FUN_10057f46c",
+    "bytes": 16006
+   },
+   {
+    "address": "10057ff44",
+    "name": "FUN_10057ff44",
+    "bytes": 999
+   },
+   {
+    "address": "100580040",
+    "name": "FUN_100580040",
+    "bytes": 1000
+   },
+   {
+    "address": "1005820ec",
+    "name": "FUN_1005820ec",
+    "bytes": 18681
+   },
+   {
+    "address": "10059d644",
+    "name": "FUN_10059d644",
+    "bytes": 56557
+   },
+   {
+    "address": "1005b748c",
+    "name": "FUN_1005b748c",
+    "bytes": 8849
+   },
+   {
+    "address": "1005c5234",
+    "name": "FUN_1005c5234",
+    "bytes": 3431
+   },
+   {
+    "address": "1005c6e74",
+    "name": "FUN_1005c6e74",
+    "bytes": 3443
+   },
+   {
+    "address": "1005e18bc",
+    "name": "FUN_1005e18bc",
+    "bytes": 36606
+   },
+   {
+    "address": "1005ed2e0",
+    "name": "FUN_1005ed2e0",
+    "bytes": 5230
+   },
+   {
+    "address": "1005ed7cc",
+    "name": "FUN_1005ed7cc",
+    "bytes": 219
+   },
+   {
+    "address": "1005ed7fc",
+    "name": "FUN_1005ed7fc",
+    "bytes": 225
+   },
+   {
+    "address": "1005ff850",
+    "name": "FUN_1005ff850",
+    "bytes": 34566
+   },
+   {
+    "address": "1006018d0",
+    "name": "FUN_1006018d0",
+    "bytes": 27120
+   },
+   {
+    "address": "10061ea4c",
+    "name": "FUN_10061ea4c",
+    "bytes": 25193
+   },
+   {
+    "address": "100621bac",
+    "name": "FUN_100621bac",
+    "bytes": 54218
+   },
+   {
+    "address": "100624958",
+    "name": "FUN_100624958",
+    "bytes": 19011
+   },
+   {
+    "address": "1006269a4",
+    "name": "FUN_1006269a4",
+    "bytes": 38728
+   },
+   {
+    "address": "10062c084",
+    "name": "FUN_10062c084",
+    "bytes": 6342
+   },
+   {
+    "address": "10062ce34",
+    "name": "FUN_10062ce34",
+    "bytes": 7189
+   },
+   {
+    "address": "100635fd0",
+    "name": "FUN_100635fd0",
+    "bytes": 9428
+   },
+   {
+    "address": "100638ad0",
+    "name": "FUN_100638ad0",
+    "bytes": 7846
+   },
+   {
+    "address": "1006446e0",
+    "name": "FUN_1006446e0",
+    "bytes": 11455
+   },
+   {
+    "address": "100647514",
+    "name": "FUN_100647514",
+    "bytes": 5509
+   },
+   {
+    "address": "100647c80",
+    "name": "FUN_100647c80",
+    "bytes": 2510
+   },
+   {
+    "address": "100648190",
+    "name": "FUN_100648190",
+    "bytes": 45444
+   },
+   {
+    "address": "10064c530",
+    "name": "FUN_10064c530",
+    "bytes": 56031
+   },
+   {
+    "address": "1006501a0",
+    "name": "FUN_1006501a0",
+    "bytes": 1925
+   },
+   {
+    "address": "1006513dc",
+    "name": "FUN_1006513dc",
+    "bytes": 6026
+   },
+   {
+    "address": "10065a678",
+    "name": "_TtC8Playback9SongGenre::.cxx_construct",
+    "bytes": 3612
+   },
+   {
+    "address": "10065a994",
+    "name": "_TtC8Playback9SongGenre::.cxx_destruct",
+    "bytes": 1121
+   },
+   {
+    "address": "10065ad00",
+    "name": "FUN_10065ad00",
+    "bytes": 275
+   },
+   {
+    "address": "1006bf1d4",
+    "name": "FUN_1006bf1d4",
+    "bytes": 27744
+   },
+   {
+    "address": "1006c2bc4",
+    "name": "FUN_1006c2bc4",
+    "bytes": 6146
+   },
+   {
+    "address": "1006c36ac",
+    "name": "FUN_1006c36ac",
+    "bytes": 6152
+   },
+   {
+    "address": "1006cc344",
+    "name": "FUN_1006cc344",
+    "bytes": 5533
+   },
+   {
+    "address": "1006e0f68",
+    "name": "FUN_1006e0f68",
+    "bytes": 49997
+   },
+   {
+    "address": "1006e3fe4",
+    "name": "FUN_1006e3fe4",
+    "bytes": 18457
+   },
+   {
+    "address": "10071af98",
+    "name": "FUN_10071af98",
+    "bytes": 12156
+   },
+   {
+    "address": "10071b930",
+    "name": "FUN_10071b930",
+    "bytes": 3373
+   },
+   {
+    "address": "10071be38",
+    "name": "FUN_10071be38",
+    "bytes": 4118
+   },
+   {
+    "address": "100721cf4",
+    "name": "FUN_100721cf4",
+    "bytes": 227819
+   },
+   {
+    "address": "10072651c",
+    "name": "FUN_10072651c",
+    "bytes": 541
+   },
+   {
+    "address": "10072804c",
+    "name": "FUN_10072804c",
+    "bytes": 7276
+   },
+   {
+    "address": "100729104",
+    "name": "FUN_100729104",
+    "bytes": 1386
+   },
+   {
+    "address": "100732b68",
+    "name": "FUN_100732b68",
+    "bytes": 1948
+   },
+   {
+    "address": "100732ddc",
+    "name": "FUN_100732ddc",
+    "bytes": 2152
+   },
+   {
+    "address": "100733004",
+    "name": "FUN_100733004",
+    "bytes": 10734
+   },
+   {
+    "address": "100736e24",
+    "name": "FUN_100736e24",
+    "bytes": 4921
+   },
+   {
+    "address": "100737394",
+    "name": "FUN_100737394",
+    "bytes": 2357
+   },
+   {
+    "address": "10073d9a0",
+    "name": "FUN_10073d9a0",
+    "bytes": 16376
+   },
+   {
+    "address": "1007433a0",
+    "name": "FUN_1007433a0",
+    "bytes": 234
+   },
+   {
+    "address": "1007433c4",
+    "name": "FUN_1007433c4",
+    "bytes": 238
+   },
+   {
+    "address": "1007433e8",
+    "name": "FUN_1007433e8",
+    "bytes": 242
+   },
+   {
+    "address": "10074340c",
+    "name": "FUN_10074340c",
+    "bytes": 242
+   },
+   {
+    "address": "100743430",
+    "name": "FUN_100743430",
+    "bytes": 242
+   },
+   {
+    "address": "100743fc0",
+    "name": "FUN_100743fc0",
+    "bytes": 51551
+   },
+   {
+    "address": "100746c6c",
+    "name": "FUN_100746c6c",
+    "bytes": 10821
+   },
+   {
+    "address": "1007476ec",
+    "name": "FUN_1007476ec",
+    "bytes": 3703
+   },
+   {
+    "address": "10076a234",
+    "name": "FUN_10076a234",
+    "bytes": 5309
+   },
+   {
+    "address": "10076c7ac",
+    "name": "FUN_10076c7ac",
+    "bytes": 1065
+   },
+   {
+    "address": "10076c890",
+    "name": "FUN_10076c890",
+    "bytes": 26915
+   },
+   {
+    "address": "1007a94bc",
+    "name": "FUN_1007a94bc",
+    "bytes": 167
+   },
+   {
+    "address": "1007a94cc",
+    "name": "FUN_1007a94cc",
+    "bytes": 181
+   },
+   {
+    "address": "1007a94dc",
+    "name": "FUN_1007a94dc",
+    "bytes": 159
+   },
+   {
+    "address": "1007a94ec",
+    "name": "FUN_1007a94ec",
+    "bytes": 194
+   },
+   {
+    "address": "1007a94fc",
+    "name": "FUN_1007a94fc",
+    "bytes": 3816
+   },
+   {
+    "address": "1007a9790",
+    "name": "FUN_1007a9790",
+    "bytes": 2568
+   },
+   {
+    "address": "1007a99f0",
+    "name": "FUN_1007a99f0",
+    "bytes": 1101
+   },
+   {
+    "address": "1007a9ac0",
+    "name": "FUN_1007a9ac0",
+    "bytes": 4167
+   },
+   {
+    "address": "1007a9dc4",
+    "name": "FUN_1007a9dc4",
+    "bytes": 2628
+   },
+   {
+    "address": "1007a9ffc",
+    "name": "FUN_1007a9ffc",
+    "bytes": 427
+   },
+   {
+    "address": "1007aa06c",
+    "name": "FUN_1007aa06c",
+    "bytes": 1216
+   },
+   {
+    "address": "1007aa15c",
+    "name": "FUN_1007aa15c",
+    "bytes": 146
+   },
+   {
+    "address": "1007aa16c",
+    "name": "FUN_1007aa16c",
+    "bytes": 186
+   },
+   {
+    "address": "1007aa17c",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundMarksImageView",
+    "bytes": 355
+   },
+   {
+    "address": "1007aa19c",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderBackgroundMarksImageView:",
+    "bytes": 261
+   },
+   {
+    "address": "1007aa1b0",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundTrackImageView",
+    "bytes": 355
+   },
+   {
+    "address": "1007aa1d0",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderBackgroundTrackImageView:",
+    "bytes": 261
+   },
+   {
+    "address": "1007aa1e4",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundButton",
+    "bytes": 339
+   },
+   {
+    "address": "1007aa204",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderBackgroundButton:",
+    "bytes": 229
+   },
+   {
+    "address": "1007aa218",
+    "name": "_TtC8Playback15MixerTrackFader::faderCapView",
+    "bytes": 321
+   },
+   {
+    "address": "1007aa238",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderCapView:",
+    "bytes": 211
+   },
+   {
+    "address": "1007aa24c",
+    "name": "_TtC8Playback15MixerTrackFader::faderCapBottomSpaceConstraint",
+    "bytes": 355
+   },
+   {
+    "address": "1007aa26c",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderCapBottomSpaceConstraint:",
+    "bytes": 261
+   },
+   {
+    "address": "1007aa280",
+    "name": "FUN_1007aa280",
+    "bytes": 146
+   },
+   {
+    "address": "1007aa290",
+    "name": "FUN_1007aa290",
+    "bytes": 1618
+   },
+   {
+    "address": "1007aa404",
+    "name": "_TtC8Playback15MixerTrackFader::awakeFromNib",
+    "bytes": 208
+   },
+   {
+    "address": "1007aa418",
+    "name": "_TtC8Playback15MixerTrackFader::layoutSubviews",
+    "bytes": 212
+   },
+   {
+    "address": "1007aa494",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundButtonTouchUpInside:",
+    "bytes": 372
+   },
+   {
+    "address": "1007aa4e0",
+    "name": "_TtC8Playback15MixerTrackFader::faderLongPress:",
+    "bytes": 336
+   },
+   {
+    "address": "1007aa530",
+    "name": "FUN_1007aa530",
+    "bytes": 2232
+   },
+   {
+    "address": "1007aa6c4",
+    "name": "_TtC8Playback15MixerTrackFader::initWithFrame:",
+    "bytes": 326
+   },
+   {
+    "address": "1007aa6e4",
+    "name": "FUN_1007aa6e4",
+    "bytes": 2345
+   },
+   {
+    "address": "1007aa87c",
+    "name": "_TtC8Playback15MixerTrackFader::initWithCoder:",
+    "bytes": 250
+   },
+   {
+    "address": "1007aa8d4",
+    "name": "_TtC8Playback15MixerTrackFader::.cxx_destruct",
+    "bytes": 653
+   },
+   {
+    "address": "1007aa97c",
+    "name": "FUN_1007aa97c",
+    "bytes": 124
+   },
+   {
+    "address": "1007aa9f0",
+    "name": "_TtC8Playback15MixerTrackFader::gestureRecognizerShouldBegin:",
+    "bytes": 176
+   },
+   {
+    "address": "1007aa9f8",
+    "name": "_TtC8Playback15MixerTrackFader::gestureRecognizer:shouldReceiveTouch:",
+    "bytes": 430
+   },
+   {
+    "address": "1007aaa6c",
+    "name": "FUN_1007aaa6c",
+    "bytes": 1039
+   },
+   {
+    "address": "1007aab54",
+    "name": "FUN_1007aab54",
+    "bytes": 3203
+   },
+   {
+    "address": "1007bc8f4",
+    "name": "FUN_1007bc8f4",
+    "bytes": 836
+   },
+   {
+    "address": "1007bcba0",
+    "name": "_TtC8Playback14MixerTrackCell::faderControlStackView",
+    "bytes": 338
+   },
+   {
+    "address": "1007bcbc0",
+    "name": "_TtC8Playback14MixerTrackCell::setFaderControlStackView:",
+    "bytes": 228
+   },
+   {
+    "address": "1007bcc70",
+    "name": "_TtC8Playback14MixerTrackCell::trackFader",
+    "bytes": 316
+   },
+   {
+    "address": "1007bcc90",
+    "name": "_TtC8Playback14MixerTrackCell::setTrackFader:",
+    "bytes": 206
+   },
+   {
+    "address": "1007bcf48",
+    "name": "_TtC8Playback14MixerTrackCell::faderCapLeadingConstraint",
+    "bytes": 346
+   },
+   {
+    "address": "1007bcf68",
+    "name": "_TtC8Playback14MixerTrackCell::setFaderCapLeadingConstraint:",
+    "bytes": 236
+   },
+   {
+    "address": "1007bcfb0",
+    "name": "FUN_1007bcfb0",
+    "bytes": 1571
+   },
+   {
+    "address": "1007bd11c",
+    "name": "FUN_1007bd11c",
+    "bytes": 5043
+   },
+   {
+    "address": "1007bd5f4",
+    "name": "FUN_1007bd5f4",
+    "bytes": 4368
+   },
+   {
+    "address": "1007bdff4",
+    "name": "FUN_1007bdff4",
+    "bytes": 5490
+   },
+   {
+    "address": "1007be53c",
+    "name": "_TtC8Playback14MixerTrackCell::faderLongPressed:",
+    "bytes": 510
+   },
+   {
+    "address": "1007be5c0",
+    "name": "FUN_1007be5c0",
+    "bytes": 7570
+   },
+   {
+    "address": "1007bf474",
+    "name": "FUN_1007bf474",
+    "bytes": 3086
+   },
+   {
+    "address": "1007bf7b0",
+    "name": "FUN_1007bf7b0",
+    "bytes": 3525
+   },
+   {
+    "address": "1007bfa64",
+    "name": "FUN_1007bfa64",
+    "bytes": 1817
+   },
+   {
+    "address": "1007bfbf8",
+    "name": "FUN_1007bfbf8",
+    "bytes": 1692
+   },
+   {
+    "address": "1007bfda4",
+    "name": "FUN_1007bfda4",
+    "bytes": 2909
+   },
+   {
+    "address": "1007c0028",
+    "name": "FUN_1007c0028",
+    "bytes": 3022
+   },
+   {
+    "address": "1007c02b8",
+    "name": "_TtC8Playback14MixerTrackCell::.cxx_destruct",
+    "bytes": 1608
+   },
+   {
+    "address": "1007c0618",
+    "name": "FUN_1007c0618",
+    "bytes": 782
+   },
+   {
+    "address": "100867240",
+    "name": "FUN_100867240",
+    "bytes": 3909
+   },
+   {
+    "address": "10086a1c0",
+    "name": "FUN_10086a1c0",
+    "bytes": 6362
+   },
+   {
+    "address": "10086ba58",
+    "name": "FUN_10086ba58",
+    "bytes": 700
+   },
+   {
+    "address": "10086cd90",
+    "name": "_TtC8Playback23TransportViewController::fadeButton",
+    "bytes": 325
+   },
+   {
+    "address": "10086cdb0",
+    "name": "_TtC8Playback23TransportViewController::setFadeButton:",
+    "bytes": 215
+   },
+   {
+    "address": "10086de28",
+    "name": "FUN_10086de28",
+    "bytes": 3369
+   },
+   {
+    "address": "10086e968",
+    "name": "_TtC8Playback23TransportViewController::.cxx_destruct",
+    "bytes": 2457
+   },
+   {
+    "address": "10086fd90",
+    "name": "_TtC8Playback23TransportViewController::fadeButtonTouchUpInside:",
+    "bytes": 1780
+   },
+   {
+    "address": "100872c64",
+    "name": "FUN_100872c64",
+    "bytes": 4300
+   },
+   {
+    "address": "100872fb4",
+    "name": "FUN_100872fb4",
+    "bytes": 4155
+   },
+   {
+    "address": "100874bd0",
+    "name": "FUN_100874bd0",
+    "bytes": 3412
+   },
+   {
+    "address": "1008cca60",
+    "name": "objc_stub::postBusFaderChangedNotification",
+    "bytes": 183
+   }
+  ],
+  "midi": [
+   {
+    "address": "100027f64",
+    "name": "FUN_100027f64",
+    "bytes": 4382
+   },
+   {
+    "address": "10002871c",
+    "name": "_TtC8Playback9MIDIEvent::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 513
+   },
+   {
+    "address": "100028770",
+    "name": "_TtC8Playback9MIDIEvent::.cxx_construct",
+    "bytes": 339
+   },
+   {
+    "address": "10002879c",
+    "name": "_TtC8Playback9MIDIEvent::.cxx_destruct",
+    "bytes": 281
+   },
+   {
+    "address": "1000287b8",
+    "name": "FUN_1000287b8",
+    "bytes": 117
+   },
+   {
+    "address": "1000f0420",
+    "name": "FUN_1000f0420",
+    "bytes": 736
+   },
+   {
+    "address": "1000f04b0",
+    "name": "FUN_1000f04b0",
+    "bytes": 830
+   },
+   {
+    "address": "1000f0550",
+    "name": "FUN_1000f0550",
+    "bytes": 735
+   },
+   {
+    "address": "1000f9f24",
+    "name": "_TtC8Playback8MIDIBank::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 512
+   },
+   {
+    "address": "1000f9f78",
+    "name": "FUN_1000f9f78",
+    "bytes": 116
+   },
+   {
+    "address": "1001fc498",
+    "name": "FUN_1001fc498",
+    "bytes": 5061
+   },
+   {
+    "address": "1001fd0b4",
+    "name": "FUN_1001fd0b4",
+    "bytes": 3287
+   },
+   {
+    "address": "100214c58",
+    "name": "FUN_100214c58",
+    "bytes": 126
+   },
+   {
+    "address": "10026e44c",
+    "name": "FUN_10026e44c",
+    "bytes": 4859
+   },
+   {
+    "address": "100279ff4",
+    "name": "FUN_100279ff4",
+    "bytes": 979
+   },
+   {
+    "address": "10027a3f4",
+    "name": "FUN_10027a3f4",
+    "bytes": 2518
+   },
+   {
+    "address": "100295fd8",
+    "name": "FUN_100295fd8",
+    "bytes": 116
+   },
+   {
+    "address": "100295fe8",
+    "name": "FUN_100295fe8",
+    "bytes": 109
+   },
+   {
+    "address": "100295ff8",
+    "name": "FUN_100295ff8",
+    "bytes": 840
+   },
+   {
+    "address": "10029611c",
+    "name": "FUN_10029611c",
+    "bytes": 245
+   },
+   {
+    "address": "10029c568",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::initWithCoder:",
+    "bytes": 863
+   },
+   {
+    "address": "10029ca3c",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::viewDidLoad",
+    "bytes": 337
+   },
+   {
+    "address": "10029ca64",
+    "name": "FUN_10029ca64",
+    "bytes": 2947
+   },
+   {
+    "address": "10029cd20",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::viewWillAppear:",
+    "bytes": 596
+   },
+   {
+    "address": "10029cf2c",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::editBarButtonTapped:",
+    "bytes": 373
+   },
+   {
+    "address": "10029d3d0",
+    "name": "FUN_10029d3d0",
+    "bytes": 3343
+   },
+   {
+    "address": "10029dab0",
+    "name": "FUN_10029dab0",
+    "bytes": 3190
+   },
+   {
+    "address": "10029dcfc",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::initWithStyle:",
+    "bytes": 439
+   },
+   {
+    "address": "10029dd28",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::initWithNibName:bundle:",
+    "bytes": 544
+   },
+   {
+    "address": "10029dd5c",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::.cxx_destruct",
+    "bytes": 362
+   },
+   {
+    "address": "10029dda4",
+    "name": "FUN_10029dda4",
+    "bytes": 140
+   },
+   {
+    "address": "10029ddc4",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::numberOfSectionsInTableView:",
+    "bytes": 201
+   },
+   {
+    "address": "10029ddcc",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:numberOfRowsInSection:",
+    "bytes": 248
+   },
+   {
+    "address": "10029ddf0",
+    "name": "FUN_10029ddf0",
+    "bytes": 4565
+   },
+   {
+    "address": "10029e204",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 892
+   },
+   {
+    "address": "10029e2bc",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:titleForFooterInSection:",
+    "bytes": 499
+   },
+   {
+    "address": "10029e300",
+    "name": "FUN_10029e300",
+    "bytes": 2007
+   },
+   {
+    "address": "10029e474",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:willSelectRowAtIndexPath:",
+    "bytes": 1342
+   },
+   {
+    "address": "10029e598",
+    "name": "FUN_10029e598",
+    "bytes": 7269
+   },
+   {
+    "address": "10029ea5c",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 792
+   },
+   {
+    "address": "10029eb0c",
+    "name": "FUN_10029eb0c",
+    "bytes": 1435
+   },
+   {
+    "address": "10029ec28",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:canEditRowAtIndexPath:",
+    "bytes": 808
+   },
+   {
+    "address": "10029ece0",
+    "name": "_TtC8Playback31SongMenuMIDIBanksViewController::tableView:trailingSwipeActionsConfigurationForRowAtIndexPath:",
+    "bytes": 955
+   },
+   {
+    "address": "10029ed94",
+    "name": "FUN_10029ed94",
+    "bytes": 5047
+   },
+   {
+    "address": "10029f0f4",
+    "name": "FUN_10029f0f4",
+    "bytes": 4163
+   },
+   {
+    "address": "10029f418",
+    "name": "FUN_10029f418",
+    "bytes": 3556
+   },
+   {
+    "address": "10029f8e8",
+    "name": "FUN_10029f8e8",
+    "bytes": 329
+   },
+   {
+    "address": "10029f9f8",
+    "name": "FUN_10029f9f8",
+    "bytes": 3582
+   },
+   {
+    "address": "1002ac524",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::markerContainerView",
+    "bytes": 355
+   },
+   {
+    "address": "1002ac544",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setMarkerContainerView:",
+    "bytes": 261
+   },
+   {
+    "address": "1002ac558",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::titleLabel",
+    "bytes": 337
+   },
+   {
+    "address": "1002ac578",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setTitleLabel:",
+    "bytes": 243
+   },
+   {
+    "address": "1002ac58c",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::titleEditButton",
+    "bytes": 347
+   },
+   {
+    "address": "1002ac5ac",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setTitleEditButton:",
+    "bytes": 253
+   },
+   {
+    "address": "1002ac5c0",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::destinationButton",
+    "bytes": 351
+   },
+   {
+    "address": "1002ac5e0",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setDestinationButton:",
+    "bytes": 257
+   },
+   {
+    "address": "1002ac5f4",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::channelButton",
+    "bytes": 343
+   },
+   {
+    "address": "1002ac614",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setChannelButton:",
+    "bytes": 249
+   },
+   {
+    "address": "1002ac628",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::channelArrowImageView",
+    "bytes": 359
+   },
+   {
+    "address": "1002ac648",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setChannelArrowImageView:",
+    "bytes": 265
+   },
+   {
+    "address": "1002ac65c",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::enabledSwitch",
+    "bytes": 343
+   },
+   {
+    "address": "1002ac67c",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::setEnabledSwitch:",
+    "bytes": 249
+   },
+   {
+    "address": "1002ac690",
+    "name": "FUN_1002ac690",
+    "bytes": 920
+   },
+   {
+    "address": "1002ac7a4",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::awakeFromNib",
+    "bytes": 342
+   },
+   {
+    "address": "1002ac7cc",
+    "name": "FUN_1002ac7cc",
+    "bytes": 756
+   },
+   {
+    "address": "1002ac880",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::titleEditButtonTouchUpInside:",
+    "bytes": 386
+   },
+   {
+    "address": "1002ac8d0",
+    "name": "FUN_1002ac8d0",
+    "bytes": 756
+   },
+   {
+    "address": "1002ac984",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::destinationButtonTouchUpInside:",
+    "bytes": 388
+   },
+   {
+    "address": "1002ac9d4",
+    "name": "FUN_1002ac9d4",
+    "bytes": 753
+   },
+   {
+    "address": "1002aca88",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::channelButtonTouchUpInside:",
+    "bytes": 384
+   },
+   {
+    "address": "1002acad8",
+    "name": "FUN_1002acad8",
+    "bytes": 756
+   },
+   {
+    "address": "1002acb8c",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::enabledValueChanged:",
+    "bytes": 377
+   },
+   {
+    "address": "1002acbdc",
+    "name": "FUN_1002acbdc",
+    "bytes": 8868
+   },
+   {
+    "address": "1002ad50c",
+    "name": "FUN_1002ad50c",
+    "bytes": 3466
+   },
+   {
+    "address": "1002ad800",
+    "name": "FUN_1002ad800",
+    "bytes": 1833
+   },
+   {
+    "address": "1002ad950",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::initWithStyle:reuseIdentifier:",
+    "bytes": 412
+   },
+   {
+    "address": "1002ad998",
+    "name": "FUN_1002ad998",
+    "bytes": 1681
+   },
+   {
+    "address": "1002adac4",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::initWithCoder:",
+    "bytes": 284
+   },
+   {
+    "address": "1002adaec",
+    "name": "_TtC8Playback35RoutingSelectorMIDIBusTableViewCell::.cxx_destruct",
+    "bytes": 661
+   },
+   {
+    "address": "1002adb94",
+    "name": "FUN_1002adb94",
+    "bytes": 147
+   },
+   {
+    "address": "1002c662c",
+    "name": "FUN_1002c662c",
+    "bytes": 9484
+   },
+   {
+    "address": "100370d14",
+    "name": "FUN_100370d14",
+    "bytes": 12889
+   },
+   {
+    "address": "1003762bc",
+    "name": "FUN_1003762bc",
+    "bytes": 799
+   },
+   {
+    "address": "100376358",
+    "name": "FUN_100376358",
+    "bytes": 2429
+   },
+   {
+    "address": "100376548",
+    "name": "_TtC8Playback20MIDIClockAVAudioUnit::init",
+    "bytes": 152
+   },
+   {
+    "address": "100376568",
+    "name": "FUN_100376568",
+    "bytes": 752
+   },
+   {
+    "address": "1003765f8",
+    "name": "_TtC8Playback20MIDIClockAVAudioUnit::dealloc",
+    "bytes": 893
+   },
+   {
+    "address": "1003766a0",
+    "name": "_TtC8Playback20MIDIClockAVAudioUnit::.cxx_destruct",
+    "bytes": 205
+   },
+   {
+    "address": "1003766b0",
+    "name": "_TtC8Playback20MIDIClockAVAudioUnit::initWithAudioComponentDescription:",
+    "bytes": 474
+   },
+   {
+    "address": "1003766dc",
+    "name": "FUN_1003766dc",
+    "bytes": 129
+   },
+   {
+    "address": "1003aeea4",
+    "name": "FUN_1003aeea4",
+    "bytes": 6999
+   },
+   {
+    "address": "100419fa8",
+    "name": "FUN_100419fa8",
+    "bytes": 71583
+   },
+   {
+    "address": "10042f27c",
+    "name": "FUN_10042f27c",
+    "bytes": 2179
+   },
+   {
+    "address": "10042f988",
+    "name": "FUN_10042f988",
+    "bytes": 1560
+   },
+   {
+    "address": "10042fb14",
+    "name": "_TtC8Playback7MIDIBus::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 511
+   },
+   {
+    "address": "10042fb68",
+    "name": "_TtC8Playback7MIDIBus::.cxx_construct",
+    "bytes": 184
+   },
+   {
+    "address": "10042fb78",
+    "name": "_TtC8Playback7MIDIBus::.cxx_destruct",
+    "bytes": 206
+   },
+   {
+    "address": "10042fb88",
+    "name": "FUN_10042fb88",
+    "bytes": 115
+   },
+   {
+    "address": "10042fd3c",
+    "name": "FUN_10042fd3c",
+    "bytes": 3924
+   },
+   {
+    "address": "10049fd44",
+    "name": "FUN_10049fd44",
+    "bytes": 108
+   },
+   {
+    "address": "10049fd54",
+    "name": "FUN_10049fd54",
+    "bytes": 106
+   },
+   {
+    "address": "10049fd64",
+    "name": "FUN_10049fd64",
+    "bytes": 116
+   },
+   {
+    "address": "10049fd74",
+    "name": "FUN_10049fd74",
+    "bytes": 114
+   },
+   {
+    "address": "10049fd84",
+    "name": "FUN_10049fd84",
+    "bytes": 803
+   },
+   {
+    "address": "10049fe84",
+    "name": "FUN_10049fe84",
+    "bytes": 1760
+   },
+   {
+    "address": "10049ffc8",
+    "name": "FUN_10049ffc8",
+    "bytes": 1368
+   },
+   {
+    "address": "1004a00b4",
+    "name": "FUN_1004a00b4",
+    "bytes": 746
+   },
+   {
+    "address": "1004a0144",
+    "name": "_TtC8Playback18MIDIOutAVAudioUnit::dealloc",
+    "bytes": 891
+   },
+   {
+    "address": "1004a01ec",
+    "name": "_TtC8Playback18MIDIOutAVAudioUnit::.cxx_destruct",
+    "bytes": 387
+   },
+   {
+    "address": "1004a0244",
+    "name": "FUN_1004a0244",
+    "bytes": 4540
+   },
+   {
+    "address": "1004a0c04",
+    "name": "_TtC8Playback18MIDIOutAVAudioUnit::initWithAudioComponentDescription:",
+    "bytes": 470
+   },
+   {
+    "address": "1004a0c30",
+    "name": "_TtC8Playback18MIDIOutAVAudioUnit::init",
+    "bytes": 350
+   },
+   {
+    "address": "1004a0c5c",
+    "name": "FUN_1004a0c5c",
+    "bytes": 127
+   },
+   {
+    "address": "1004a0c7c",
+    "name": "_TtC8Playback18MIDIOutAVAudioUnit::midiOutAudioUnit:requestsMIDIEventOutputAtIndex:isPrerolled:isRewound:",
+    "bytes": 476
+   },
+   {
+    "address": "1004a1188",
+    "name": "FUN_1004a1188",
+    "bytes": 18609
+   },
+   {
+    "address": "1004a2024",
+    "name": "FUN_1004a2024",
+    "bytes": 273
+   },
+   {
+    "address": "1004f5388",
+    "name": "FUN_1004f5388",
+    "bytes": 53508
+   },
+   {
+    "address": "1005196e8",
+    "name": "_TtC8Playback14ControlMapping::description",
+    "bytes": 530
+   },
+   {
+    "address": "10051a280",
+    "name": "_TtC8Playback14ControlMapping::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 519
+   },
+   {
+    "address": "10051a2d4",
+    "name": "_TtC8Playback14ControlMapping::.cxx_construct",
+    "bytes": 131
+   },
+   {
+    "address": "10051a2d8",
+    "name": "_TtC8Playback14ControlMapping::.cxx_destruct",
+    "bytes": 130
+   },
+   {
+    "address": "10051a2dc",
+    "name": "FUN_10051a2dc",
+    "bytes": 123
+   },
+   {
+    "address": "10052777c",
+    "name": "_TtC8Playback37SongMenuAdvancedMIDIOutViewController::initWithCoder:",
+    "bytes": 1151
+   },
+   {
+    "address": "100527bd8",
+    "name": "_TtC8Playback37SongMenuAdvancedMIDIOutViewController::.cxx_destruct",
+    "bytes": 489
+   },
+   {
+    "address": "100527e2c",
+    "name": "FUN_100527e2c",
+    "bytes": 4217
+   },
+   {
+    "address": "100528f18",
+    "name": "FUN_100528f18",
+    "bytes": 5849
+   },
+   {
+    "address": "1005291dc",
+    "name": "FUN_1005291dc",
+    "bytes": 2266
+   },
+   {
+    "address": "1005293f0",
+    "name": "FUN_1005293f0",
+    "bytes": 6974
+   },
+   {
+    "address": "1005b3a44",
+    "name": "FUN_1005b3a44",
+    "bytes": 3071
+   },
+   {
+    "address": "1005b3c60",
+    "name": "FUN_1005b3c60",
+    "bytes": 3413
+   },
+   {
+    "address": "1005f1624",
+    "name": "FUN_1005f1624",
+    "bytes": 6399
+   },
+   {
+    "address": "1005f7ae8",
+    "name": "FUN_1005f7ae8",
+    "bytes": 1223
+   },
+   {
+    "address": "1005f7be8",
+    "name": "FUN_1005f7be8",
+    "bytes": 3658
+   },
+   {
+    "address": "1005f7f0c",
+    "name": "FUN_1005f7f0c",
+    "bytes": 13255
+   },
+   {
+    "address": "100647514",
+    "name": "FUN_100647514",
+    "bytes": 5509
+   },
+   {
+    "address": "100648190",
+    "name": "FUN_100648190",
+    "bytes": 45444
+   },
+   {
+    "address": "10064aba8",
+    "name": "FUN_10064aba8",
+    "bytes": 4813
+   },
+   {
+    "address": "100653da0",
+    "name": "FUN_100653da0",
+    "bytes": 7958
+   },
+   {
+    "address": "1006c2bc4",
+    "name": "FUN_1006c2bc4",
+    "bytes": 6146
+   },
+   {
+    "address": "1006c36ac",
+    "name": "FUN_1006c36ac",
+    "bytes": 6152
+   },
+   {
+    "address": "1006c9bb4",
+    "name": "_TtC8Playback31SongMenuMultiItemViewController::.cxx_destruct",
+    "bytes": 1283
+   },
+   {
+    "address": "1006cc344",
+    "name": "FUN_1006cc344",
+    "bytes": 5533
+   },
+   {
+    "address": "1006e5d6c",
+    "name": "FUN_1006e5d6c",
+    "bytes": 9314
+   },
+   {
+    "address": "1006f617c",
+    "name": "_TtC8Playback33MIDICueItemBusTableViewController::initWithCoder:",
+    "bytes": 950
+   },
+   {
+    "address": "1006f6468",
+    "name": "FUN_1006f6468",
+    "bytes": 3059
+   },
+   {
+    "address": "1006f67c0",
+    "name": "FUN_1006f67c0",
+    "bytes": 4492
+   },
+   {
+    "address": "10074a36c",
+    "name": "FUN_10074a36c",
+    "bytes": 5649
+   },
+   {
+    "address": "10079f5dc",
+    "name": "FUN_10079f5dc",
+    "bytes": 3158
+   },
+   {
+    "address": "10079f7d0",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::initWithCoder:",
+    "bytes": 827
+   },
+   {
+    "address": "10079f85c",
+    "name": "FUN_10079f85c",
+    "bytes": 3256
+   },
+   {
+    "address": "10079fbd8",
+    "name": "FUN_10079fbd8",
+    "bytes": 1994
+   },
+   {
+    "address": "10079fde8",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::viewDidLoad",
+    "bytes": 340
+   },
+   {
+    "address": "10079fe10",
+    "name": "FUN_10079fe10",
+    "bytes": 2845
+   },
+   {
+    "address": "1007a0028",
+    "name": "FUN_1007a0028",
+    "bytes": 5871
+   },
+   {
+    "address": "1007a056c",
+    "name": "FUN_1007a056c",
+    "bytes": 2622
+   },
+   {
+    "address": "1007a07a0",
+    "name": "FUN_1007a07a0",
+    "bytes": 5865
+   },
+   {
+    "address": "1007a0ce4",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::addEditBarButtonTapped:",
+    "bytes": 379
+   },
+   {
+    "address": "1007a0d30",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::initWithStyle:",
+    "bytes": 445
+   },
+   {
+    "address": "1007a0d5c",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::initWithNibName:bundle:",
+    "bytes": 550
+   },
+   {
+    "address": "1007a0d90",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::.cxx_destruct",
+    "bytes": 568
+   },
+   {
+    "address": "1007a0e0c",
+    "name": "FUN_1007a0e0c",
+    "bytes": 143
+   },
+   {
+    "address": "1007a0e2c",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::numberOfSectionsInTableView:",
+    "bytes": 204
+   },
+   {
+    "address": "1007a0e34",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::tableView:numberOfRowsInSection:",
+    "bytes": 226
+   },
+   {
+    "address": "1007a0e3c",
+    "name": "FUN_1007a0e3c",
+    "bytes": 3944
+   },
+   {
+    "address": "1007a1174",
+    "name": "_TtC8Playback34SongMenuMIDIBankEditViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 895
+   },
+   {
+    "address": "1007a124c",
+    "name": "FUN_1007a124c",
+    "bytes": 874
+   },
+   {
+    "address": "1007a12b8",
+    "name": "FUN_1007a12b8",
+    "bytes": 812
+   },
+   {
+    "address": "1007a1368",
+    "name": "FUN_1007a1368",
+    "bytes": 4567
+   },
+   {
+    "address": "1007f88c0",
+    "name": "FUN_1007f88c0",
+    "bytes": 947
+   },
+   {
+    "address": "1007f892c",
+    "name": "_TtC8Playback44SongMenuProductionCuesSelectorViewController::.cxx_destruct",
+    "bytes": 601
+   },
+   {
+    "address": "1007f89cc",
+    "name": "_TtC8Playback44SongMenuProductionCuesSelectorViewController::tableView:numberOfRowsInSection:",
+    "bytes": 292
+   },
+   {
+    "address": "1007f89e0",
+    "name": "FUN_1007f89e0",
+    "bytes": 5223
+   },
+   {
+    "address": "1007f90e8",
+    "name": "FUN_1007f90e8",
+    "bytes": 2241
+   },
+   {
+    "address": "1007f93c4",
+    "name": "FUN_1007f93c4",
+    "bytes": 3970
+   },
+   {
+    "address": "1008418a8",
+    "name": "FUN_1008418a8",
+    "bytes": 30323
+   },
+   {
+    "address": "100859c20",
+    "name": "FUN_100859c20",
+    "bytes": 13947
+   },
+   {
+    "address": "10085cea0",
+    "name": "FUN_10085cea0",
+    "bytes": 19569
+   },
+   {
+    "address": "10086a1c0",
+    "name": "FUN_10086a1c0",
+    "bytes": 6362
+   }
+  ],
+  "mixer": [
+   {
+    "address": "1000294cc",
+    "name": "FUN_1000294cc",
+    "bytes": 167
+   },
+   {
+    "address": "1000294e0",
+    "name": "FUN_1000294e0",
+    "bytes": 1045
+   },
+   {
+    "address": "100029608",
+    "name": "_TtC8Playback16MixerMasterFader::awakeFromNib",
+    "bytes": 323
+   },
+   {
+    "address": "100029630",
+    "name": "FUN_100029630",
+    "bytes": 1647
+   },
+   {
+    "address": "1000297ac",
+    "name": "FUN_1000297ac",
+    "bytes": 672
+   },
+   {
+    "address": "100029848",
+    "name": "FUN_100029848",
+    "bytes": 3324
+   },
+   {
+    "address": "100029b0c",
+    "name": "_TtC8Playback16MixerMasterFader::initWithFrame:",
+    "bytes": 327
+   },
+   {
+    "address": "100029b2c",
+    "name": "FUN_100029b2c",
+    "bytes": 3188
+   },
+   {
+    "address": "100029da8",
+    "name": "_TtC8Playback16MixerMasterFader::initWithCoder:",
+    "bytes": 251
+   },
+   {
+    "address": "100029dd0",
+    "name": "FUN_100029dd0",
+    "bytes": 1040
+   },
+   {
+    "address": "100029e7c",
+    "name": "_TtC8Playback16MixerMasterFader::.cxx_destruct",
+    "bytes": 758
+   },
+   {
+    "address": "100029f34",
+    "name": "FUN_100029f34",
+    "bytes": 125
+   },
+   {
+    "address": "100029f54",
+    "name": "FUN_100029f54",
+    "bytes": 411
+   },
+   {
+    "address": "100029f8c",
+    "name": "FUN_100029f8c",
+    "bytes": 390
+   },
+   {
+    "address": "100029fc4",
+    "name": "FUN_100029fc4",
+    "bytes": 146
+   },
+   {
+    "address": "100029fd4",
+    "name": "FUN_100029fd4",
+    "bytes": 144
+   },
+   {
+    "address": "100029fe4",
+    "name": "FUN_100029fe4",
+    "bytes": 165
+   },
+   {
+    "address": "100029ff4",
+    "name": "FUN_100029ff4",
+    "bytes": 149
+   },
+   {
+    "address": "10002a004",
+    "name": "FUN_10002a004",
+    "bytes": 317
+   },
+   {
+    "address": "10002a048",
+    "name": "FUN_10002a048",
+    "bytes": 417
+   },
+   {
+    "address": "10002a09c",
+    "name": "FUN_10002a09c",
+    "bytes": 352
+   },
+   {
+    "address": "10002a0e0",
+    "name": "FUN_10002a0e0",
+    "bytes": 190
+   },
+   {
+    "address": "10002a10c",
+    "name": "FUN_10002a10c",
+    "bytes": 379
+   },
+   {
+    "address": "10002a144",
+    "name": "FUN_10002a144",
+    "bytes": 229
+   },
+   {
+    "address": "10002a174",
+    "name": "FUN_10002a174",
+    "bytes": 145
+   },
+   {
+    "address": "10002a3a4",
+    "name": "FUN_10002a3a4",
+    "bytes": 357
+   },
+   {
+    "address": "10002a3dc",
+    "name": "FUN_10002a3dc",
+    "bytes": 196
+   },
+   {
+    "address": "10002e928",
+    "name": "FUN_10002e928",
+    "bytes": 1655
+   },
+   {
+    "address": "10002f424",
+    "name": "FUN_10002f424",
+    "bytes": 1187
+   },
+   {
+    "address": "1000c4330",
+    "name": "FUN_1000c4330",
+    "bytes": 123
+   },
+   {
+    "address": "100151c00",
+    "name": "FUN_100151c00",
+    "bytes": 224
+   },
+   {
+    "address": "100151ea8",
+    "name": "FUN_100151ea8",
+    "bytes": 292
+   },
+   {
+    "address": "10015380c",
+    "name": "thunk_FUN_100153810",
+    "bytes": 8167
+   },
+   {
+    "address": "100153810",
+    "name": "FUN_100153810",
+    "bytes": 8145
+   },
+   {
+    "address": "1001644a4",
+    "name": "FUN_1001644a4",
+    "bytes": 10875
+   },
+   {
+    "address": "1001714e4",
+    "name": "FUN_1001714e4",
+    "bytes": 193
+   },
+   {
+    "address": "100171514",
+    "name": "FUN_100171514",
+    "bytes": 638
+   },
+   {
+    "address": "1001742d0",
+    "name": "FUN_1001742d0",
+    "bytes": 12343
+   },
+   {
+    "address": "1001748e0",
+    "name": "FUN_1001748e0",
+    "bytes": 9232
+   },
+   {
+    "address": "1001750e4",
+    "name": "FUN_1001750e4",
+    "bytes": 28007
+   },
+   {
+    "address": "1001bf704",
+    "name": "FUN_1001bf704",
+    "bytes": 114
+   },
+   {
+    "address": "1001f2edc",
+    "name": "FUN_1001f2edc",
+    "bytes": 734
+   },
+   {
+    "address": "1001f3614",
+    "name": "FUN_1001f3614",
+    "bytes": 2523
+   },
+   {
+    "address": "1002008dc",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::awakeFromNib",
+    "bytes": 1002
+   },
+   {
+    "address": "10020098c",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::accessibilityIncrement",
+    "bytes": 198
+   },
+   {
+    "address": "100200998",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::accessibilityDecrement",
+    "bytes": 198
+   },
+   {
+    "address": "100200a10",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithImage:",
+    "bytes": 636
+   },
+   {
+    "address": "100200a80",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithImage:highlightedImage:",
+    "bytes": 703
+   },
+   {
+    "address": "100200b00",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithFrame:",
+    "bytes": 796
+   },
+   {
+    "address": "100200b98",
+    "name": "FUN_100200b98",
+    "bytes": 768
+   },
+   {
+    "address": "100200c34",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::initWithCoder:",
+    "bytes": 257
+   },
+   {
+    "address": "100200c5c",
+    "name": "_TtC8Playback22MixerTrackFaderCapView::.cxx_destruct",
+    "bytes": 388
+   },
+   {
+    "address": "100200c9c",
+    "name": "FUN_100200c9c",
+    "bytes": 131
+   },
+   {
+    "address": "10024a638",
+    "name": "FUN_10024a638",
+    "bytes": 2473
+   },
+   {
+    "address": "10024a860",
+    "name": "FUN_10024a860",
+    "bytes": 2254
+   },
+   {
+    "address": "100254220",
+    "name": "_TtC8Playback19MixerViewController::masterVolumeFaderValueChanged:",
+    "bytes": 659
+   },
+   {
+    "address": "1002542cc",
+    "name": "FUN_1002542cc",
+    "bytes": 2932
+   },
+   {
+    "address": "100254dd8",
+    "name": "FUN_100254dd8",
+    "bytes": 54688
+   },
+   {
+    "address": "1002c86bc",
+    "name": "FUN_1002c86bc",
+    "bytes": 28560
+   },
+   {
+    "address": "1002c9a18",
+    "name": "FUN_1002c9a18",
+    "bytes": 4139
+   },
+   {
+    "address": "1002c9f34",
+    "name": "FUN_1002c9f34",
+    "bytes": 8704
+   },
+   {
+    "address": "1002ca58c",
+    "name": "FUN_1002ca58c",
+    "bytes": 9355
+   },
+   {
+    "address": "1002cab94",
+    "name": "FUN_1002cab94",
+    "bytes": 124
+   },
+   {
+    "address": "1002ce0f8",
+    "name": "FUN_1002ce0f8",
+    "bytes": 3778
+   },
+   {
+    "address": "1002ce350",
+    "name": "FUN_1002ce350",
+    "bytes": 3780
+   },
+   {
+    "address": "100386028",
+    "name": "FUN_100386028",
+    "bytes": 1991
+   },
+   {
+    "address": "1003d9e60",
+    "name": "FUN_1003d9e60",
+    "bytes": 2989
+   },
+   {
+    "address": "1003da0cc",
+    "name": "_TtC8Playback16MixerAVAudioUnit::init",
+    "bytes": 148
+   },
+   {
+    "address": "1003da0ec",
+    "name": "FUN_1003da0ec",
+    "bytes": 424
+   },
+   {
+    "address": "1003da14c",
+    "name": "_TtC8Playback16MixerAVAudioUnit::dealloc",
+    "bytes": 609
+   },
+   {
+    "address": "1003da1c4",
+    "name": "_TtC8Playback16MixerAVAudioUnit::.cxx_destruct",
+    "bytes": 216
+   },
+   {
+    "address": "1003da1d4",
+    "name": "_TtC8Playback16MixerAVAudioUnit::initWithAudioComponentDescription:",
+    "bytes": 466
+   },
+   {
+    "address": "1003da200",
+    "name": "FUN_1003da200",
+    "bytes": 125
+   },
+   {
+    "address": "10041800c",
+    "name": "FUN_10041800c",
+    "bytes": 9385
+   },
+   {
+    "address": "10041894c",
+    "name": "FUN_10041894c",
+    "bytes": 2788
+   },
+   {
+    "address": "100419fa8",
+    "name": "FUN_100419fa8",
+    "bytes": 71583
+   },
+   {
+    "address": "1004d3d2c",
+    "name": "FUN_1004d3d2c",
+    "bytes": 33908
+   },
+   {
+    "address": "1004f1218",
+    "name": "FUN_1004f1218",
+    "bytes": 7327
+   },
+   {
+    "address": "1004f3f10",
+    "name": "FUN_1004f3f10",
+    "bytes": 4732
+   },
+   {
+    "address": "1005066b0",
+    "name": "FUN_1005066b0",
+    "bytes": 1193
+   },
+   {
+    "address": "1005097a4",
+    "name": "FUN_1005097a4",
+    "bytes": 125
+   },
+   {
+    "address": "10057ff44",
+    "name": "FUN_10057ff44",
+    "bytes": 999
+   },
+   {
+    "address": "10058013c",
+    "name": "FUN_10058013c",
+    "bytes": 1782
+   },
+   {
+    "address": "100580c88",
+    "name": "FUN_100580c88",
+    "bytes": 169304
+   },
+   {
+    "address": "1005820ec",
+    "name": "FUN_1005820ec",
+    "bytes": 18681
+   },
+   {
+    "address": "1005c5234",
+    "name": "FUN_1005c5234",
+    "bytes": 3431
+   },
+   {
+    "address": "1005c87a4",
+    "name": "FUN_1005c87a4",
+    "bytes": 6263
+   },
+   {
+    "address": "1005d184c",
+    "name": "FUN_1005d184c",
+    "bytes": 6602
+   },
+   {
+    "address": "1005e828c",
+    "name": "FUN_1005e828c",
+    "bytes": 6065
+   },
+   {
+    "address": "1005e862c",
+    "name": "FUN_1005e862c",
+    "bytes": 18256
+   },
+   {
+    "address": "1005ea280",
+    "name": "FUN_1005ea280",
+    "bytes": 40525
+   },
+   {
+    "address": "1005ed2e0",
+    "name": "FUN_1005ed2e0",
+    "bytes": 5230
+   },
+   {
+    "address": "1005ed7cc",
+    "name": "FUN_1005ed7cc",
+    "bytes": 219
+   },
+   {
+    "address": "10064413c",
+    "name": "FUN_10064413c",
+    "bytes": 6249
+   },
+   {
+    "address": "1006a6848",
+    "name": "FUN_1006a6848",
+    "bytes": 151858
+   },
+   {
+    "address": "1006e64e8",
+    "name": "FUN_1006e64e8",
+    "bytes": 979
+   },
+   {
+    "address": "1006e6598",
+    "name": "FUN_1006e6598",
+    "bytes": 903
+   },
+   {
+    "address": "1006e6638",
+    "name": "FUN_1006e6638",
+    "bytes": 973
+   },
+   {
+    "address": "1006e66e8",
+    "name": "FUN_1006e66e8",
+    "bytes": 904
+   },
+   {
+    "address": "1006e67c0",
+    "name": "FUN_1006e67c0",
+    "bytes": 2435
+   },
+   {
+    "address": "1006e6988",
+    "name": "_TtC8Playback21BusChannelAVAudioUnit::init",
+    "bytes": 153
+   },
+   {
+    "address": "1006e69a8",
+    "name": "FUN_1006e69a8",
+    "bytes": 755
+   },
+   {
+    "address": "1006e6a38",
+    "name": "_TtC8Playback21BusChannelAVAudioUnit::dealloc",
+    "bytes": 894
+   },
+   {
+    "address": "1006e6ae0",
+    "name": "_TtC8Playback21BusChannelAVAudioUnit::.cxx_destruct",
+    "bytes": 206
+   },
+   {
+    "address": "1006e6af0",
+    "name": "_TtC8Playback21BusChannelAVAudioUnit::initWithAudioComponentDescription:",
+    "bytes": 476
+   },
+   {
+    "address": "1006e6b1c",
+    "name": "FUN_1006e6b1c",
+    "bytes": 130
+   },
+   {
+    "address": "1006e6dcc",
+    "name": "FUN_1006e6dcc",
+    "bytes": 267
+   },
+   {
+    "address": "100721cf4",
+    "name": "FUN_100721cf4",
+    "bytes": 227819
+   },
+   {
+    "address": "100732b68",
+    "name": "FUN_100732b68",
+    "bytes": 1948
+   },
+   {
+    "address": "100732ddc",
+    "name": "FUN_100732ddc",
+    "bytes": 2152
+   },
+   {
+    "address": "100736e24",
+    "name": "FUN_100736e24",
+    "bytes": 4921
+   },
+   {
+    "address": "100737394",
+    "name": "FUN_100737394",
+    "bytes": 2357
+   },
+   {
+    "address": "100746c6c",
+    "name": "FUN_100746c6c",
+    "bytes": 10821
+   },
+   {
+    "address": "10076c890",
+    "name": "FUN_10076c890",
+    "bytes": 26915
+   },
+   {
+    "address": "1007a94bc",
+    "name": "FUN_1007a94bc",
+    "bytes": 167
+   },
+   {
+    "address": "1007a94cc",
+    "name": "FUN_1007a94cc",
+    "bytes": 181
+   },
+   {
+    "address": "1007a94dc",
+    "name": "FUN_1007a94dc",
+    "bytes": 159
+   },
+   {
+    "address": "1007a94ec",
+    "name": "FUN_1007a94ec",
+    "bytes": 194
+   },
+   {
+    "address": "1007a94fc",
+    "name": "FUN_1007a94fc",
+    "bytes": 3816
+   },
+   {
+    "address": "1007a9790",
+    "name": "FUN_1007a9790",
+    "bytes": 2568
+   },
+   {
+    "address": "1007a99f0",
+    "name": "FUN_1007a99f0",
+    "bytes": 1101
+   },
+   {
+    "address": "1007a9ac0",
+    "name": "FUN_1007a9ac0",
+    "bytes": 4167
+   },
+   {
+    "address": "1007a9dc4",
+    "name": "FUN_1007a9dc4",
+    "bytes": 2628
+   },
+   {
+    "address": "1007a9ffc",
+    "name": "FUN_1007a9ffc",
+    "bytes": 427
+   },
+   {
+    "address": "1007aa06c",
+    "name": "FUN_1007aa06c",
+    "bytes": 1216
+   },
+   {
+    "address": "1007aa15c",
+    "name": "FUN_1007aa15c",
+    "bytes": 146
+   },
+   {
+    "address": "1007aa16c",
+    "name": "FUN_1007aa16c",
+    "bytes": 186
+   },
+   {
+    "address": "1007aa17c",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundMarksImageView",
+    "bytes": 355
+   },
+   {
+    "address": "1007aa19c",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderBackgroundMarksImageView:",
+    "bytes": 261
+   },
+   {
+    "address": "1007aa1b0",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundTrackImageView",
+    "bytes": 355
+   },
+   {
+    "address": "1007aa1d0",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderBackgroundTrackImageView:",
+    "bytes": 261
+   },
+   {
+    "address": "1007aa1e4",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundButton",
+    "bytes": 339
+   },
+   {
+    "address": "1007aa204",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderBackgroundButton:",
+    "bytes": 229
+   },
+   {
+    "address": "1007aa218",
+    "name": "_TtC8Playback15MixerTrackFader::faderCapView",
+    "bytes": 321
+   },
+   {
+    "address": "1007aa238",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderCapView:",
+    "bytes": 211
+   },
+   {
+    "address": "1007aa24c",
+    "name": "_TtC8Playback15MixerTrackFader::faderCapBottomSpaceConstraint",
+    "bytes": 355
+   },
+   {
+    "address": "1007aa26c",
+    "name": "_TtC8Playback15MixerTrackFader::setFaderCapBottomSpaceConstraint:",
+    "bytes": 261
+   },
+   {
+    "address": "1007aa280",
+    "name": "FUN_1007aa280",
+    "bytes": 146
+   },
+   {
+    "address": "1007aa290",
+    "name": "FUN_1007aa290",
+    "bytes": 1618
+   },
+   {
+    "address": "1007aa404",
+    "name": "_TtC8Playback15MixerTrackFader::awakeFromNib",
+    "bytes": 208
+   },
+   {
+    "address": "1007aa418",
+    "name": "_TtC8Playback15MixerTrackFader::layoutSubviews",
+    "bytes": 212
+   },
+   {
+    "address": "1007aa494",
+    "name": "_TtC8Playback15MixerTrackFader::faderBackgroundButtonTouchUpInside:",
+    "bytes": 372
+   },
+   {
+    "address": "1007aa4e0",
+    "name": "_TtC8Playback15MixerTrackFader::faderLongPress:",
+    "bytes": 336
+   },
+   {
+    "address": "1007aa530",
+    "name": "FUN_1007aa530",
+    "bytes": 2232
+   },
+   {
+    "address": "1007aa6c4",
+    "name": "_TtC8Playback15MixerTrackFader::initWithFrame:",
+    "bytes": 326
+   },
+   {
+    "address": "1007aa6e4",
+    "name": "FUN_1007aa6e4",
+    "bytes": 2345
+   },
+   {
+    "address": "1007aa87c",
+    "name": "_TtC8Playback15MixerTrackFader::initWithCoder:",
+    "bytes": 250
+   },
+   {
+    "address": "1007aa8d4",
+    "name": "_TtC8Playback15MixerTrackFader::.cxx_destruct",
+    "bytes": 653
+   },
+   {
+    "address": "1007aa97c",
+    "name": "FUN_1007aa97c",
+    "bytes": 124
+   },
+   {
+    "address": "1007aa9f0",
+    "name": "_TtC8Playback15MixerTrackFader::gestureRecognizerShouldBegin:",
+    "bytes": 176
+   },
+   {
+    "address": "1007aa9f8",
+    "name": "_TtC8Playback15MixerTrackFader::gestureRecognizer:shouldReceiveTouch:",
+    "bytes": 430
+   },
+   {
+    "address": "1007aaa6c",
+    "name": "FUN_1007aaa6c",
+    "bytes": 1039
+   },
+   {
+    "address": "1007aab54",
+    "name": "FUN_1007aab54",
+    "bytes": 3203
+   },
+   {
+    "address": "1007bcfb0",
+    "name": "FUN_1007bcfb0",
+    "bytes": 1571
+   },
+   {
+    "address": "1007bd11c",
+    "name": "FUN_1007bd11c",
+    "bytes": 5043
+   },
+   {
+    "address": "1007bd5f4",
+    "name": "FUN_1007bd5f4",
+    "bytes": 4368
+   },
+   {
+    "address": "1007bdff4",
+    "name": "FUN_1007bdff4",
+    "bytes": 5490
+   },
+   {
+    "address": "1007be5c0",
+    "name": "FUN_1007be5c0",
+    "bytes": 7570
+   },
+   {
+    "address": "1007bfa64",
+    "name": "FUN_1007bfa64",
+    "bytes": 1817
+   },
+   {
+    "address": "1007bfbf8",
+    "name": "FUN_1007bfbf8",
+    "bytes": 1692
+   },
+   {
+    "address": "1007c0618",
+    "name": "FUN_1007c0618",
+    "bytes": 782
+   }
+  ],
+  "automation": [
+   {
+    "address": "100029848",
+    "name": "FUN_100029848",
+    "bytes": 3324
+   },
+   {
+    "address": "100029b2c",
+    "name": "FUN_100029b2c",
+    "bytes": 3188
+   },
+   {
+    "address": "100029dd0",
+    "name": "FUN_100029dd0",
+    "bytes": 1040
+   },
+   {
+    "address": "100029e7c",
+    "name": "_TtC8Playback16MixerMasterFader::.cxx_destruct",
+    "bytes": 758
+   },
+   {
+    "address": "10002a3dc",
+    "name": "FUN_10002a3dc",
+    "bytes": 196
+   },
+   {
+    "address": "100039b64",
+    "name": "FUN_100039b64",
+    "bytes": 6370
+   },
+   {
+    "address": "1000b4e00",
+    "name": "FUN_1000b4e00",
+    "bytes": 9380
+   },
+   {
+    "address": "1000cb2cc",
+    "name": "_TtC8Playback9SongTrack::.cxx_construct",
+    "bytes": 2973
+   },
+   {
+    "address": "10010c82c",
+    "name": "FUN_10010c82c",
+    "bytes": 1030
+   },
+   {
+    "address": "10010c9ec",
+    "name": "FUN_10010c9ec",
+    "bytes": 992
+   },
+   {
+    "address": "10015b930",
+    "name": "FUN_10015b930",
+    "bytes": 8348
+   },
+   {
+    "address": "10016a514",
+    "name": "FUN_10016a514",
+    "bytes": 336
+   },
+   {
+    "address": "10016df04",
+    "name": "FUN_10016df04",
+    "bytes": 279
+   },
+   {
+    "address": "1001b22b4",
+    "name": "FUN_1001b22b4",
+    "bytes": 8941
+   },
+   {
+    "address": "1001bed90",
+    "name": "FUN_1001bed90",
+    "bytes": 2781
+   },
+   {
+    "address": "1001bf02c",
+    "name": "FUN_1001bf02c",
+    "bytes": 463
+   },
+   {
+    "address": "1001bf260",
+    "name": "FUN_1001bf260",
+    "bytes": 3537
+   },
+   {
+    "address": "1001bf704",
+    "name": "FUN_1001bf704",
+    "bytes": 114
+   },
+   {
+    "address": "1001bfcbc",
+    "name": "FUN_1001bfcbc",
+    "bytes": 1448
+   },
+   {
+    "address": "1001bfe08",
+    "name": "FUN_1001bfe08",
+    "bytes": 1356
+   },
+   {
+    "address": "1001c0074",
+    "name": "FUN_1001c0074",
+    "bytes": 151
+   },
+   {
+    "address": "1001c0088",
+    "name": "FUN_1001c0088",
+    "bytes": 189
+   },
+   {
+    "address": "10021451c",
+    "name": "FUN_10021451c",
+    "bytes": 131
+   },
+   {
+    "address": "100249d74",
+    "name": "FUN_100249d74",
+    "bytes": 3587
+   },
+   {
+    "address": "10024a098",
+    "name": "FUN_10024a098",
+    "bytes": 2842
+   },
+   {
+    "address": "10024a30c",
+    "name": "FUN_10024a30c",
+    "bytes": 3433
+   },
+   {
+    "address": "10024a638",
+    "name": "FUN_10024a638",
+    "bytes": 2473
+   },
+   {
+    "address": "1002572e4",
+    "name": "FUN_1002572e4",
+    "bytes": 1277
+   },
+   {
+    "address": "100257788",
+    "name": "FUN_100257788",
+    "bytes": 2192
+   },
+   {
+    "address": "10026e44c",
+    "name": "FUN_10026e44c",
+    "bytes": 4859
+   },
+   {
+    "address": "100273240",
+    "name": "FUN_100273240",
+    "bytes": 19897
+   },
+   {
+    "address": "100285d50",
+    "name": "_TtC8Playback8PadTrack::.cxx_construct",
+    "bytes": 3324
+   },
+   {
+    "address": "100296c1c",
+    "name": "FUN_100296c1c",
+    "bytes": 1793
+   },
+   {
+    "address": "100297220",
+    "name": "FUN_100297220",
+    "bytes": 3558
+   },
+   {
+    "address": "1002974e0",
+    "name": "FUN_1002974e0",
+    "bytes": 3694
+   },
+   {
+    "address": "100297794",
+    "name": "FUN_100297794",
+    "bytes": 1158
+   },
+   {
+    "address": "100297850",
+    "name": "_TtC8Playback19MixerMuteMIDIButton::.cxx_destruct",
+    "bytes": 798
+   },
+   {
+    "address": "100297b70",
+    "name": "FUN_100297b70",
+    "bytes": 211
+   },
+   {
+    "address": "100297b80",
+    "name": "FUN_100297b80",
+    "bytes": 150
+   },
+   {
+    "address": "100297b90",
+    "name": "FUN_100297b90",
+    "bytes": 210
+   },
+   {
+    "address": "1002ceba4",
+    "name": "FUN_1002ceba4",
+    "bytes": 7309
+   },
+   {
+    "address": "1002dce60",
+    "name": "FUN_1002dce60",
+    "bytes": 217
+   },
+   {
+    "address": "1002dfbb0",
+    "name": "FUN_1002dfbb0",
+    "bytes": 7838
+   },
+   {
+    "address": "1002ed768",
+    "name": "FUN_1002ed768",
+    "bytes": 1686
+   },
+   {
+    "address": "1002f7860",
+    "name": "FUN_1002f7860",
+    "bytes": 1288
+   },
+   {
+    "address": "1003abe58",
+    "name": "FUN_1003abe58",
+    "bytes": 930
+   },
+   {
+    "address": "1003abf74",
+    "name": "_TtC8Playback14AutomationItem::description",
+    "bytes": 530
+   },
+   {
+    "address": "1003abfcc",
+    "name": "FUN_1003abfcc",
+    "bytes": 3088
+   },
+   {
+    "address": "1003ac298",
+    "name": "FUN_1003ac298",
+    "bytes": 838
+   },
+   {
+    "address": "1003ac3a4",
+    "name": "_TtC8Playback14AutomationItem::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 519
+   },
+   {
+    "address": "1003ac3f8",
+    "name": "FUN_1003ac3f8",
+    "bytes": 123
+   },
+   {
+    "address": "1003e6df0",
+    "name": "FUN_1003e6df0",
+    "bytes": 1576
+   },
+   {
+    "address": "1003e7740",
+    "name": "FUN_1003e7740",
+    "bytes": 3684
+   },
+   {
+    "address": "1003e7a18",
+    "name": "FUN_1003e7a18",
+    "bytes": 3820
+   },
+   {
+    "address": "1003e7ce4",
+    "name": "FUN_1003e7ce4",
+    "bytes": 1144
+   },
+   {
+    "address": "1003e7db0",
+    "name": "_TtC8Playback18TransportPadButton::.cxx_destruct",
+    "bytes": 797
+   },
+   {
+    "address": "1003e80e0",
+    "name": "FUN_1003e80e0",
+    "bytes": 210
+   },
+   {
+    "address": "1003e80f0",
+    "name": "FUN_1003e80f0",
+    "bytes": 149
+   },
+   {
+    "address": "1003e8100",
+    "name": "FUN_1003e8100",
+    "bytes": 209
+   },
+   {
+    "address": "1003e8274",
+    "name": "thunk_FUN_1003e80f0",
+    "bytes": 155
+   },
+   {
+    "address": "100419fa8",
+    "name": "FUN_100419fa8",
+    "bytes": 71583
+   },
+   {
+    "address": "100458d28",
+    "name": "_TtC8Playback22WaveformViewController::.cxx_destruct",
+    "bytes": 1253
+   },
+   {
+    "address": "100459f58",
+    "name": "FUN_100459f58",
+    "bytes": 2323
+   },
+   {
+    "address": "100461bc0",
+    "name": "FUN_100461bc0",
+    "bytes": 4279
+   },
+   {
+    "address": "100461ee0",
+    "name": "FUN_100461ee0",
+    "bytes": 4092
+   },
+   {
+    "address": "1004674f4",
+    "name": "FUN_1004674f4",
+    "bytes": 24818
+   },
+   {
+    "address": "10047597c",
+    "name": "_TtC8Playback26AutomationDeleteButtonView::initWithCoder:",
+    "bytes": 738
+   },
+   {
+    "address": "100475a24",
+    "name": "_TtC8Playback26AutomationDeleteButtonView::initWithFrame:",
+    "bytes": 893
+   },
+   {
+    "address": "100475ac8",
+    "name": "_TtC8Playback26AutomationDeleteButtonView::deleteButtonTouchUpInside:",
+    "bytes": 688
+   },
+   {
+    "address": "100475b70",
+    "name": "_TtC8Playback26AutomationDeleteButtonView::.cxx_destruct",
+    "bytes": 179
+   },
+   {
+    "address": "100475b80",
+    "name": "FUN_100475b80",
+    "bytes": 135
+   },
+   {
+    "address": "1004b1e44",
+    "name": "FUN_1004b1e44",
+    "bytes": 16513
+   },
+   {
+    "address": "1004bffac",
+    "name": "FUN_1004bffac",
+    "bytes": 9433
+   },
+   {
+    "address": "100503f0c",
+    "name": "FUN_100503f0c",
+    "bytes": 5763
+   },
+   {
+    "address": "100504cac",
+    "name": "FUN_100504cac",
+    "bytes": 2803
+   },
+   {
+    "address": "100505190",
+    "name": "FUN_100505190",
+    "bytes": 4295
+   },
+   {
+    "address": "1005055ac",
+    "name": "FUN_1005055ac",
+    "bytes": 4304
+   },
+   {
+    "address": "10050620c",
+    "name": "thunk_FUN_1005055ac",
+    "bytes": 4310
+   },
+   {
+    "address": "1005066b0",
+    "name": "FUN_1005066b0",
+    "bytes": 1193
+   },
+   {
+    "address": "10051705c",
+    "name": "_TtC8Playback25TransportAutomationButton::isEnabled",
+    "bytes": 381
+   },
+   {
+    "address": "100517098",
+    "name": "_TtC8Playback25TransportAutomationButton::setEnabled:",
+    "bytes": 344
+   },
+   {
+    "address": "10051727c",
+    "name": "_TtC8Playback25TransportAutomationButton::initWithCoder:",
+    "bytes": 344
+   },
+   {
+    "address": "1005172b8",
+    "name": "FUN_1005172b8",
+    "bytes": 3138
+   },
+   {
+    "address": "100517510",
+    "name": "_TtC8Playback25TransportAutomationButton::initWithFrame:",
+    "bytes": 336
+   },
+   {
+    "address": "100517530",
+    "name": "_TtC8Playback25TransportAutomationButton::awakeFromNib",
+    "bytes": 540
+   },
+   {
+    "address": "10051758c",
+    "name": "FUN_10051758c",
+    "bytes": 1017
+   },
+   {
+    "address": "100517618",
+    "name": "_TtC8Playback25TransportAutomationButton::.cxx_destruct",
+    "bytes": 684
+   },
+   {
+    "address": "1005176b0",
+    "name": "FUN_1005176b0",
+    "bytes": 134
+   },
+   {
+    "address": "1005176d0",
+    "name": "FUN_1005176d0",
+    "bytes": 392
+   },
+   {
+    "address": "100517708",
+    "name": "FUN_100517708",
+    "bytes": 429
+   },
+   {
+    "address": "100517740",
+    "name": "FUN_100517740",
+    "bytes": 421
+   },
+   {
+    "address": "100517778",
+    "name": "FUN_100517778",
+    "bytes": 155
+   },
+   {
+    "address": "100517788",
+    "name": "FUN_100517788",
+    "bytes": 153
+   },
+   {
+    "address": "100517798",
+    "name": "FUN_100517798",
+    "bytes": 174
+   },
+   {
+    "address": "1005177a8",
+    "name": "FUN_1005177a8",
+    "bytes": 335
+   },
+   {
+    "address": "1005177ec",
+    "name": "FUN_1005177ec",
+    "bytes": 435
+   },
+   {
+    "address": "100517840",
+    "name": "FUN_100517840",
+    "bytes": 370
+   },
+   {
+    "address": "100517880",
+    "name": "FUN_100517880",
+    "bytes": 214
+   },
+   {
+    "address": "100517890",
+    "name": "FUN_100517890",
+    "bytes": 413
+   },
+   {
+    "address": "1005178c8",
+    "name": "FUN_1005178c8",
+    "bytes": 238
+   },
+   {
+    "address": "1005178f8",
+    "name": "FUN_1005178f8",
+    "bytes": 154
+   },
+   {
+    "address": "10051796c",
+    "name": "FUN_10051796c",
+    "bytes": 3063
+   },
+   {
+    "address": "10056f2cc",
+    "name": "FUN_10056f2cc",
+    "bytes": 6081
+   },
+   {
+    "address": "10057c978",
+    "name": "FUN_10057c978",
+    "bytes": 2977
+   },
+   {
+    "address": "100580c88",
+    "name": "FUN_100580c88",
+    "bytes": 169304
+   },
+   {
+    "address": "100580e7c",
+    "name": "switchD_100580cb8::caseD_c9",
+    "bytes": 142023
+   },
+   {
+    "address": "10058903c",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::initWithCoder:",
+    "bytes": 285
+   },
+   {
+    "address": "100589064",
+    "name": "FUN_100589064",
+    "bytes": 7529
+   },
+   {
+    "address": "100589880",
+    "name": "FUN_100589880",
+    "bytes": 3214
+   },
+   {
+    "address": "100589b08",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::viewDidLoad",
+    "bytes": 342
+   },
+   {
+    "address": "100589b30",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::viewDidLayoutSubviews",
+    "bytes": 1047
+   },
+   {
+    "address": "100589c08",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::cancelBarButtonTapped:",
+    "bytes": 628
+   },
+   {
+    "address": "100589c90",
+    "name": "FUN_100589c90",
+    "bytes": 3143
+   },
+   {
+    "address": "100589e90",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::updateBarButtonTapped:",
+    "bytes": 380
+   },
+   {
+    "address": "100589edc",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::initWithStyle:",
+    "bytes": 449
+   },
+   {
+    "address": "100589f08",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::initWithNibName:bundle:",
+    "bytes": 554
+   },
+   {
+    "address": "100589f3c",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::.cxx_destruct",
+    "bytes": 620
+   },
+   {
+    "address": "100589fc4",
+    "name": "FUN_100589fc4",
+    "bytes": 158
+   },
+   {
+    "address": "100589fe4",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::numberOfSectionsInTableView:",
+    "bytes": 336
+   },
+   {
+    "address": "10058a010",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::tableView:numberOfRowsInSection:",
+    "bytes": 419
+   },
+   {
+    "address": "10058a070",
+    "name": "FUN_10058a070",
+    "bytes": 12916
+   },
+   {
+    "address": "10058abb0",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 897
+   },
+   {
+    "address": "10058ac68",
+    "name": "FUN_10058ac68",
+    "bytes": 2173
+   },
+   {
+    "address": "10058adf8",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::tableView:willSelectRowAtIndexPath:",
+    "bytes": 1347
+   },
+   {
+    "address": "10058af18",
+    "name": "FUN_10058af18",
+    "bytes": 10713
+   },
+   {
+    "address": "10058b988",
+    "name": "FUN_10058b988",
+    "bytes": 3290
+   },
+   {
+    "address": "10058bc34",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 797
+   },
+   {
+    "address": "10058bce4",
+    "name": "FUN_10058bce4",
+    "bytes": 1400
+   },
+   {
+    "address": "10058bf68",
+    "name": "_TtC8Playback36AutomationEditingTableViewController::tableView:viewForFooterInSection:",
+    "bytes": 519
+   },
+   {
+    "address": "10058c1a0",
+    "name": "FUN_10058c1a0",
+    "bytes": 432
+   },
+   {
+    "address": "10058c1dc",
+    "name": "FUN_10058c1dc",
+    "bytes": 578
+   },
+   {
+    "address": "10058c204",
+    "name": "FUN_10058c204",
+    "bytes": 896
+   },
+   {
+    "address": "10058c578",
+    "name": "FUN_10058c578",
+    "bytes": 1201
+   },
+   {
+    "address": "10058c700",
+    "name": "FUN_10058c700",
+    "bytes": 904
+   },
+   {
+    "address": "1005c7f38",
+    "name": "FUN_1005c7f38",
+    "bytes": 3472
+   },
+   {
+    "address": "1005ed2e0",
+    "name": "FUN_1005ed2e0",
+    "bytes": 5230
+   },
+   {
+    "address": "1005ed954",
+    "name": "FUN_1005ed954",
+    "bytes": 254
+   },
+   {
+    "address": "1005ef7a4",
+    "name": "FUN_1005ef7a4",
+    "bytes": 11545
+   },
+   {
+    "address": "1005eff70",
+    "name": "FUN_1005eff70",
+    "bytes": 3740
+   },
+   {
+    "address": "1005f0ebc",
+    "name": "FUN_1005f0ebc",
+    "bytes": 8638
+   },
+   {
+    "address": "1005f1c00",
+    "name": "FUN_1005f1c00",
+    "bytes": 4369
+   },
+   {
+    "address": "1005f2f10",
+    "name": "FUN_1005f2f10",
+    "bytes": 4847
+   },
+   {
+    "address": "1005f4618",
+    "name": "FUN_1005f4618",
+    "bytes": 10388
+   },
+   {
+    "address": "1005f53f0",
+    "name": "FUN_1005f53f0",
+    "bytes": 11682
+   },
+   {
+    "address": "1005f5abc",
+    "name": "FUN_1005f5abc",
+    "bytes": 10476
+   },
+   {
+    "address": "1005fa738",
+    "name": "FUN_1005fa738",
+    "bytes": 1971
+   },
+   {
+    "address": "100648190",
+    "name": "FUN_100648190",
+    "bytes": 45444
+   },
+   {
+    "address": "10064aba8",
+    "name": "FUN_10064aba8",
+    "bytes": 4813
+   },
+   {
+    "address": "10064c530",
+    "name": "FUN_10064c530",
+    "bytes": 56031
+   },
+   {
+    "address": "1006501a0",
+    "name": "FUN_1006501a0",
+    "bytes": 1925
+   },
+   {
+    "address": "100651030",
+    "name": "FUN_100651030",
+    "bytes": 2374
+   },
+   {
+    "address": "1006543e0",
+    "name": "FUN_1006543e0",
+    "bytes": 7146
+   },
+   {
+    "address": "10065680c",
+    "name": "FUN_10065680c",
+    "bytes": 126
+   },
+   {
+    "address": "10065a678",
+    "name": "_TtC8Playback9SongGenre::.cxx_construct",
+    "bytes": 3612
+   },
+   {
+    "address": "100693fe4",
+    "name": "FUN_100693fe4",
+    "bytes": 128574
+   },
+   {
+    "address": "1006a6848",
+    "name": "FUN_1006a6848",
+    "bytes": 151858
+   },
+   {
+    "address": "1006b1020",
+    "name": "FUN_1006b1020",
+    "bytes": 8602
+   },
+   {
+    "address": "1006b17ec",
+    "name": "thunk_FUN_1006b17f0",
+    "bytes": 8052
+   },
+   {
+    "address": "1006b17f0",
+    "name": "FUN_1006b17f0",
+    "bytes": 8046
+   },
+   {
+    "address": "1006b20dc",
+    "name": "FUN_1006b20dc",
+    "bytes": 5519
+   },
+   {
+    "address": "1006b27a8",
+    "name": "FUN_1006b27a8",
+    "bytes": 5807
+   },
+   {
+    "address": "1006b2f24",
+    "name": "FUN_1006b2f24",
+    "bytes": 205
+   },
+   {
+    "address": "1006b2f84",
+    "name": "FUN_1006b2f84",
+    "bytes": 203
+   },
+   {
+    "address": "10071b1ec",
+    "name": "FUN_10071b1ec",
+    "bytes": 6390
+   },
+   {
+    "address": "10071be38",
+    "name": "FUN_10071be38",
+    "bytes": 4118
+   },
+   {
+    "address": "10072804c",
+    "name": "FUN_10072804c",
+    "bytes": 7276
+   },
+   {
+    "address": "1007681ac",
+    "name": "FUN_1007681ac",
+    "bytes": 216
+   },
+   {
+    "address": "1007681c8",
+    "name": "FUN_1007681c8",
+    "bytes": 218
+   },
+   {
+    "address": "1007681e4",
+    "name": "FUN_1007681e4",
+    "bytes": 8214
+   },
+   {
+    "address": "10076893c",
+    "name": "FUN_10076893c",
+    "bytes": 8789
+   },
+   {
+    "address": "1007690e8",
+    "name": "FUN_1007690e8",
+    "bytes": 10336
+   },
+   {
+    "address": "10078c304",
+    "name": "FUN_10078c304",
+    "bytes": 374
+   },
+   {
+    "address": "1007a28dc",
+    "name": "_TtC8Playback20AutomationBorderView::initWithCoder:",
+    "bytes": 339
+   },
+   {
+    "address": "1007a2a7c",
+    "name": "_TtC8Playback20AutomationBorderView::initWithFrame:",
+    "bytes": 331
+   },
+   {
+    "address": "1007a2a9c",
+    "name": "FUN_1007a2a9c",
+    "bytes": 129
+   },
+   {
+    "address": "1007aa06c",
+    "name": "FUN_1007aa06c",
+    "bytes": 1216
+   },
+   {
+    "address": "1007aa15c",
+    "name": "FUN_1007aa15c",
+    "bytes": 146
+   },
+   {
+    "address": "1007aa16c",
+    "name": "FUN_1007aa16c",
+    "bytes": 186
+   },
+   {
+    "address": "1007aa530",
+    "name": "FUN_1007aa530",
+    "bytes": 2232
+   },
+   {
+    "address": "1007aa6e4",
+    "name": "FUN_1007aa6e4",
+    "bytes": 2345
+   },
+   {
+    "address": "1007c9664",
+    "name": "FUN_1007c9664",
+    "bytes": 7396
+   },
+   {
+    "address": "1007cd924",
+    "name": "FUN_1007cd924",
+    "bytes": 7950
+   },
+   {
+    "address": "1007e2b80",
+    "name": "FUN_1007e2b80",
+    "bytes": 125927
+   },
+   {
+    "address": "1007fd3d4",
+    "name": "FUN_1007fd3d4",
+    "bytes": 939
+   },
+   {
+    "address": "100822c4c",
+    "name": "FUN_100822c4c",
+    "bytes": 10247
+   },
+   {
+    "address": "1008235f8",
+    "name": "_TtC8Playback13AutomationCue::description",
+    "bytes": 529
+   },
+   {
+    "address": "100823c10",
+    "name": "_TtC8Playback13AutomationCue::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 518
+   },
+   {
+    "address": "100823c64",
+    "name": "_TtC8Playback13AutomationCue::.cxx_construct",
+    "bytes": 130
+   },
+   {
+    "address": "100823c68",
+    "name": "FUN_100823c68",
+    "bytes": 122
+   },
+   {
+    "address": "100823c88",
+    "name": "FUN_100823c88",
+    "bytes": 5754
+   },
+   {
+    "address": "10086761c",
+    "name": "FUN_10086761c",
+    "bytes": 6811
+   },
+   {
+    "address": "100867c20",
+    "name": "FUN_100867c20",
+    "bytes": 10206
+   },
+   {
+    "address": "10086bec4",
+    "name": "FUN_10086bec4",
+    "bytes": 11702
+   },
+   {
+    "address": "10086de28",
+    "name": "FUN_10086de28",
+    "bytes": 3369
+   },
+   {
+    "address": "10086e968",
+    "name": "_TtC8Playback23TransportViewController::.cxx_destruct",
+    "bytes": 2457
+   },
+   {
+    "address": "10086fc18",
+    "name": "_TtC8Playback23TransportViewController::automationButtonTouchUpInside:",
+    "bytes": 1609
+   },
+   {
+    "address": "100872c64",
+    "name": "FUN_100872c64",
+    "bytes": 4300
+   },
+   {
+    "address": "100872fb4",
+    "name": "FUN_100872fb4",
+    "bytes": 4155
+   },
+   {
+    "address": "10087e150",
+    "name": "FUN_10087e150",
+    "bytes": 12605
+   },
+   {
+    "address": "10087ed2c",
+    "name": "FUN_10087ed2c",
+    "bytes": 4839
+   },
+   {
+    "address": "100883450",
+    "name": "FUN_100883450",
+    "bytes": 979
+   },
+   {
+    "address": "100883500",
+    "name": "FUN_100883500",
+    "bytes": 987
+   },
+   {
+    "address": "1008835ac",
+    "name": "FUN_1008835ac",
+    "bytes": 4349
+   },
+   {
+    "address": "1008838e8",
+    "name": "FUN_1008838e8",
+    "bytes": 111
+   },
+   {
+    "address": "1008838f8",
+    "name": "FUN_1008838f8",
+    "bytes": 109
+   },
+   {
+    "address": "100883908",
+    "name": "FUN_100883908",
+    "bytes": 119
+   },
+   {
+    "address": "100883918",
+    "name": "FUN_100883918",
+    "bytes": 117
+   },
+   {
+    "address": "100883928",
+    "name": "FUN_100883928",
+    "bytes": 809
+   },
+   {
+    "address": "100883a00",
+    "name": "FUN_100883a00",
+    "bytes": 852
+   },
+   {
+    "address": "100883aa0",
+    "name": "FUN_100883aa0",
+    "bytes": 755
+   },
+   {
+    "address": "100883b30",
+    "name": "_TtC8Playback21AutomationAVAudioUnit::dealloc",
+    "bytes": 894
+   },
+   {
+    "address": "100883bd8",
+    "name": "_TtC8Playback21AutomationAVAudioUnit::.cxx_destruct",
+    "bytes": 243
+   },
+   {
+    "address": "100883c10",
+    "name": "_TtC8Playback21AutomationAVAudioUnit::initWithAudioComponentDescription:",
+    "bytes": 476
+   },
+   {
+    "address": "100883c3c",
+    "name": "_TtC8Playback21AutomationAVAudioUnit::init",
+    "bytes": 356
+   },
+   {
+    "address": "100883c68",
+    "name": "FUN_100883c68",
+    "bytes": 130
+   },
+   {
+    "address": "100883c88",
+    "name": "_TtC8Playback21AutomationAVAudioUnit::automationAudioUnit:didTriggerAutomationCueWithUUID:",
+    "bytes": 674
+   },
+   {
+    "address": "100883fb0",
+    "name": "FUN_100883fb0",
+    "bytes": 270
+   }
+  ],
+  "transition": [
+   {
+    "address": "10002a3f0",
+    "name": "FUN_10002a3f0",
+    "bytes": 1134
+   },
+   {
+    "address": "100040f1c",
+    "name": "FUN_100040f1c",
+    "bytes": 643
+   },
+   {
+    "address": "100040f80",
+    "name": "FUN_100040f80",
+    "bytes": 11799
+   },
+   {
+    "address": "100041684",
+    "name": "_TtC8Playback28TransitionMenuViewController::viewDidLoad",
+    "bytes": 334
+   },
+   {
+    "address": "1000416ac",
+    "name": "_TtC8Playback28TransitionMenuViewController::viewDidLayoutSubviews",
+    "bytes": 1021
+   },
+   {
+    "address": "100041784",
+    "name": "FUN_100041784",
+    "bytes": 2682
+   },
+   {
+    "address": "1000418e0",
+    "name": "_TtC8Playback28TransitionMenuViewController::initWithStyle:",
+    "bytes": 734
+   },
+   {
+    "address": "100041978",
+    "name": "FUN_100041978",
+    "bytes": 1100
+   },
+   {
+    "address": "100041a60",
+    "name": "_TtC8Playback28TransitionMenuViewController::initWithNibName:bundle:",
+    "bytes": 483
+   },
+   {
+    "address": "100041ac0",
+    "name": "FUN_100041ac0",
+    "bytes": 955
+   },
+   {
+    "address": "100041b7c",
+    "name": "_TtC8Playback28TransitionMenuViewController::initWithCoder:",
+    "bytes": 263
+   },
+   {
+    "address": "100041ba4",
+    "name": "_TtC8Playback28TransitionMenuViewController::.cxx_destruct",
+    "bytes": 353
+   },
+   {
+    "address": "100041bfc",
+    "name": "FUN_100041bfc",
+    "bytes": 137
+   },
+   {
+    "address": "100041c1c",
+    "name": "_TtC8Playback28TransitionMenuViewController::numberOfSectionsInTableView:",
+    "bytes": 198
+   },
+   {
+    "address": "100041c24",
+    "name": "_TtC8Playback28TransitionMenuViewController::tableView:numberOfRowsInSection:",
+    "bytes": 512
+   },
+   {
+    "address": "100041c88",
+    "name": "FUN_100041c88",
+    "bytes": 6951
+   },
+   {
+    "address": "10004240c",
+    "name": "_TtC8Playback28TransitionMenuViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 889
+   },
+   {
+    "address": "10004259c",
+    "name": "_TtC8Playback28TransitionMenuViewController::tableView:willSelectRowAtIndexPath:",
+    "bytes": 1339
+   },
+   {
+    "address": "1000426bc",
+    "name": "_TtC8Playback28TransitionMenuViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 781
+   },
+   {
+    "address": "1000428f4",
+    "name": "FUN_1000428f4",
+    "bytes": 2204
+   },
+   {
+    "address": "1000ea8b8",
+    "name": "_TtC8Playback33PremiumSubscriptionViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 868
+   },
+   {
+    "address": "10019bb58",
+    "name": "FUN_10019bb58",
+    "bytes": 1083
+   },
+   {
+    "address": "10019bc38",
+    "name": "_TtC8Playback26SettingsMainViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 634
+   },
+   {
+    "address": "1001af9d0",
+    "name": "FUN_1001af9d0",
+    "bytes": 5108
+   },
+   {
+    "address": "1001b03b8",
+    "name": "FUN_1001b03b8",
+    "bytes": 3333
+   },
+   {
+    "address": "1001b0748",
+    "name": "_TtC8Playback23SetlistTransitionButton::initWithFrame:",
+    "bytes": 651
+   },
+   {
+    "address": "1001b07cc",
+    "name": "_TtC8Playback23SetlistTransitionButton::initWithCoder:",
+    "bytes": 765
+   },
+   {
+    "address": "1001b0864",
+    "name": "FUN_1001b0864",
+    "bytes": 132
+   },
+   {
+    "address": "1001b4e7c",
+    "name": "thunk_FUN_1004f2edc",
+    "bytes": 16627
+   },
+   {
+    "address": "1001c01d4",
+    "name": "FUN_1001c01d4",
+    "bytes": 7852
+   },
+   {
+    "address": "1002425c0",
+    "name": "_TtC8Playback23TransitionIconImageView::initWithCoder:",
+    "bytes": 661
+   },
+   {
+    "address": "100242658",
+    "name": "FUN_100242658",
+    "bytes": 1507
+   },
+   {
+    "address": "1002427dc",
+    "name": "_TtC8Playback23TransitionIconImageView::initWithImage:",
+    "bytes": 484
+   },
+   {
+    "address": "100242810",
+    "name": "_TtC8Playback23TransitionIconImageView::initWithImage:highlightedImage:",
+    "bytes": 544
+   },
+   {
+    "address": "100242854",
+    "name": "_TtC8Playback23TransitionIconImageView::initWithFrame:",
+    "bytes": 451
+   },
+   {
+    "address": "100242880",
+    "name": "FUN_100242880",
+    "bytes": 132
+   },
+   {
+    "address": "1002428a0",
+    "name": "FUN_1002428a0",
+    "bytes": 1502
+   },
+   {
+    "address": "1002529bc",
+    "name": "FUN_1002529bc",
+    "bytes": 3870
+   },
+   {
+    "address": "100252de0",
+    "name": "_TtC8Playback19MixerViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 620
+   },
+   {
+    "address": "10027397c",
+    "name": "FUN_10027397c",
+    "bytes": 39420
+   },
+   {
+    "address": "1002b1db0",
+    "name": "_TtC8Playback42StackMenuPlaybackRemoteTableViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 886
+   },
+   {
+    "address": "1002c71a8",
+    "name": "FUN_1002c71a8",
+    "bytes": 5971
+   },
+   {
+    "address": "1002da058",
+    "name": "FUN_1002da058",
+    "bytes": 1930
+   },
+   {
+    "address": "1002dd148",
+    "name": "FUN_1002dd148",
+    "bytes": 22002
+   },
+   {
+    "address": "1002e5438",
+    "name": "FUN_1002e5438",
+    "bytes": 11090
+   },
+   {
+    "address": "1002f7e1c",
+    "name": "FUN_1002f7e1c",
+    "bytes": 13392
+   },
+   {
+    "address": "1002f9aa0",
+    "name": "FUN_1002f9aa0",
+    "bytes": 36197
+   },
+   {
+    "address": "100343d80",
+    "name": "FUN_100343d80",
+    "bytes": 31915
+   },
+   {
+    "address": "10038af08",
+    "name": "_TtC8Playback33TracksBusesSettingsViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 1171
+   },
+   {
+    "address": "100398264",
+    "name": "FUN_100398264",
+    "bytes": 16962
+   },
+   {
+    "address": "1003995a0",
+    "name": "FUN_1003995a0",
+    "bytes": 5716
+   },
+   {
+    "address": "1003a1a04",
+    "name": "FUN_1003a1a04",
+    "bytes": 7455
+   },
+   {
+    "address": "1003a215c",
+    "name": "FUN_1003a215c",
+    "bytes": 6046
+   },
+   {
+    "address": "1003fb9a8",
+    "name": "FUN_1003fb9a8",
+    "bytes": 9952
+   },
+   {
+    "address": "10040efd0",
+    "name": "FUN_10040efd0",
+    "bytes": 4313
+   },
+   {
+    "address": "100413268",
+    "name": "FUN_100413268",
+    "bytes": 6414
+   },
+   {
+    "address": "1004136b0",
+    "name": "FUN_1004136b0",
+    "bytes": 6269
+   },
+   {
+    "address": "10043cf14",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::circlePadding",
+    "bytes": 186
+   },
+   {
+    "address": "10043cf24",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::setCirclePadding:",
+    "bytes": 232
+   },
+   {
+    "address": "10043cf34",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::circleYOffset",
+    "bytes": 186
+   },
+   {
+    "address": "10043cf44",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::setCircleYOffset:",
+    "bytes": 232
+   },
+   {
+    "address": "10043cf54",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::initWithCoder:",
+    "bytes": 350
+   },
+   {
+    "address": "10043cf90",
+    "name": "FUN_10043cf90",
+    "bytes": 1431
+   },
+   {
+    "address": "10043d118",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::initWithFrame:",
+    "bytes": 356
+   },
+   {
+    "address": "10043d138",
+    "name": "FUN_10043d138",
+    "bytes": 1669
+   },
+   {
+    "address": "10043d318",
+    "name": "_TtC8Playback31TransitionContinuePadSymbolView::drawRect:",
+    "bytes": 513
+   },
+   {
+    "address": "10043d370",
+    "name": "FUN_10043d370",
+    "bytes": 140
+   },
+   {
+    "address": "10043d390",
+    "name": "FUN_10043d390",
+    "bytes": 1355
+   },
+   {
+    "address": "100458e64",
+    "name": "FUN_100458e64",
+    "bytes": 3165
+   },
+   {
+    "address": "100459168",
+    "name": "_TtC8Playback22WaveformViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 626
+   },
+   {
+    "address": "1004674f4",
+    "name": "FUN_1004674f4",
+    "bytes": 24818
+   },
+   {
+    "address": "100471d84",
+    "name": "_TtC8Playback27MixerPadPanelViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 855
+   },
+   {
+    "address": "1004bad90",
+    "name": "FUN_1004bad90",
+    "bytes": 25844
+   },
+   {
+    "address": "1004d57a0",
+    "name": "FUN_1004d57a0",
+    "bytes": 4358
+   },
+   {
+    "address": "1004da640",
+    "name": "FUN_1004da640",
+    "bytes": 45964
+   },
+   {
+    "address": "1004f2edc",
+    "name": "FUN_1004f2edc",
+    "bytes": 16617
+   },
+   {
+    "address": "1004f5388",
+    "name": "FUN_1004f5388",
+    "bytes": 53508
+   },
+   {
+    "address": "100502d0c",
+    "name": "FUN_100502d0c",
+    "bytes": 11807
+   },
+   {
+    "address": "100504280",
+    "name": "FUN_100504280",
+    "bytes": 6021
+   },
+   {
+    "address": "10056dea8",
+    "name": "FUN_10056dea8",
+    "bytes": 14249
+   },
+   {
+    "address": "10057b154",
+    "name": "FUN_10057b154",
+    "bytes": 2443
+   },
+   {
+    "address": "10057b3bc",
+    "name": "FUN_10057b3bc",
+    "bytes": 6489
+   },
+   {
+    "address": "100589064",
+    "name": "FUN_100589064",
+    "bytes": 7529
+   },
+   {
+    "address": "100589880",
+    "name": "FUN_100589880",
+    "bytes": 3214
+   },
+   {
+    "address": "100589c90",
+    "name": "FUN_100589c90",
+    "bytes": 3143
+   },
+   {
+    "address": "10058af18",
+    "name": "FUN_10058af18",
+    "bytes": 10713
+   },
+   {
+    "address": "10058b988",
+    "name": "FUN_10058b988",
+    "bytes": 3290
+   },
+   {
+    "address": "10058c1dc",
+    "name": "FUN_10058c1dc",
+    "bytes": 578
+   },
+   {
+    "address": "10058c578",
+    "name": "FUN_10058c578",
+    "bytes": 1201
+   },
+   {
+    "address": "1005f0ebc",
+    "name": "FUN_1005f0ebc",
+    "bytes": 8638
+   },
+   {
+    "address": "1005f1c00",
+    "name": "FUN_1005f1c00",
+    "bytes": 4369
+   },
+   {
+    "address": "100641948",
+    "name": "FUN_100641948",
+    "bytes": 3903
+   },
+   {
+    "address": "100641cfc",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::transitionStackView",
+    "bytes": 354
+   },
+   {
+    "address": "100641d1c",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setTransitionStackView:",
+    "bytes": 260
+   },
+   {
+    "address": "100641d30",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::transitionImageView",
+    "bytes": 354
+   },
+   {
+    "address": "100641d50",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setTransitionImageView:",
+    "bytes": 260
+   },
+   {
+    "address": "100641d64",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::titleLabel",
+    "bytes": 336
+   },
+   {
+    "address": "100641d84",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setTitleLabel:",
+    "bytes": 242
+   },
+   {
+    "address": "100641d98",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::checkmarkView",
+    "bytes": 342
+   },
+   {
+    "address": "100641db8",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setCheckmarkView:",
+    "bytes": 248
+   },
+   {
+    "address": "100641dcc",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::middleSeparatorView",
+    "bytes": 354
+   },
+   {
+    "address": "100641dec",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setMiddleSeparatorView:",
+    "bytes": 260
+   },
+   {
+    "address": "100641e00",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::continuePadStackView",
+    "bytes": 356
+   },
+   {
+    "address": "100641e20",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setContinuePadStackView:",
+    "bytes": 262
+   },
+   {
+    "address": "100641e34",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::continuePadSymbolView",
+    "bytes": 358
+   },
+   {
+    "address": "100641e54",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setContinuePadSymbolView:",
+    "bytes": 264
+   },
+   {
+    "address": "100641e68",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::continuePadLabel",
+    "bytes": 348
+   },
+   {
+    "address": "100641e88",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setContinuePadLabel:",
+    "bytes": 254
+   },
+   {
+    "address": "100641e9c",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::continuePadSwitch",
+    "bytes": 350
+   },
+   {
+    "address": "100641ebc",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::setContinuePadSwitch:",
+    "bytes": 256
+   },
+   {
+    "address": "100641ed0",
+    "name": "FUN_100641ed0",
+    "bytes": 2447
+   },
+   {
+    "address": "100642168",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::awakeFromNib",
+    "bytes": 341
+   },
+   {
+    "address": "100642190",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::prepareForReuse",
+    "bytes": 691
+   },
+   {
+    "address": "100642218",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::transitionStackViewTappedWithGestureRecognizer:",
+    "bytes": 558
+   },
+   {
+    "address": "100642298",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::continuePadSwitchValueChanged:",
+    "bytes": 551
+   },
+   {
+    "address": "10064231c",
+    "name": "FUN_10064231c",
+    "bytes": 1897
+   },
+   {
+    "address": "100642480",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::initWithStyle:reuseIdentifier:",
+    "bytes": 411
+   },
+   {
+    "address": "1006424c8",
+    "name": "FUN_1006424c8",
+    "bytes": 1745
+   },
+   {
+    "address": "100642608",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::initWithCoder:",
+    "bytes": 283
+   },
+   {
+    "address": "100642630",
+    "name": "_TtC8Playback34TransitionContinuePadTableViewCell::.cxx_destruct",
+    "bytes": 764
+   },
+   {
+    "address": "1006426e8",
+    "name": "FUN_1006426e8",
+    "bytes": 143
+   },
+   {
+    "address": "1006e9ee4",
+    "name": "_TtC8Playback32StackMenuListTableViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 858
+   },
+   {
+    "address": "100705ad4",
+    "name": "_TtC8Playback23StackMenuViewController::viewWillTransitionToSize:withTransitionCoordinator:",
+    "bytes": 847
+   },
+   {
+    "address": "10071af98",
+    "name": "FUN_10071af98",
+    "bytes": 12156
+   },
+   {
+    "address": "10071be38",
+    "name": "FUN_10071be38",
+    "bytes": 4118
+   },
+   {
+    "address": "1007cd924",
+    "name": "FUN_1007cd924",
+    "bytes": 7950
+   },
+   {
+    "address": "1007daeb4",
+    "name": "FUN_1007daeb4",
+    "bytes": 102676
+   },
+   {
+    "address": "1007e2b80",
+    "name": "FUN_1007e2b80",
+    "bytes": 125927
+   },
+   {
+    "address": "1008223d4",
+    "name": "FUN_1008223d4",
+    "bytes": 5034
+   },
+   {
+    "address": "10082288c",
+    "name": "FUN_10082288c",
+    "bytes": 2153
+   },
+   {
+    "address": "100822c4c",
+    "name": "FUN_100822c4c",
+    "bytes": 10247
+   },
+   {
+    "address": "100823650",
+    "name": "FUN_100823650",
+    "bytes": 5774
+   },
+   {
+    "address": "100824b08",
+    "name": "FUN_100824b08",
+    "bytes": 2779
+   },
+   {
+    "address": "10087e150",
+    "name": "FUN_10087e150",
+    "bytes": 12605
+   },
+   {
+    "address": "1008c6328",
+    "name": "_$s9Alamofire0A9ExtensionV0A5ImageSo11UIImageViewCRbzlE03setC014withURLRequest8cacheKey011placeholderC010serializer6filter8progress0N5Queue15imageTransition03runcQ8IfCached10completionyAA0H11Convertible_p_SSSgSo0D0CSgAD0C18ResponseSerializerCSgAD0C6Filter_pSgySo10NSProgressCYbcSgSo17OS_dispatch_queueCAfDE0cQ0OSbyAA04DataW0VyAuD8AFIErrorOGcSgtF",
+    "bytes": 940
+   }
+  ],
+  "songmap": [
+   {
+    "address": "100034180",
+    "name": "_TtC8Playback11SongSection::description",
+    "bytes": 527
+   },
+   {
+    "address": "100034ba0",
+    "name": "FUN_100034ba0",
+    "bytes": 1533
+   },
+   {
+    "address": "100034ce8",
+    "name": "FUN_100034ce8",
+    "bytes": 608
+   },
+   {
+    "address": "1000379c0",
+    "name": "FUN_1000379c0",
+    "bytes": 2121
+   },
+   {
+    "address": "100037f0c",
+    "name": "_TtC8Playback11SongSection::prepareForDeletion",
+    "bytes": 324
+   },
+   {
+    "address": "100037f34",
+    "name": "FUN_100037f34",
+    "bytes": 1833
+   },
+   {
+    "address": "1000380e8",
+    "name": "_TtC8Playback11SongSection::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 516
+   },
+   {
+    "address": "10003813c",
+    "name": "_TtC8Playback11SongSection::.cxx_construct",
+    "bytes": 1840
+   },
+   {
+    "address": "1000382b0",
+    "name": "_TtC8Playback11SongSection::.cxx_destruct",
+    "bytes": 503
+   },
+   {
+    "address": "100038c58",
+    "name": "FUN_100038c58",
+    "bytes": 141
+   },
+   {
+    "address": "100038c68",
+    "name": "FUN_100038c68",
+    "bytes": 139
+   },
+   {
+    "address": "100038c78",
+    "name": "FUN_100038c78",
+    "bytes": 160
+   },
+   {
+    "address": "100038c88",
+    "name": "FUN_100038c88",
+    "bytes": 144
+   },
+   {
+    "address": "100038c98",
+    "name": "FUN_100038c98",
+    "bytes": 307
+   },
+   {
+    "address": "100038cdc",
+    "name": "FUN_100038cdc",
+    "bytes": 407
+   },
+   {
+    "address": "100038d30",
+    "name": "FUN_100038d30",
+    "bytes": 342
+   },
+   {
+    "address": "100038d70",
+    "name": "FUN_100038d70",
+    "bytes": 185
+   },
+   {
+    "address": "100038d80",
+    "name": "FUN_100038d80",
+    "bytes": 447
+   },
+   {
+    "address": "100038de0",
+    "name": "FUN_100038de0",
+    "bytes": 224
+   },
+   {
+    "address": "100038e10",
+    "name": "FUN_100038e10",
+    "bytes": 140
+   },
+   {
+    "address": "100039048",
+    "name": "FUN_100039048",
+    "bytes": 120
+   },
+   {
+    "address": "100039b64",
+    "name": "FUN_100039b64",
+    "bytes": 6370
+   },
+   {
+    "address": "100098080",
+    "name": "FUN_100098080",
+    "bytes": 8533
+   },
+   {
+    "address": "100098a18",
+    "name": "FUN_100098a18",
+    "bytes": 3006
+   },
+   {
+    "address": "100098cec",
+    "name": "FUN_100098cec",
+    "bytes": 5372
+   },
+   {
+    "address": "100099368",
+    "name": "FUN_100099368",
+    "bytes": 8055
+   },
+   {
+    "address": "100099994",
+    "name": "FUN_100099994",
+    "bytes": 2223
+   },
+   {
+    "address": "10009a4d8",
+    "name": "FUN_10009a4d8",
+    "bytes": 21917
+   },
+   {
+    "address": "1000f77d8",
+    "name": "FUN_1000f77d8",
+    "bytes": 854
+   },
+   {
+    "address": "1000f7b6c",
+    "name": "FUN_1000f7b6c",
+    "bytes": 9999
+   },
+   {
+    "address": "1000f85a8",
+    "name": "FUN_1000f85a8",
+    "bytes": 1752
+   },
+   {
+    "address": "1000f8710",
+    "name": "FUN_1000f8710",
+    "bytes": 13670
+   },
+   {
+    "address": "1000f9b88",
+    "name": "FUN_1000f9b88",
+    "bytes": 2998
+   },
+   {
+    "address": "1000fad68",
+    "name": "FUN_1000fad68",
+    "bytes": 6489
+   },
+   {
+    "address": "10013cc6c",
+    "name": "FUN_10013cc6c",
+    "bytes": 61341
+   },
+   {
+    "address": "10014c5d8",
+    "name": "_TtC8Playback28SongMapOptionsViewController::initWithCoder:",
+    "bytes": 865
+   },
+   {
+    "address": "10014c7d0",
+    "name": "_TtC8Playback28SongMapOptionsViewController::viewDidLoad",
+    "bytes": 334
+   },
+   {
+    "address": "10014c7f8",
+    "name": "_TtC8Playback28SongMapOptionsViewController::initWithStyle:",
+    "bytes": 433
+   },
+   {
+    "address": "10014c824",
+    "name": "_TtC8Playback28SongMapOptionsViewController::initWithNibName:bundle:",
+    "bytes": 538
+   },
+   {
+    "address": "10014c858",
+    "name": "_TtC8Playback28SongMapOptionsViewController::.cxx_destruct",
+    "bytes": 330
+   },
+   {
+    "address": "10014c8a0",
+    "name": "FUN_10014c8a0",
+    "bytes": 137
+   },
+   {
+    "address": "10014c8c0",
+    "name": "_TtC8Playback28SongMapOptionsViewController::numberOfSectionsInTableView:",
+    "bytes": 198
+   },
+   {
+    "address": "10014c8c8",
+    "name": "_TtC8Playback28SongMapOptionsViewController::tableView:numberOfRowsInSection:",
+    "bytes": 220
+   },
+   {
+    "address": "10014c8d0",
+    "name": "FUN_10014c8d0",
+    "bytes": 2603
+   },
+   {
+    "address": "10014caf0",
+    "name": "_TtC8Playback28SongMapOptionsViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 889
+   },
+   {
+    "address": "10014cba8",
+    "name": "FUN_10014cba8",
+    "bytes": 3089
+   },
+   {
+    "address": "10014cdf0",
+    "name": "_TtC8Playback28SongMapOptionsViewController::tableView:willSelectRowAtIndexPath:",
+    "bytes": 1339
+   },
+   {
+    "address": "10014d084",
+    "name": "FUN_10014d084",
+    "bytes": 1164
+   },
+   {
+    "address": "10014d190",
+    "name": "_TtC8Playback28SongMapOptionsViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 789
+   },
+   {
+    "address": "10014d240",
+    "name": "_TtC8Playback28SongMapOptionsViewController::tableView:heightForRowAtIndexPath:",
+    "bytes": 646
+   },
+   {
+    "address": "100151edc",
+    "name": "FUN_100151edc",
+    "bytes": 3512
+   },
+   {
+    "address": "100153fb4",
+    "name": "FUN_100153fb4",
+    "bytes": 7900
+   },
+   {
+    "address": "10015d6b0",
+    "name": "FUN_10015d6b0",
+    "bytes": 219
+   },
+   {
+    "address": "10015d920",
+    "name": "FUN_10015d920",
+    "bytes": 2953
+   },
+   {
+    "address": "100164c80",
+    "name": "FUN_100164c80",
+    "bytes": 11201
+   },
+   {
+    "address": "1001a8774",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::initWithCoder:",
+    "bytes": 543
+   },
+   {
+    "address": "1001a8964",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::viewDidLoad",
+    "bytes": 341
+   },
+   {
+    "address": "1001a898c",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::initWithStyle:",
+    "bytes": 447
+   },
+   {
+    "address": "1001a89b8",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::initWithNibName:bundle:",
+    "bytes": 552
+   },
+   {
+    "address": "1001a89ec",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::.cxx_destruct",
+    "bytes": 222
+   },
+   {
+    "address": "1001a89fc",
+    "name": "FUN_1001a89fc",
+    "bytes": 147
+   },
+   {
+    "address": "1001a8a1c",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::numberOfSectionsInTableView:",
+    "bytes": 205
+   },
+   {
+    "address": "1001a8a24",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::tableView:numberOfRowsInSection:",
+    "bytes": 537
+   },
+   {
+    "address": "1001a8a54",
+    "name": "FUN_1001a8a54",
+    "bytes": 2693
+   },
+   {
+    "address": "1001a8ccc",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 896
+   },
+   {
+    "address": "1001a8d84",
+    "name": "FUN_1001a8d84",
+    "bytes": 2722
+   },
+   {
+    "address": "1001a8fd4",
+    "name": "FUN_1001a8fd4",
+    "bytes": 458
+   },
+   {
+    "address": "1001a9044",
+    "name": "_TtC8Playback35SongMapAdjunctSectionViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 796
+   },
+   {
+    "address": "1001b1524",
+    "name": "FUN_1001b1524",
+    "bytes": 5289
+   },
+   {
+    "address": "1001b18dc",
+    "name": "FUN_1001b18dc",
+    "bytes": 11590
+   },
+   {
+    "address": "1001b22b4",
+    "name": "FUN_1001b22b4",
+    "bytes": 8941
+   },
+   {
+    "address": "1001b3248",
+    "name": "FUN_1001b3248",
+    "bytes": 20296
+   },
+   {
+    "address": "1001b3da8",
+    "name": "FUN_1001b3da8",
+    "bytes": 1484
+   },
+   {
+    "address": "1001b45c8",
+    "name": "FUN_1001b45c8",
+    "bytes": 5821
+   },
+   {
+    "address": "1001b4e7c",
+    "name": "thunk_FUN_1004f2edc",
+    "bytes": 16627
+   },
+   {
+    "address": "1001f24a4",
+    "name": "FUN_1001f24a4",
+    "bytes": 3708
+   },
+   {
+    "address": "1001f2994",
+    "name": "FUN_1001f2994",
+    "bytes": 1448
+   },
+   {
+    "address": "100212bb0",
+    "name": "FUN_100212bb0",
+    "bytes": 10289
+   },
+   {
+    "address": "10021372c",
+    "name": "FUN_10021372c",
+    "bytes": 1495
+   },
+   {
+    "address": "100213870",
+    "name": "FUN_100213870",
+    "bytes": 1537
+   },
+   {
+    "address": "1002139b8",
+    "name": "FUN_1002139b8",
+    "bytes": 129
+   },
+   {
+    "address": "1002139c8",
+    "name": "FUN_1002139c8",
+    "bytes": 6963
+   },
+   {
+    "address": "100213f64",
+    "name": "FUN_100213f64",
+    "bytes": 130
+   },
+   {
+    "address": "100213f74",
+    "name": "FUN_100213f74",
+    "bytes": 129
+   },
+   {
+    "address": "100213f84",
+    "name": "FUN_100213f84",
+    "bytes": 132
+   },
+   {
+    "address": "100214030",
+    "name": "FUN_100214030",
+    "bytes": 3864
+   },
+   {
+    "address": "100214350",
+    "name": "FUN_100214350",
+    "bytes": 988
+   },
+   {
+    "address": "1002144dc",
+    "name": "FUN_1002144dc",
+    "bytes": 230
+   },
+   {
+    "address": "10021451c",
+    "name": "FUN_10021451c",
+    "bytes": 131
+   },
+   {
+    "address": "100214c58",
+    "name": "FUN_100214c58",
+    "bytes": 126
+   },
+   {
+    "address": "100214cb0",
+    "name": "FUN_100214cb0",
+    "bytes": 2547
+   },
+   {
+    "address": "100251ea8",
+    "name": "FUN_100251ea8",
+    "bytes": 7388
+   },
+   {
+    "address": "100253474",
+    "name": "FUN_100253474",
+    "bytes": 13673
+   },
+   {
+    "address": "1002571c0",
+    "name": "FUN_1002571c0",
+    "bytes": 1137
+   },
+   {
+    "address": "100258efc",
+    "name": "FUN_100258efc",
+    "bytes": 5485
+   },
+   {
+    "address": "100283c1c",
+    "name": "FUN_100283c1c",
+    "bytes": 161
+   },
+   {
+    "address": "100296154",
+    "name": "thunk_FUN_100296158",
+    "bytes": 905
+   },
+   {
+    "address": "100296158",
+    "name": "FUN_100296158",
+    "bytes": 899
+   },
+   {
+    "address": "10029623c",
+    "name": "thunk_FUN_100296240",
+    "bytes": 885
+   },
+   {
+    "address": "100296240",
+    "name": "FUN_100296240",
+    "bytes": 879
+   },
+   {
+    "address": "1002c6100",
+    "name": "FUN_1002c6100",
+    "bytes": 4596
+   },
+   {
+    "address": "1002da1dc",
+    "name": "FUN_1002da1dc",
+    "bytes": 2386
+   },
+   {
+    "address": "1002dfff0",
+    "name": "FUN_1002dfff0",
+    "bytes": 5307
+   },
+   {
+    "address": "1002e4b7c",
+    "name": "FUN_1002e4b7c",
+    "bytes": 3972
+   },
+   {
+    "address": "1002e75d4",
+    "name": "FUN_1002e75d4",
+    "bytes": 8523
+   },
+   {
+    "address": "1002e7dd4",
+    "name": "FUN_1002e7dd4",
+    "bytes": 6197
+   },
+   {
+    "address": "1002e82f4",
+    "name": "FUN_1002e82f4",
+    "bytes": 8106
+   },
+   {
+    "address": "1002e8d80",
+    "name": "FUN_1002e8d80",
+    "bytes": 4569
+   },
+   {
+    "address": "100305a58",
+    "name": "FUN_100305a58",
+    "bytes": 4866
+   },
+   {
+    "address": "100323224",
+    "name": "FUN_100323224",
+    "bytes": 1088
+   },
+   {
+    "address": "10032d02c",
+    "name": "FUN_10032d02c",
+    "bytes": 7094
+   },
+   {
+    "address": "1003374cc",
+    "name": "FUN_1003374cc",
+    "bytes": 2516
+   },
+   {
+    "address": "100343030",
+    "name": "FUN_100343030",
+    "bytes": 10988
+   },
+   {
+    "address": "10034acac",
+    "name": "FUN_10034acac",
+    "bytes": 15321
+   },
+   {
+    "address": "100352254",
+    "name": "_TtC8Playback4Song::.cxx_construct",
+    "bytes": 2393
+   },
+   {
+    "address": "10035246c",
+    "name": "_TtC8Playback4Song::.cxx_destruct",
+    "bytes": 817
+   },
+   {
+    "address": "100352e70",
+    "name": "FUN_100352e70",
+    "bytes": 2829
+   },
+   {
+    "address": "10039a298",
+    "name": "FUN_10039a298",
+    "bytes": 7044
+   },
+   {
+    "address": "1003ad8e0",
+    "name": "FUN_1003ad8e0",
+    "bytes": 12889
+   },
+   {
+    "address": "1003afc00",
+    "name": "FUN_1003afc00",
+    "bytes": 11725
+   },
+   {
+    "address": "1003afecc",
+    "name": "FUN_1003afecc",
+    "bytes": 3194
+   },
+   {
+    "address": "1004106d8",
+    "name": "FUN_1004106d8",
+    "bytes": 2003
+   },
+   {
+    "address": "100419fa8",
+    "name": "FUN_100419fa8",
+    "bytes": 71583
+   },
+   {
+    "address": "10041b260",
+    "name": "FUN_10041b260",
+    "bytes": 12737
+   },
+   {
+    "address": "10041bd88",
+    "name": "FUN_10041bd88",
+    "bytes": 9561
+   },
+   {
+    "address": "10041ca98",
+    "name": "FUN_10041ca98",
+    "bytes": 12441
+   },
+   {
+    "address": "10044d280",
+    "name": "FUN_10044d280",
+    "bytes": 2097
+   },
+   {
+    "address": "10044d444",
+    "name": "FUN_10044d444",
+    "bytes": 7051
+   },
+   {
+    "address": "100453f70",
+    "name": "FUN_100453f70",
+    "bytes": 20135
+   },
+   {
+    "address": "100455334",
+    "name": "FUN_100455334",
+    "bytes": 3900
+   },
+   {
+    "address": "100455658",
+    "name": "FUN_100455658",
+    "bytes": 6943
+   },
+   {
+    "address": "100455a38",
+    "name": "FUN_100455a38",
+    "bytes": 9252
+   },
+   {
+    "address": "100456064",
+    "name": "FUN_100456064",
+    "bytes": 6631
+   },
+   {
+    "address": "100456540",
+    "name": "FUN_100456540",
+    "bytes": 4228
+   },
+   {
+    "address": "100456d58",
+    "name": "FUN_100456d58",
+    "bytes": 7895
+   },
+   {
+    "address": "1004591c8",
+    "name": "FUN_1004591c8",
+    "bytes": 6260
+   },
+   {
+    "address": "100459860",
+    "name": "FUN_100459860",
+    "bytes": 5926
+   },
+   {
+    "address": "10045a6c0",
+    "name": "_TtC8Playback22WaveformViewController::scrollingResumptionTimerDidFireWithTimer:",
+    "bytes": 659
+   },
+   {
+    "address": "10045a744",
+    "name": "FUN_10045a744",
+    "bytes": 1766
+   },
+   {
+    "address": "10045b374",
+    "name": "FUN_10045b374",
+    "bytes": 5904
+   },
+   {
+    "address": "10045b9c4",
+    "name": "FUN_10045b9c4",
+    "bytes": 6139
+   },
+   {
+    "address": "10045bf94",
+    "name": "FUN_10045bf94",
+    "bytes": 8231
+   },
+   {
+    "address": "10045c80c",
+    "name": "FUN_10045c80c",
+    "bytes": 6806
+   },
+   {
+    "address": "10045ceac",
+    "name": "FUN_10045ceac",
+    "bytes": 2769
+   },
+   {
+    "address": "10045d164",
+    "name": "FUN_10045d164",
+    "bytes": 3426
+   },
+   {
+    "address": "10045da24",
+    "name": "FUN_10045da24",
+    "bytes": 3605
+   },
+   {
+    "address": "10045dcf0",
+    "name": "FUN_10045dcf0",
+    "bytes": 4247
+   },
+   {
+    "address": "10045e3d0",
+    "name": "FUN_10045e3d0",
+    "bytes": 5066
+   },
+   {
+    "address": "10045e928",
+    "name": "FUN_10045e928",
+    "bytes": 4259
+   },
+   {
+    "address": "10045ecdc",
+    "name": "FUN_10045ecdc",
+    "bytes": 2738
+   },
+   {
+    "address": "10045f0fc",
+    "name": "FUN_10045f0fc",
+    "bytes": 1876
+   },
+   {
+    "address": "10045f234",
+    "name": "FUN_10045f234",
+    "bytes": 1428
+   },
+   {
+    "address": "10045f340",
+    "name": "FUN_10045f340",
+    "bytes": 3238
+   },
+   {
+    "address": "10045f6e0",
+    "name": "FUN_10045f6e0",
+    "bytes": 6827
+   },
+   {
+    "address": "10045fbb4",
+    "name": "FUN_10045fbb4",
+    "bytes": 5451
+   },
+   {
+    "address": "10045ffa4",
+    "name": "FUN_10045ffa4",
+    "bytes": 4914
+   },
+   {
+    "address": "100461bc0",
+    "name": "FUN_100461bc0",
+    "bytes": 4279
+   },
+   {
+    "address": "100461ee0",
+    "name": "FUN_100461ee0",
+    "bytes": 4092
+   },
+   {
+    "address": "1004656fc",
+    "name": "FUN_1004656fc",
+    "bytes": 1404
+   },
+   {
+    "address": "100465f20",
+    "name": "FUN_100465f20",
+    "bytes": 6789
+   },
+   {
+    "address": "1004670f4",
+    "name": "FUN_1004670f4",
+    "bytes": 3178
+   },
+   {
+    "address": "1004674f4",
+    "name": "FUN_1004674f4",
+    "bytes": 24818
+   },
+   {
+    "address": "10049e1c4",
+    "name": "FUN_10049e1c4",
+    "bytes": 2459
+   },
+   {
+    "address": "10049e554",
+    "name": "_TtC8Playback47CloudSongSectionOptionSongSectionViewController::resetToOriginalSongSection",
+    "bytes": 384
+   },
+   {
+    "address": "1004a67f4",
+    "name": "FUN_1004a67f4",
+    "bytes": 23221
+   },
+   {
+    "address": "1004b9c44",
+    "name": "FUN_1004b9c44",
+    "bytes": 27508
+   },
+   {
+    "address": "1004d0ba4",
+    "name": "FUN_1004d0ba4",
+    "bytes": 4438
+   },
+   {
+    "address": "1004f09d0",
+    "name": "FUN_1004f09d0",
+    "bytes": 9263
+   },
+   {
+    "address": "1004f1918",
+    "name": "FUN_1004f1918",
+    "bytes": 12959
+   },
+   {
+    "address": "1004f240c",
+    "name": "FUN_1004f240c",
+    "bytes": 1884
+   },
+   {
+    "address": "1004f25d4",
+    "name": "FUN_1004f25d4",
+    "bytes": 7677
+   },
+   {
+    "address": "1004f2edc",
+    "name": "FUN_1004f2edc",
+    "bytes": 16617
+   },
+   {
+    "address": "1004f3f10",
+    "name": "FUN_1004f3f10",
+    "bytes": 4732
+   },
+   {
+    "address": "1004f5038",
+    "name": "FUN_1004f5038",
+    "bytes": 1261
+   },
+   {
+    "address": "1004f5154",
+    "name": "FUN_1004f5154",
+    "bytes": 1181
+   },
+   {
+    "address": "1004f5264",
+    "name": "FUN_1004f5264",
+    "bytes": 1035
+   },
+   {
+    "address": "1004f5388",
+    "name": "FUN_1004f5388",
+    "bytes": 53508
+   },
+   {
+    "address": "1004f8088",
+    "name": "FUN_1004f8088",
+    "bytes": 5775
+   },
+   {
+    "address": "1004f8628",
+    "name": "FUN_1004f8628",
+    "bytes": 1018
+   },
+   {
+    "address": "1004f8730",
+    "name": "FUN_1004f8730",
+    "bytes": 6705
+   },
+   {
+    "address": "1004f8c0c",
+    "name": "FUN_1004f8c0c",
+    "bytes": 4160
+   },
+   {
+    "address": "1004f8fa8",
+    "name": "FUN_1004f8fa8",
+    "bytes": 1951
+   },
+   {
+    "address": "1004f9194",
+    "name": "FUN_1004f9194",
+    "bytes": 5757
+   },
+   {
+    "address": "1004f9744",
+    "name": "FUN_1004f9744",
+    "bytes": 3174
+   },
+   {
+    "address": "1004f9970",
+    "name": "FUN_1004f9970",
+    "bytes": 1589
+   },
+   {
+    "address": "1004f9cd8",
+    "name": "FUN_1004f9cd8",
+    "bytes": 22551
+   },
+   {
+    "address": "1004fb02c",
+    "name": "FUN_1004fb02c",
+    "bytes": 7865
+   },
+   {
+    "address": "1004fb6ac",
+    "name": "FUN_1004fb6ac",
+    "bytes": 2272
+   },
+   {
+    "address": "1004fb89c",
+    "name": "FUN_1004fb89c",
+    "bytes": 1558
+   },
+   {
+    "address": "1004fbcd0",
+    "name": "FUN_1004fbcd0",
+    "bytes": 5554
+   },
+   {
+    "address": "1004fda78",
+    "name": "FUN_1004fda78",
+    "bytes": 3727
+   },
+   {
+    "address": "1004fdbe0",
+    "name": "FUN_1004fdbe0",
+    "bytes": 12889
+   },
+   {
+    "address": "1004feb00",
+    "name": "FUN_1004feb00",
+    "bytes": 4839
+   },
+   {
+    "address": "1004fedec",
+    "name": "FUN_1004fedec",
+    "bytes": 1191
+   },
+   {
+    "address": "1004fef18",
+    "name": "FUN_1004fef18",
+    "bytes": 1191
+   },
+   {
+    "address": "1004ff364",
+    "name": "FUN_1004ff364",
+    "bytes": 2466
+   },
+   {
+    "address": "1004ff780",
+    "name": "FUN_1004ff780",
+    "bytes": 3617
+   },
+   {
+    "address": "1004ffa3c",
+    "name": "FUN_1004ffa3c",
+    "bytes": 15282
+   },
+   {
+    "address": "100500738",
+    "name": "FUN_100500738",
+    "bytes": 3557
+   },
+   {
+    "address": "1005013b4",
+    "name": "FUN_1005013b4",
+    "bytes": 4500
+   },
+   {
+    "address": "10050174c",
+    "name": "FUN_10050174c",
+    "bytes": 8133
+   },
+   {
+    "address": "100501d0c",
+    "name": "FUN_100501d0c",
+    "bytes": 701
+   },
+   {
+    "address": "100501dd4",
+    "name": "FUN_100501dd4",
+    "bytes": 2960
+   },
+   {
+    "address": "100502d0c",
+    "name": "FUN_100502d0c",
+    "bytes": 11807
+   },
+   {
+    "address": "100504280",
+    "name": "FUN_100504280",
+    "bytes": 6021
+   },
+   {
+    "address": "100504704",
+    "name": "FUN_100504704",
+    "bytes": 4583
+   },
+   {
+    "address": "10050cb68",
+    "name": "FUN_10050cb68",
+    "bytes": 10543
+   },
+   {
+    "address": "1005458c4",
+    "name": "FUN_1005458c4",
+    "bytes": 548
+   },
+   {
+    "address": "100545a98",
+    "name": "FUN_100545a98",
+    "bytes": 7111
+   },
+   {
+    "address": "10054d374",
+    "name": "FUN_10054d374",
+    "bytes": 12204
+   },
+   {
+    "address": "10054e384",
+    "name": "FUN_10054e384",
+    "bytes": 12088
+   },
+   {
+    "address": "10054f7c4",
+    "name": "FUN_10054f7c4",
+    "bytes": 16073
+   },
+   {
+    "address": "100558e70",
+    "name": "FUN_100558e70",
+    "bytes": 1841
+   },
+   {
+    "address": "10055a168",
+    "name": "FUN_10055a168",
+    "bytes": 3773
+   },
+   {
+    "address": "10056dea8",
+    "name": "FUN_10056dea8",
+    "bytes": 14249
+   },
+   {
+    "address": "10057aa44",
+    "name": "FUN_10057aa44",
+    "bytes": 8826
+   },
+   {
+    "address": "10057bcf0",
+    "name": "FUN_10057bcf0",
+    "bytes": 3045
+   },
+   {
+    "address": "1005abc24",
+    "name": "FUN_1005abc24",
+    "bytes": 7341
+   },
+   {
+    "address": "1005c5504",
+    "name": "FUN_1005c5504",
+    "bytes": 3225
+   },
+   {
+    "address": "1005ed718",
+    "name": "FUN_1005ed718",
+    "bytes": 184
+   },
+   {
+    "address": "1005ee9a0",
+    "name": "FUN_1005ee9a0",
+    "bytes": 21775
+   },
+   {
+    "address": "1005ef7a4",
+    "name": "FUN_1005ef7a4",
+    "bytes": 11545
+   },
+   {
+    "address": "1005f025c",
+    "name": "FUN_1005f025c",
+    "bytes": 18882
+   },
+   {
+    "address": "1005f2f10",
+    "name": "FUN_1005f2f10",
+    "bytes": 4847
+   },
+   {
+    "address": "1005f714c",
+    "name": "FUN_1005f714c",
+    "bytes": 12704
+   },
+   {
+    "address": "1005f7be8",
+    "name": "FUN_1005f7be8",
+    "bytes": 3658
+   },
+   {
+    "address": "1005f7f0c",
+    "name": "FUN_1005f7f0c",
+    "bytes": 13255
+   },
+   {
+    "address": "1005f8fd8",
+    "name": "FUN_1005f8fd8",
+    "bytes": 6127
+   },
+   {
+    "address": "1005f93d0",
+    "name": "FUN_1005f93d0",
+    "bytes": 7500
+   },
+   {
+    "address": "1005f9ad4",
+    "name": "FUN_1005f9ad4",
+    "bytes": 12060
+   },
+   {
+    "address": "1005fa40c",
+    "name": "FUN_1005fa40c",
+    "bytes": 3264
+   },
+   {
+    "address": "1005fbaf4",
+    "name": "FUN_1005fbaf4",
+    "bytes": 3794
+   },
+   {
+    "address": "10061ea4c",
+    "name": "FUN_10061ea4c",
+    "bytes": 25193
+   },
+   {
+    "address": "1006471c8",
+    "name": "FUN_1006471c8",
+    "bytes": 5229
+   },
+   {
+    "address": "100647ebc",
+    "name": "FUN_100647ebc",
+    "bytes": 4666
+   },
+   {
+    "address": "100656854",
+    "name": "thunk_FUN_100656858",
+    "bytes": 905
+   },
+   {
+    "address": "100656858",
+    "name": "FUN_100656858",
+    "bytes": 899
+   },
+   {
+    "address": "10065693c",
+    "name": "thunk_FUN_100656940",
+    "bytes": 885
+   },
+   {
+    "address": "100656940",
+    "name": "FUN_100656940",
+    "bytes": 879
+   },
+   {
+    "address": "100675dec",
+    "name": "FUN_100675dec",
+    "bytes": 24668
+   },
+   {
+    "address": "100677534",
+    "name": "FUN_100677534",
+    "bytes": 1900
+   },
+   {
+    "address": "10067796c",
+    "name": "FUN_10067796c",
+    "bytes": 7837
+   },
+   {
+    "address": "100677f68",
+    "name": "FUN_100677f68",
+    "bytes": 4640
+   },
+   {
+    "address": "100678338",
+    "name": "FUN_100678338",
+    "bytes": 1834
+   },
+   {
+    "address": "100678484",
+    "name": "FUN_100678484",
+    "bytes": 1653
+   },
+   {
+    "address": "1006a3274",
+    "name": "_TtC8Playback10SongClicks::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 515
+   },
+   {
+    "address": "1006a32c8",
+    "name": "FUN_1006a32c8",
+    "bytes": 119
+   },
+   {
+    "address": "1006afab4",
+    "name": "FUN_1006afab4",
+    "bytes": 7269
+   },
+   {
+    "address": "1006b0228",
+    "name": "FUN_1006b0228",
+    "bytes": 3212
+   },
+   {
+    "address": "1006b0aa8",
+    "name": "FUN_1006b0aa8",
+    "bytes": 3407
+   },
+   {
+    "address": "1006b0d90",
+    "name": "_TtC8Playback18SongMapOptionsCell::symbolLabel",
+    "bytes": 322
+   },
+   {
+    "address": "1006b0db0",
+    "name": "_TtC8Playback18SongMapOptionsCell::setSymbolLabel:",
+    "bytes": 212
+   },
+   {
+    "address": "1006b0dc4",
+    "name": "_TtC8Playback18SongMapOptionsCell::titleLabel",
+    "bytes": 320
+   },
+   {
+    "address": "1006b0de4",
+    "name": "_TtC8Playback18SongMapOptionsCell::setTitleLabel:",
+    "bytes": 210
+   },
+   {
+    "address": "1006b0df8",
+    "name": "_TtC8Playback18SongMapOptionsCell::initWithStyle:reuseIdentifier:",
+    "bytes": 1031
+   },
+   {
+    "address": "1006b0ee8",
+    "name": "_TtC8Playback18SongMapOptionsCell::initWithCoder:",
+    "bytes": 782
+   },
+   {
+    "address": "1006b0f94",
+    "name": "_TtC8Playback18SongMapOptionsCell::.cxx_destruct",
+    "bytes": 249
+   },
+   {
+    "address": "1006b0fcc",
+    "name": "FUN_1006b0fcc",
+    "bytes": 127
+   },
+   {
+    "address": "1006c9404",
+    "name": "FUN_1006c9404",
+    "bytes": 7100
+   },
+   {
+    "address": "1006e0f68",
+    "name": "FUN_1006e0f68",
+    "bytes": 49997
+   },
+   {
+    "address": "1006e88e8",
+    "name": "FUN_1006e88e8",
+    "bytes": 7461
+   },
+   {
+    "address": "10071a78c",
+    "name": "thunk_FUN_10071a790",
+    "bytes": 905
+   },
+   {
+    "address": "10071a790",
+    "name": "FUN_10071a790",
+    "bytes": 899
+   },
+   {
+    "address": "10071a874",
+    "name": "thunk_FUN_10071a878",
+    "bytes": 1580
+   },
+   {
+    "address": "10071a878",
+    "name": "FUN_10071a878",
+    "bytes": 1574
+   },
+   {
+    "address": "100721cf4",
+    "name": "FUN_100721cf4",
+    "bytes": 227819
+   },
+   {
+    "address": "10074c9f4",
+    "name": "FUN_10074c9f4",
+    "bytes": 2109
+   },
+   {
+    "address": "10077baec",
+    "name": "FUN_10077baec",
+    "bytes": 1621
+   },
+   {
+    "address": "10077c48c",
+    "name": "FUN_10077c48c",
+    "bytes": 13430
+   },
+   {
+    "address": "1007817cc",
+    "name": "FUN_1007817cc",
+    "bytes": 9649
+   },
+   {
+    "address": "1007b721c",
+    "name": "FUN_1007b721c",
+    "bytes": 2822
+   },
+   {
+    "address": "1007b74e4",
+    "name": "FUN_1007b74e4",
+    "bytes": 5693
+   },
+   {
+    "address": "1007b815c",
+    "name": "FUN_1007b815c",
+    "bytes": 4576
+   },
+   {
+    "address": "1007b94ac",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::tableView",
+    "bytes": 331
+   },
+   {
+    "address": "1007b94cc",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::setTableView:",
+    "bytes": 237
+   },
+   {
+    "address": "1007b94e0",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::resetView",
+    "bytes": 331
+   },
+   {
+    "address": "1007b9500",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::setResetView:",
+    "bytes": 237
+   },
+   {
+    "address": "1007b9514",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::resetButton",
+    "bytes": 335
+   },
+   {
+    "address": "1007b9534",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::setResetButton:",
+    "bytes": 241
+   },
+   {
+    "address": "1007b9548",
+    "name": "FUN_1007b9548",
+    "bytes": 1529
+   },
+   {
+    "address": "1007b9614",
+    "name": "FUN_1007b9614",
+    "bytes": 811
+   },
+   {
+    "address": "1007b96a8",
+    "name": "FUN_1007b96a8",
+    "bytes": 2959
+   },
+   {
+    "address": "1007b98ec",
+    "name": "FUN_1007b98ec",
+    "bytes": 6958
+   },
+   {
+    "address": "1007b9de8",
+    "name": "FUN_1007b9de8",
+    "bytes": 5940
+   },
+   {
+    "address": "1007ba470",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::viewDidLoad",
+    "bytes": 337
+   },
+   {
+    "address": "1007ba498",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::cancelBarButtonItemTapped:",
+    "bytes": 627
+   },
+   {
+    "address": "1007ba520",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::resetButtonTouchUpInside:",
+    "bytes": 543
+   },
+   {
+    "address": "1007ba5a0",
+    "name": "FUN_1007ba5a0",
+    "bytes": 1989
+   },
+   {
+    "address": "1007ba6f8",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::initWithNibName:bundle:",
+    "bytes": 486
+   },
+   {
+    "address": "1007ba758",
+    "name": "FUN_1007ba758",
+    "bytes": 1844
+   },
+   {
+    "address": "1007ba884",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::initWithCoder:",
+    "bytes": 266
+   },
+   {
+    "address": "1007ba8ac",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::.cxx_destruct",
+    "bytes": 785
+   },
+   {
+    "address": "1007ba954",
+    "name": "FUN_1007ba954",
+    "bytes": 140
+   },
+   {
+    "address": "1007ba974",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::numberOfSectionsInTableView:",
+    "bytes": 493
+   },
+   {
+    "address": "1007ba9d8",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::tableView:numberOfRowsInSection:",
+    "bytes": 414
+   },
+   {
+    "address": "1007baa38",
+    "name": "FUN_1007baa38",
+    "bytes": 8971
+   },
+   {
+    "address": "1007bb358",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 892
+   },
+   {
+    "address": "1007bb410",
+    "name": "FUN_1007bb410",
+    "bytes": 7774
+   },
+   {
+    "address": "1007bba40",
+    "name": "FUN_1007bba40",
+    "bytes": 680
+   },
+   {
+    "address": "1007bbacc",
+    "name": "FUN_1007bbacc",
+    "bytes": 724
+   },
+   {
+    "address": "1007bbb68",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 792
+   },
+   {
+    "address": "1007bbc18",
+    "name": "_TtC8Playback31SongMapAddSectionViewController::tableView:estimatedHeightForRowAtIndexPath:",
+    "bytes": 742
+   },
+   {
+    "address": "1007bbd90",
+    "name": "FUN_1007bbd90",
+    "bytes": 652
+   },
+   {
+    "address": "1007e2b80",
+    "name": "FUN_1007e2b80",
+    "bytes": 125927
+   },
+   {
+    "address": "1007f6210",
+    "name": "FUN_1007f6210",
+    "bytes": 3594
+   },
+   {
+    "address": "1007fdd90",
+    "name": "FUN_1007fdd90",
+    "bytes": 632
+   },
+   {
+    "address": "1007fddf4",
+    "name": "FUN_1007fddf4",
+    "bytes": 9745
+   },
+   {
+    "address": "1007fe328",
+    "name": "_TtC8Playback25SongMapEditViewController::initWithCoder:",
+    "bytes": 961
+   },
+   {
+    "address": "1007fea0c",
+    "name": "_TtC8Playback25SongMapEditViewController::viewDidLoad",
+    "bytes": 331
+   },
+   {
+    "address": "1007feb88",
+    "name": "_TtC8Playback25SongMapEditViewController::viewDidLayoutSubviews",
+    "bytes": 341
+   },
+   {
+    "address": "1007febb0",
+    "name": "_TtC8Playback25SongMapEditViewController::cancelButtonTapped",
+    "bytes": 586
+   },
+   {
+    "address": "1007fec10",
+    "name": "FUN_1007fec10",
+    "bytes": 6322
+   },
+   {
+    "address": "1007ff2b8",
+    "name": "FUN_1007ff2b8",
+    "bytes": 265
+   },
+   {
+    "address": "1007ff2fc",
+    "name": "_TtC8Playback25SongMapEditViewController::updateButtonTapped",
+    "bytes": 338
+   },
+   {
+    "address": "1007ff324",
+    "name": "FUN_1007ff324",
+    "bytes": 2784
+   },
+   {
+    "address": "1007ff9bc",
+    "name": "FUN_1007ff9bc",
+    "bytes": 8913
+   },
+   {
+    "address": "1008001e0",
+    "name": "FUN_1008001e0",
+    "bytes": 1746
+   },
+   {
+    "address": "1008002f8",
+    "name": "_TtC8Playback25SongMapEditViewController::initWithStyle:",
+    "bytes": 427
+   },
+   {
+    "address": "100800324",
+    "name": "_TtC8Playback25SongMapEditViewController::initWithNibName:bundle:",
+    "bytes": 532
+   },
+   {
+    "address": "100800358",
+    "name": "_TtC8Playback25SongMapEditViewController::.cxx_destruct",
+    "bytes": 478
+   },
+   {
+    "address": "1008003c0",
+    "name": "FUN_1008003c0",
+    "bytes": 134
+   },
+   {
+    "address": "1008003e0",
+    "name": "_TtC8Playback25SongMapEditViewController::numberOfSectionsInTableView:",
+    "bytes": 487
+   },
+   {
+    "address": "100800444",
+    "name": "_TtC8Playback25SongMapEditViewController::tableView:numberOfRowsInSection:",
+    "bytes": 408
+   },
+   {
+    "address": "10080094c",
+    "name": "switchD_1007e3574::caseD_4c",
+    "bytes": 1744
+   },
+   {
+    "address": "100800af4",
+    "name": "FUN_100800af4",
+    "bytes": 1534
+   },
+   {
+    "address": "100800c18",
+    "name": "_TtC8Playback25SongMapEditViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 886
+   },
+   {
+    "address": "100800cd0",
+    "name": "_TtC8Playback25SongMapEditViewController::tableView:titleForHeaderInSection:",
+    "bytes": 230
+   },
+   {
+    "address": "100800cdc",
+    "name": "_TtC8Playback25SongMapEditViewController::tableView:titleForFooterInSection:",
+    "bytes": 230
+   },
+   {
+    "address": "100800ce8",
+    "name": "FUN_100800ce8",
+    "bytes": 4328
+   },
+   {
+    "address": "10080112c",
+    "name": "FUN_10080112c",
+    "bytes": 1228
+   },
+   {
+    "address": "100801270",
+    "name": "FUN_100801270",
+    "bytes": 1225
+   },
+   {
+    "address": "1008013b0",
+    "name": "_TtC8Playback25SongMapEditViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 786
+   },
+   {
+    "address": "100801564",
+    "name": "FUN_100801564",
+    "bytes": 1674
+   },
+   {
+    "address": "1008016a4",
+    "name": "FUN_1008016a4",
+    "bytes": 1250
+   },
+   {
+    "address": "1008017c4",
+    "name": "FUN_1008017c4",
+    "bytes": 1066
+   },
+   {
+    "address": "100801910",
+    "name": "FUN_100801910",
+    "bytes": 814
+   },
+   {
+    "address": "10081be8c",
+    "name": "_TtC8Playback9SongTempo::initWithEntity:insertIntoManagedObjectContext:",
+    "bytes": 513
+   },
+   {
+    "address": "10081bee0",
+    "name": "_TtC8Playback9SongTempo::.cxx_construct",
+    "bytes": 125
+   },
+   {
+    "address": "10081bee4",
+    "name": "FUN_10081bee4",
+    "bytes": 117
+   },
+   {
+    "address": "1008223d4",
+    "name": "FUN_1008223d4",
+    "bytes": 5034
+   },
+   {
+    "address": "10082288c",
+    "name": "FUN_10082288c",
+    "bytes": 2153
+   },
+   {
+    "address": "100822c4c",
+    "name": "FUN_100822c4c",
+    "bytes": 10247
+   },
+   {
+    "address": "1008241bc",
+    "name": "FUN_1008241bc",
+    "bytes": 3332
+   },
+   {
+    "address": "100824494",
+    "name": "FUN_100824494",
+    "bytes": 4582
+   },
+   {
+    "address": "100824b08",
+    "name": "FUN_100824b08",
+    "bytes": 2779
+   },
+   {
+    "address": "10082cd8c",
+    "name": "FUN_10082cd8c",
+    "bytes": 8344
+   },
+   {
+    "address": "10082d460",
+    "name": "FUN_10082d460",
+    "bytes": 877
+   },
+   {
+    "address": "1008418a8",
+    "name": "FUN_1008418a8",
+    "bytes": 30323
+   },
+   {
+    "address": "100850a0c",
+    "name": "FUN_100850a0c",
+    "bytes": 13295
+   },
+   {
+    "address": "100852a14",
+    "name": "FUN_100852a14",
+    "bytes": 14603
+   },
+   {
+    "address": "1008593a0",
+    "name": "FUN_1008593a0",
+    "bytes": 8711
+   },
+   {
+    "address": "100859c20",
+    "name": "FUN_100859c20",
+    "bytes": 13947
+   },
+   {
+    "address": "10085b6a8",
+    "name": "FUN_10085b6a8",
+    "bytes": 7512
+   },
+   {
+    "address": "10085c8ec",
+    "name": "FUN_10085c8ec",
+    "bytes": 1981
+   },
+   {
+    "address": "10085ca74",
+    "name": "FUN_10085ca74",
+    "bytes": 5515
+   },
+   {
+    "address": "10085cea0",
+    "name": "FUN_10085cea0",
+    "bytes": 19569
+   },
+   {
+    "address": "10085decc",
+    "name": "FUN_10085decc",
+    "bytes": 17163
+   },
+   {
+    "address": "10085ee38",
+    "name": "FUN_10085ee38",
+    "bytes": 11846
+   },
+   {
+    "address": "10085f904",
+    "name": "FUN_10085f904",
+    "bytes": 5126
+   },
+   {
+    "address": "10085ffc8",
+    "name": "FUN_10085ffc8",
+    "bytes": 5180
+   },
+   {
+    "address": "100860ea8",
+    "name": "FUN_100860ea8",
+    "bytes": 5343
+   },
+   {
+    "address": "100861310",
+    "name": "FUN_100861310",
+    "bytes": 115
+   },
+   {
+    "address": "10086207c",
+    "name": "FUN_10086207c",
+    "bytes": 2556
+   },
+   {
+    "address": "1008622e4",
+    "name": "FUN_1008622e4",
+    "bytes": 2169
+   },
+   {
+    "address": "100866e18",
+    "name": "FUN_100866e18",
+    "bytes": 3658
+   },
+   {
+    "address": "100867240",
+    "name": "FUN_100867240",
+    "bytes": 3909
+   },
+   {
+    "address": "100869aec",
+    "name": "FUN_100869aec",
+    "bytes": 6536
+   },
+   {
+    "address": "10086a1c0",
+    "name": "FUN_10086a1c0",
+    "bytes": 6362
+   },
+   {
+    "address": "10086a760",
+    "name": "FUN_10086a760",
+    "bytes": 32828
+   },
+   {
+    "address": "10086bec4",
+    "name": "FUN_10086bec4",
+    "bytes": 11702
+   },
+   {
+    "address": "10086f20c",
+    "name": "FUN_10086f20c",
+    "bytes": 4413
+   },
+   {
+    "address": "100876668",
+    "name": "FUN_100876668",
+    "bytes": 1899
+   },
+   {
+    "address": "10087682c",
+    "name": "FUN_10087682c",
+    "bytes": 20838
+   },
+   {
+    "address": "10087798c",
+    "name": "FUN_10087798c",
+    "bytes": 7163
+   },
+   {
+    "address": "100878090",
+    "name": "FUN_100878090",
+    "bytes": 10011
+   },
+   {
+    "address": "100878ab0",
+    "name": "FUN_100878ab0",
+    "bytes": 12824
+   },
+   {
+    "address": "100879324",
+    "name": "FUN_100879324",
+    "bytes": 11347
+   },
+   {
+    "address": "100879c54",
+    "name": "FUN_100879c54",
+    "bytes": 5248
+   },
+   {
+    "address": "10087a478",
+    "name": "FUN_10087a478",
+    "bytes": 25472
+   },
+   {
+    "address": "10087bdf4",
+    "name": "FUN_10087bdf4",
+    "bytes": 4155
+   },
+   {
+    "address": "10087c198",
+    "name": "FUN_10087c198",
+    "bytes": 2022
+   },
+   {
+    "address": "10087c28c",
+    "name": "FUN_10087c28c",
+    "bytes": 4945
+   },
+   {
+    "address": "10087c874",
+    "name": "FUN_10087c874",
+    "bytes": 11078
+   },
+   {
+    "address": "10087d040",
+    "name": "FUN_10087d040",
+    "bytes": 1196
+   },
+   {
+    "address": "10087d1d0",
+    "name": "FUN_10087d1d0",
+    "bytes": 3904
+   },
+   {
+    "address": "10087d5e0",
+    "name": "FUN_10087d5e0",
+    "bytes": 1388
+   },
+   {
+    "address": "10087f4a0",
+    "name": "FUN_10087f4a0",
+    "bytes": 3682
+   },
+   {
+    "address": "10087f900",
+    "name": "FUN_10087f900",
+    "bytes": 2564
+   }
+  ],
+  "guides": [
+   {
+    "address": "100036a34",
+    "name": "FUN_100036a34",
+    "bytes": 1695
+   },
+   {
+    "address": "100037f34",
+    "name": "FUN_100037f34",
+    "bytes": 1833
+   },
+   {
+    "address": "100039b64",
+    "name": "FUN_100039b64",
+    "bytes": 6370
+   },
+   {
+    "address": "10003c304",
+    "name": "FUN_10003c304",
+    "bytes": 4488
+   },
+   {
+    "address": "10003d970",
+    "name": "FUN_10003d970",
+    "bytes": 16711
+   },
+   {
+    "address": "100057268",
+    "name": "FUN_100057268",
+    "bytes": 15727
+   },
+   {
+    "address": "1000871fc",
+    "name": "FUN_1000871fc",
+    "bytes": 12177
+   },
+   {
+    "address": "100098080",
+    "name": "FUN_100098080",
+    "bytes": 8533
+   },
+   {
+    "address": "100098a18",
+    "name": "FUN_100098a18",
+    "bytes": 3006
+   },
+   {
+    "address": "100099368",
+    "name": "FUN_100099368",
+    "bytes": 8055
+   },
+   {
+    "address": "100099b80",
+    "name": "FUN_100099b80",
+    "bytes": 113
+   },
+   {
+    "address": "10009a4d8",
+    "name": "FUN_10009a4d8",
+    "bytes": 21917
+   },
+   {
+    "address": "1000bdefc",
+    "name": "FUN_1000bdefc",
+    "bytes": 132
+   },
+   {
+    "address": "1000c5708",
+    "name": "FUN_1000c5708",
+    "bytes": 781
+   },
+   {
+    "address": "1000c57c8",
+    "name": "FUN_1000c57c8",
+    "bytes": 882
+   },
+   {
+    "address": "1000c588c",
+    "name": "FUN_1000c588c",
+    "bytes": 740
+   },
+   {
+    "address": "1000c6270",
+    "name": "FUN_1000c6270",
+    "bytes": 725
+   },
+   {
+    "address": "1000c6d04",
+    "name": "FUN_1000c6d04",
+    "bytes": 3793
+   },
+   {
+    "address": "1000c7404",
+    "name": "FUN_1000c7404",
+    "bytes": 5658
+   },
+   {
+    "address": "1000c79fc",
+    "name": "FUN_1000c79fc",
+    "bytes": 3781
+   },
+   {
+    "address": "1000c7ea4",
+    "name": "FUN_1000c7ea4",
+    "bytes": 3932
+   },
+   {
+    "address": "1000c83b0",
+    "name": "FUN_1000c83b0",
+    "bytes": 5620
+   },
+   {
+    "address": "1000c8df8",
+    "name": "FUN_1000c8df8",
+    "bytes": 4113
+   },
+   {
+    "address": "1001148d8",
+    "name": "FUN_1001148d8",
+    "bytes": 5606
+   },
+   {
+    "address": "100130188",
+    "name": "FUN_100130188",
+    "bytes": 3578
+   },
+   {
+    "address": "100132580",
+    "name": "FUN_100132580",
+    "bytes": 62062
+   },
+   {
+    "address": "1001363bc",
+    "name": "FUN_1001363bc",
+    "bytes": 13195
+   },
+   {
+    "address": "100136f08",
+    "name": "FUN_100136f08",
+    "bytes": 15409
+   },
+   {
+    "address": "10016fa38",
+    "name": "FUN_10016fa38",
+    "bytes": 622
+   },
+   {
+    "address": "10016fbdc",
+    "name": "FUN_10016fbdc",
+    "bytes": 187
+   },
+   {
+    "address": "10017051c",
+    "name": "FUN_10017051c",
+    "bytes": 181
+   },
+   {
+    "address": "1001742d0",
+    "name": "FUN_1001742d0",
+    "bytes": 12343
+   },
+   {
+    "address": "1001748e0",
+    "name": "FUN_1001748e0",
+    "bytes": 9232
+   },
+   {
+    "address": "1001750e4",
+    "name": "FUN_1001750e4",
+    "bytes": 28007
+   },
+   {
+    "address": "100176d44",
+    "name": "_TtC8Playback15DefaultsManager::.cxx_destruct",
+    "bytes": 3566
+   },
+   {
+    "address": "1002081fc",
+    "name": "FUN_1002081fc",
+    "bytes": 4525
+   },
+   {
+    "address": "10021dca8",
+    "name": "FUN_10021dca8",
+    "bytes": 8419
+   },
+   {
+    "address": "10024e1d4",
+    "name": "FUN_10024e1d4",
+    "bytes": 20781
+   },
+   {
+    "address": "1002da834",
+    "name": "FUN_1002da834",
+    "bytes": 5716
+   },
+   {
+    "address": "1002dbb48",
+    "name": "FUN_1002dbb48",
+    "bytes": 10320
+   },
+   {
+    "address": "1002dc2dc",
+    "name": "FUN_1002dc2dc",
+    "bytes": 11547
+   },
+   {
+    "address": "1002dd148",
+    "name": "FUN_1002dd148",
+    "bytes": 22002
+   },
+   {
+    "address": "1002de6e0",
+    "name": "FUN_1002de6e0",
+    "bytes": 3063
+   },
+   {
+    "address": "1002e3ce4",
+    "name": "FUN_1002e3ce4",
+    "bytes": 1887
+   },
+   {
+    "address": "1002e3e90",
+    "name": "FUN_1002e3e90",
+    "bytes": 3275
+   },
+   {
+    "address": "1002eb540",
+    "name": "FUN_1002eb540",
+    "bytes": 20117
+   },
+   {
+    "address": "1002f64e0",
+    "name": "FUN_1002f64e0",
+    "bytes": 6625
+   },
+   {
+    "address": "1002f89d4",
+    "name": "FUN_1002f89d4",
+    "bytes": 5920
+   },
+   {
+    "address": "1002f8fe8",
+    "name": "FUN_1002f8fe8",
+    "bytes": 5711
+   },
+   {
+    "address": "1002f95c0",
+    "name": "FUN_1002f95c0",
+    "bytes": 6705
+   },
+   {
+    "address": "1002f9aa0",
+    "name": "FUN_1002f9aa0",
+    "bytes": 36197
+   },
+   {
+    "address": "1002fce00",
+    "name": "FUN_1002fce00",
+    "bytes": 1060
+   },
+   {
+    "address": "1002fcee0",
+    "name": "FUN_1002fcee0",
+    "bytes": 1058
+   },
+   {
+    "address": "100327b8c",
+    "name": "FUN_100327b8c",
+    "bytes": 38761
+   },
+   {
+    "address": "100331214",
+    "name": "FUN_100331214",
+    "bytes": 3090
+   },
+   {
+    "address": "100333e40",
+    "name": "FUN_100333e40",
+    "bytes": 5361
+   },
+   {
+    "address": "10034e664",
+    "name": "FUN_10034e664",
+    "bytes": 9849
+   },
+   {
+    "address": "1003597d0",
+    "name": "FUN_1003597d0",
+    "bytes": 21738
+   },
+   {
+    "address": "10035d3f4",
+    "name": "FUN_10035d3f4",
+    "bytes": 2661
+   },
+   {
+    "address": "100368f58",
+    "name": "FUN_100368f58",
+    "bytes": 1853
+   },
+   {
+    "address": "10036c384",
+    "name": "FUN_10036c384",
+    "bytes": 7879
+   },
+   {
+    "address": "1003a30b8",
+    "name": "FUN_1003a30b8",
+    "bytes": 3310
+   },
+   {
+    "address": "1003a411c",
+    "name": "FUN_1003a411c",
+    "bytes": 46934
+   },
+   {
+    "address": "1003f2178",
+    "name": "FUN_1003f2178",
+    "bytes": 34474
+   },
+   {
+    "address": "100401cc0",
+    "name": "FUN_100401cc0",
+    "bytes": 5925
+   },
+   {
+    "address": "1004126cc",
+    "name": "FUN_1004126cc",
+    "bytes": 4405
+   },
+   {
+    "address": "100419fa8",
+    "name": "FUN_100419fa8",
+    "bytes": 71583
+   },
+   {
+    "address": "100428e10",
+    "name": "FUN_100428e10",
+    "bytes": 40801
+   },
+   {
+    "address": "1004410c4",
+    "name": "FUN_1004410c4",
+    "bytes": 27398
+   },
+   {
+    "address": "100442260",
+    "name": "FUN_100442260",
+    "bytes": 27398
+   },
+   {
+    "address": "1004670f4",
+    "name": "FUN_1004670f4",
+    "bytes": 3178
+   },
+   {
+    "address": "1004da640",
+    "name": "FUN_1004da640",
+    "bytes": 45964
+   },
+   {
+    "address": "1004f5154",
+    "name": "FUN_1004f5154",
+    "bytes": 1181
+   },
+   {
+    "address": "1004f5388",
+    "name": "FUN_1004f5388",
+    "bytes": 53508
+   },
+   {
+    "address": "1004f9ac8",
+    "name": "FUN_1004f9ac8",
+    "bytes": 1771
+   },
+   {
+    "address": "1004fb02c",
+    "name": "FUN_1004fb02c",
+    "bytes": 7865
+   },
+   {
+    "address": "1004fb628",
+    "name": "FUN_1004fb628",
+    "bytes": 551
+   },
+   {
+    "address": "1004fef18",
+    "name": "FUN_1004fef18",
+    "bytes": 1191
+   },
+   {
+    "address": "100504280",
+    "name": "FUN_100504280",
+    "bytes": 6021
+   },
+   {
+    "address": "10055a168",
+    "name": "FUN_10055a168",
+    "bytes": 3773
+   },
+   {
+    "address": "100561f30",
+    "name": "FUN_100561f30",
+    "bytes": 9788
+   },
+   {
+    "address": "100563d2c",
+    "name": "FUN_100563d2c",
+    "bytes": 16347
+   },
+   {
+    "address": "10057e640",
+    "name": "FUN_10057e640",
+    "bytes": 28928
+   },
+   {
+    "address": "10057e9d0",
+    "name": "FUN_10057e9d0",
+    "bytes": 11588
+   },
+   {
+    "address": "10057f46c",
+    "name": "FUN_10057f46c",
+    "bytes": 16006
+   },
+   {
+    "address": "10057fc40",
+    "name": "FUN_10057fc40",
+    "bytes": 1017
+   },
+   {
+    "address": "1005820ec",
+    "name": "FUN_1005820ec",
+    "bytes": 18681
+   },
+   {
+    "address": "1005aff2c",
+    "name": "FUN_1005aff2c",
+    "bytes": 14431
+   },
+   {
+    "address": "1005b0be0",
+    "name": "FUN_1005b0be0",
+    "bytes": 14653
+   },
+   {
+    "address": "1005cfdac",
+    "name": "FUN_1005cfdac",
+    "bytes": 9352
+   },
+   {
+    "address": "1005d0ad0",
+    "name": "FUN_1005d0ad0",
+    "bytes": 15810
+   },
+   {
+    "address": "1005ea280",
+    "name": "FUN_1005ea280",
+    "bytes": 40525
+   },
+   {
+    "address": "10064521c",
+    "name": "FUN_10064521c",
+    "bytes": 39615
+   },
+   {
+    "address": "1006471c8",
+    "name": "FUN_1006471c8",
+    "bytes": 5229
+   },
+   {
+    "address": "100648190",
+    "name": "FUN_100648190",
+    "bytes": 45444
+   },
+   {
+    "address": "10064aba8",
+    "name": "FUN_10064aba8",
+    "bytes": 4813
+   },
+   {
+    "address": "10064c530",
+    "name": "FUN_10064c530",
+    "bytes": 56031
+   },
+   {
+    "address": "10064ecf4",
+    "name": "FUN_10064ecf4",
+    "bytes": 18199
+   },
+   {
+    "address": "10064f8e4",
+    "name": "FUN_10064f8e4",
+    "bytes": 9575
+   },
+   {
+    "address": "1006501a0",
+    "name": "FUN_1006501a0",
+    "bytes": 1925
+   },
+   {
+    "address": "100651030",
+    "name": "FUN_100651030",
+    "bytes": 2374
+   },
+   {
+    "address": "100653b84",
+    "name": "FUN_100653b84",
+    "bytes": 2180
+   },
+   {
+    "address": "100655090",
+    "name": "FUN_100655090",
+    "bytes": 3708
+   },
+   {
+    "address": "100655344",
+    "name": "FUN_100655344",
+    "bytes": 2265
+   },
+   {
+    "address": "100657614",
+    "name": "FUN_100657614",
+    "bytes": 11734
+   },
+   {
+    "address": "100658800",
+    "name": "FUN_100658800",
+    "bytes": 4051
+   },
+   {
+    "address": "10067e2d0",
+    "name": "FUN_10067e2d0",
+    "bytes": 5738
+   },
+   {
+    "address": "10069d0a8",
+    "name": "FUN_10069d0a8",
+    "bytes": 6924
+   },
+   {
+    "address": "1006af7c4",
+    "name": "FUN_1006af7c4",
+    "bytes": 993
+   },
+   {
+    "address": "1006af884",
+    "name": "FUN_1006af884",
+    "bytes": 898
+   },
+   {
+    "address": "1006af924",
+    "name": "FUN_1006af924",
+    "bytes": 106
+   },
+   {
+    "address": "1006af934",
+    "name": "FUN_1006af934",
+    "bytes": 104
+   },
+   {
+    "address": "1006af944",
+    "name": "FUN_1006af944",
+    "bytes": 114
+   },
+   {
+    "address": "1006af954",
+    "name": "FUN_1006af954",
+    "bytes": 112
+   },
+   {
+    "address": "1006af964",
+    "name": "FUN_1006af964",
+    "bytes": 799
+   },
+   {
+    "address": "1006afa04",
+    "name": "FUN_1006afa04",
+    "bytes": 959
+   },
+   {
+    "address": "1006afab4",
+    "name": "FUN_1006afab4",
+    "bytes": 7269
+   },
+   {
+    "address": "1006b00b8",
+    "name": "FUN_1006b00b8",
+    "bytes": 740
+   },
+   {
+    "address": "1006b0148",
+    "name": "_TtC8Playback16GuideAVAudioUnit::dealloc",
+    "bytes": 889
+   },
+   {
+    "address": "1006b01f0",
+    "name": "_TtC8Playback16GuideAVAudioUnit::.cxx_destruct",
+    "bytes": 238
+   },
+   {
+    "address": "1006b0228",
+    "name": "FUN_1006b0228",
+    "bytes": 3212
+   },
+   {
+    "address": "1006b0490",
+    "name": "_TtC8Playback16GuideAVAudioUnit::initWithAudioComponentDescription:",
+    "bytes": 466
+   },
+   {
+    "address": "1006b04bc",
+    "name": "_TtC8Playback16GuideAVAudioUnit::init",
+    "bytes": 346
+   },
+   {
+    "address": "1006b04e8",
+    "name": "FUN_1006b04e8",
+    "bytes": 125
+   },
+   {
+    "address": "1006b0508",
+    "name": "FUN_1006b0508",
+    "bytes": 874
+   },
+   {
+    "address": "1006b05cc",
+    "name": "_TtC8Playback16GuideAVAudioUnit::guideAudioUnitDidMakeAnnouncementWithFileURL:",
+    "bytes": 1066
+   },
+   {
+    "address": "1006b06ac",
+    "name": "FUN_1006b06ac",
+    "bytes": 279
+   },
+   {
+    "address": "1006b072c",
+    "name": "_TtC8Playback16GuideAVAudioUnit::guideAudioUnitErrorStatus:operation:fileURL:",
+    "bytes": 969
+   },
+   {
+    "address": "1006b2fd4",
+    "name": "FUN_1006b2fd4",
+    "bytes": 2739
+   },
+   {
+    "address": "1006b3230",
+    "name": "FUN_1006b3230",
+    "bytes": 5892
+   },
+   {
+    "address": "1006b3914",
+    "name": "_TtC8Playback20CustomContentManager::init",
+    "bytes": 484
+   },
+   {
+    "address": "1006b398c",
+    "name": "FUN_1006b398c",
+    "bytes": 17294
+   },
+   {
+    "address": "100719f0c",
+    "name": "FUN_100719f0c",
+    "bytes": 797
+   },
+   {
+    "address": "10071a1a4",
+    "name": "FUN_10071a1a4",
+    "bytes": 4029
+   },
+   {
+    "address": "10071a724",
+    "name": "FUN_10071a724",
+    "bytes": 121
+   },
+   {
+    "address": "1007223c8",
+    "name": "FUN_1007223c8",
+    "bytes": 3466
+   },
+   {
+    "address": "10078c7dc",
+    "name": "FUN_10078c7dc",
+    "bytes": 369
+   },
+   {
+    "address": "1007e2b80",
+    "name": "FUN_1007e2b80",
+    "bytes": 125927
+   },
+   {
+    "address": "1007fec10",
+    "name": "FUN_1007fec10",
+    "bytes": 6322
+   },
+   {
+    "address": "1007ff324",
+    "name": "FUN_1007ff324",
+    "bytes": 2784
+   },
+   {
+    "address": "1007ff9bc",
+    "name": "FUN_1007ff9bc",
+    "bytes": 8913
+   },
+   {
+    "address": "1008016a4",
+    "name": "FUN_1008016a4",
+    "bytes": 1250
+   },
+   {
+    "address": "10081ee34",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::initWithCoder:",
+    "bytes": 1024
+   },
+   {
+    "address": "10081eef4",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::init",
+    "bytes": 743
+   },
+   {
+    "address": "10081ef94",
+    "name": "FUN_10081ef94",
+    "bytes": 4448
+   },
+   {
+    "address": "10081f404",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::viewDidLoad",
+    "bytes": 344
+   },
+   {
+    "address": "10081f42c",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::viewDidLayoutSubviews",
+    "bytes": 1098
+   },
+   {
+    "address": "10081f4e4",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::viewDidAppear:",
+    "bytes": 658
+   },
+   {
+    "address": "10081f56c",
+    "name": "FUN_10081f56c",
+    "bytes": 2311
+   },
+   {
+    "address": "10081fad4",
+    "name": "FUN_10081fad4",
+    "bytes": 1616
+   },
+   {
+    "address": "10081fc20",
+    "name": "FUN_10081fc20",
+    "bytes": 1373
+   },
+   {
+    "address": "10081fd8c",
+    "name": "FUN_10081fd8c",
+    "bytes": 7638
+   },
+   {
+    "address": "10082047c",
+    "name": "FUN_10082047c",
+    "bytes": 1530
+   },
+   {
+    "address": "1008205ac",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::editBarButtonTapped:",
+    "bytes": 380
+   },
+   {
+    "address": "1008205fc",
+    "name": "FUN_1008205fc",
+    "bytes": 3981
+   },
+   {
+    "address": "1008209b8",
+    "name": "FUN_1008209b8",
+    "bytes": 858
+   },
+   {
+    "address": "100820a98",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::initWithStyle:",
+    "bytes": 453
+   },
+   {
+    "address": "100820ac4",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::initWithNibName:bundle:",
+    "bytes": 558
+   },
+   {
+    "address": "100820af8",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::.cxx_destruct",
+    "bytes": 268
+   },
+   {
+    "address": "100820b34",
+    "name": "FUN_100820b34",
+    "bytes": 160
+   },
+   {
+    "address": "100820b54",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::numberOfSectionsInTableView:",
+    "bytes": 422
+   },
+   {
+    "address": "100820bb0",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::tableView:numberOfRowsInSection:",
+    "bytes": 421
+   },
+   {
+    "address": "100820c10",
+    "name": "FUN_100820c10",
+    "bytes": 7270
+   },
+   {
+    "address": "100821108",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::tableView:cellForRowAtIndexPath:",
+    "bytes": 899
+   },
+   {
+    "address": "1008211c0",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::tableView:titleForHeaderInSection:",
+    "bytes": 687
+   },
+   {
+    "address": "10082124c",
+    "name": "FUN_10082124c",
+    "bytes": 5866
+   },
+   {
+    "address": "10082165c",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::tableView:didSelectRowAtIndexPath:",
+    "bytes": 799
+   },
+   {
+    "address": "10082170c",
+    "name": "FUN_10082170c",
+    "bytes": 831
+   },
+   {
+    "address": "1008217d4",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::tableView:canEditRowAtIndexPath:",
+    "bytes": 815
+   },
+   {
+    "address": "1008218fc",
+    "name": "_TtC8Playback38GuideCueLanguageSelectorViewController::tableView:trailingSwipeActionsConfigurationForRowAtIndexPath:",
+    "bytes": 962
+   },
+   {
+    "address": "100821db4",
+    "name": "FUN_100821db4",
+    "bytes": 3201
+   },
+   {
+    "address": "1008221dc",
+    "name": "FUN_1008221dc",
+    "bytes": 309
+   }
+  ],
+  "meters": [
+   {
+    "address": "10024d89c",
+    "name": "_TtC8Playback19MixerViewController::leftVUMeter",
+    "bytes": 323
+   },
+   {
+    "address": "10024d8bc",
+    "name": "_TtC8Playback19MixerViewController::setLeftVUMeter:",
+    "bytes": 213
+   },
+   {
+    "address": "10024d8d0",
+    "name": "_TtC8Playback19MixerViewController::rightVUMeter",
+    "bytes": 325
+   },
+   {
+    "address": "10024d8f0",
+    "name": "_TtC8Playback19MixerViewController::setRightVUMeter:",
+    "bytes": 215
+   },
+   {
+    "address": "1002500a8",
+    "name": "FUN_1002500a8",
+    "bytes": 13735
+   },
+   {
+    "address": "100250d74",
+    "name": "FUN_100250d74",
+    "bytes": 11591
+   },
+   {
+    "address": "10025278c",
+    "name": "_TtC8Playback19MixerViewController::.cxx_destruct",
+    "bytes": 2475
+   },
+   {
+    "address": "100254dd8",
+    "name": "FUN_100254dd8",
+    "bytes": 54688
+   },
+   {
+    "address": "10025eef0",
+    "name": "FUN_10025eef0",
+    "bytes": 5258
+   },
+   {
+    "address": "10025f2e8",
+    "name": "FUN_10025f2e8",
+    "bytes": 5014
+   },
+   {
+    "address": "100545a98",
+    "name": "FUN_100545a98",
+    "bytes": 7111
+   },
+   {
+    "address": "1005461dc",
+    "name": "FUN_1005461dc",
+    "bytes": 1657
+   },
+   {
+    "address": "1005468f4",
+    "name": "FUN_1005468f4",
+    "bytes": 3250
+   },
+   {
+    "address": "100746c6c",
+    "name": "FUN_100746c6c",
+    "bytes": 10821
+   },
+   {
+    "address": "1007bc7a8",
+    "name": "FUN_1007bc7a8",
+    "bytes": 989
+   },
+   {
+    "address": "1007bcbd4",
+    "name": "_TtC8Playback14MixerTrackCell::soloVUMeterContainterView",
+    "bytes": 346
+   },
+   {
+    "address": "1007bcbf4",
+    "name": "_TtC8Playback14MixerTrackCell::setSoloVUMeterContainterView:",
+    "bytes": 236
+   },
+   {
+    "address": "1007bcc3c",
+    "name": "_TtC8Playback14MixerTrackCell::vuMeter",
+    "bytes": 310
+   },
+   {
+    "address": "1007bcc5c",
+    "name": "_TtC8Playback14MixerTrackCell::setVuMeter:",
+    "bytes": 200
+   },
+   {
+    "address": "1007bd11c",
+    "name": "FUN_1007bd11c",
+    "bytes": 5043
+   },
+   {
+    "address": "1007bd5f4",
+    "name": "FUN_1007bd5f4",
+    "bytes": 4368
+   },
+   {
+    "address": "1007be5c0",
+    "name": "FUN_1007be5c0",
+    "bytes": 7570
+   },
+   {
+    "address": "1007bfda4",
+    "name": "FUN_1007bfda4",
+    "bytes": 2909
+   },
+   {
+    "address": "1007c0028",
+    "name": "FUN_1007c0028",
+    "bytes": 3022
+   },
+   {
+    "address": "1007c02b8",
+    "name": "_TtC8Playback14MixerTrackCell::.cxx_destruct",
+    "bytes": 1608
+   },
+   {
+    "address": "1007daeb4",
+    "name": "FUN_1007daeb4",
+    "bytes": 102676
+   },
+   {
+    "address": "1007f6c90",
+    "name": "FUN_1007f6c90",
+    "bytes": 2599
+   },
+   {
+    "address": "1007f6f40",
+    "name": "FUN_1007f6f40",
+    "bytes": 1242
+   },
+   {
+    "address": "1007f7134",
+    "name": "FUN_1007f7134",
+    "bytes": 989
+   },
+   {
+    "address": "1007f7228",
+    "name": "FUN_1007f7228",
+    "bytes": 606
+   },
+   {
+    "address": "1007f72cc",
+    "name": "FUN_1007f72cc",
+    "bytes": 3141
+   },
+   {
+    "address": "1007f7700",
+    "name": "_TtC8Playback16MixerVUMeterView::initWithCoder:",
+    "bytes": 335
+   },
+   {
+    "address": "1007f773c",
+    "name": "_TtC8Playback16MixerVUMeterView::initWithFrame:",
+    "bytes": 423
+   },
+   {
+    "address": "1007f7768",
+    "name": "_TtC8Playback16MixerVUMeterView::.cxx_destruct",
+    "bytes": 216
+   },
+   {
+    "address": "1007f77c0",
+    "name": "FUN_1007f77c0",
+    "bytes": 125
+   },
+   {
+    "address": "1007f77e0",
+    "name": "FUN_1007f77e0",
+    "bytes": 1435
+   }
+  ]
+ }
+}

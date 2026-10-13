@@ -1,0 +1,9 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "MTConnectActivationViewController": "MTConnectActivationViewController",
+  "UIPageViewController-z3p-gp-nho": "UIPageViewController-z3p-gp-nho",
+  "MTConnectDrawerViewController": "MTConnectDrawerViewController",
+  "MTConnectDashboardMainViewController": "MTConnectDashboardMainViewController"
+ },
+ "UIStoryboardVersion": 1
+}

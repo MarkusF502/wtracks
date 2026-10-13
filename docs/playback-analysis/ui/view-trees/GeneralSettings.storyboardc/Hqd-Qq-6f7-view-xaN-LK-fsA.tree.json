@@ -1,0 +1,1 @@
+{"tree":[{"id":8,"class":"UITableView","bounds":[0.0,0.0,667.0,375.0],"center":[333.5,187.5],"background":[0.0,0.0,0.0,0.0],"clips":false}],"connections":[{"type":"outlet","label":"dataSource","source":8,"destination":6},{"type":"outlet","label":"delegate","source":8,"destination":6},{"type":"outlet","label":"view","source":2,"destination":8}],"classSwaps":{}}

@@ -1,0 +1,8 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "UITableViewController-Hqd-Qq-6f7": "UITableViewController-Hqd-Qq-6f7",
+  "GeneralSettingView": "GeneralSettingView"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "UITableViewController-Hqd-Qq-6f7",
+ "UIStoryboardVersion": 1
+}

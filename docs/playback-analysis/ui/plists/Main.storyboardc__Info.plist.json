@@ -1,0 +1,40 @@
+{
+ "UIStoryboardVersion": 1,
+ "UIViewControllerIdentifiersToExternalStoryboardReferences": {
+  "UIViewController-OY3-8n-fbU": {
+   "UIReferencedStoryboardName": "Waveform"
+  },
+  "UIViewController-rmR-G2-kZw": {
+   "UIReferencedStoryboardName": "Transport",
+   "UIReferencedControllerIdentifier": "Transport_iPhone"
+  },
+  "UIViewController-qMc-Z8-Kyp": {
+   "UIReferencedStoryboardName": "MTConnect",
+   "UIReferencedControllerIdentifier": "MTConnectDrawerViewController"
+  },
+  "UIViewController-DVY-1S-PRh": {
+   "UIReferencedStoryboardName": "Setlist",
+   "UIReferencedControllerIdentifier": "Setlist_iPhone"
+  },
+  "UIViewController-isR-xF-9VH": {
+   "UIReferencedStoryboardName": "Mixer"
+  },
+  "UIViewController-IAb-HT-rtu": {
+   "UIReferencedStoryboardName": "TransportMapping"
+  },
+  "UIViewController-gnf-Bq-MX5": {
+   "UIReferencedStoryboardName": "EditMenuDrawerViewController"
+  }
+ },
+ "UIViewControllerIdentifiersToNibNames": {
+  "UIViewController-OY3-8n-fbU": "UIViewController-OY3-8n-fbU",
+  "UIViewController-rmR-G2-kZw": "UIViewController-rmR-G2-kZw",
+  "UIViewController-qMc-Z8-Kyp": "UIViewController-qMc-Z8-Kyp",
+  "UIViewController-DVY-1S-PRh": "UIViewController-DVY-1S-PRh",
+  "UIViewController-isR-xF-9VH": "UIViewController-isR-xF-9VH",
+  "UIViewController-IAb-HT-rtu": "UIViewController-IAb-HT-rtu",
+  "UIViewController-hTS-Jk-msF": "UIViewController-hTS-Jk-msF",
+  "UIViewController-gnf-Bq-MX5": "UIViewController-gnf-Bq-MX5"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "UIViewController-hTS-Jk-msF"
+}

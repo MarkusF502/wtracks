@@ -1,0 +1,40 @@
+{
+ "UIStoryboardVersion": 1,
+ "UIViewControllerIdentifiersToExternalStoryboardReferences": {
+  "UIViewController-map-yc-ZIA": {
+   "UIReferencedStoryboardName": "Mixer"
+  },
+  "UIViewController-HVq-ib-HB4": {
+   "UIReferencedStoryboardName": "Setlist",
+   "UIReferencedControllerIdentifier": "Setlist_iPad"
+  },
+  "UIViewController-wZ0-zU-Q6A": {
+   "UIReferencedStoryboardName": "Waveform"
+  },
+  "UIViewController-95I-41-9jL": {
+   "UIReferencedStoryboardName": "EditMenuDrawerViewController"
+  },
+  "UIViewController-upK-j9-GtS": {
+   "UIReferencedStoryboardName": "TransportMapping"
+  },
+  "UIViewController-YML-cV-5wM": {
+   "UIReferencedStoryboardName": "Transport",
+   "UIReferencedControllerIdentifier": "Transport_iPad9_7"
+  },
+  "UIViewController-rWM-66-gkY": {
+   "UIReferencedStoryboardName": "MTConnect",
+   "UIReferencedControllerIdentifier": "MTConnectDrawerViewController"
+  }
+ },
+ "UIViewControllerIdentifiersToNibNames": {
+  "UIViewController-map-yc-ZIA": "UIViewController-map-yc-ZIA",
+  "UIViewController-HVq-ib-HB4": "UIViewController-HVq-ib-HB4",
+  "UIViewController-wZ0-zU-Q6A": "UIViewController-wZ0-zU-Q6A",
+  "UIViewController-95I-41-9jL": "UIViewController-95I-41-9jL",
+  "UIViewController-upK-j9-GtS": "UIViewController-upK-j9-GtS",
+  "UIViewController-YML-cV-5wM": "UIViewController-YML-cV-5wM",
+  "UIViewController-QPg-6g-Spi": "UIViewController-QPg-6g-Spi",
+  "UIViewController-rWM-66-gkY": "UIViewController-rWM-66-gkY"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "UIViewController-QPg-6g-Spi"
+}

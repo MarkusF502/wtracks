@@ -1,0 +1,40 @@
+{
+ "UIStoryboardVersion": 1,
+ "UIViewControllerIdentifiersToExternalStoryboardReferences": {
+  "UIViewController-ZwX-wp-noT": {
+   "UIReferencedStoryboardName": "EditMenuDrawerViewController"
+  },
+  "UIViewController-hI3-xg-pKW": {
+   "UIReferencedStoryboardName": "Transport",
+   "UIReferencedControllerIdentifier": "Transport_MacOS"
+  },
+  "UIViewController-IAa-zT-5R8": {
+   "UIReferencedStoryboardName": "Setlist",
+   "UIReferencedControllerIdentifier": "Setlist_MacOS"
+  },
+  "UIViewController-LgG-EX-rvQ": {
+   "UIReferencedStoryboardName": "MTConnect",
+   "UIReferencedControllerIdentifier": "MTConnectDrawerViewController"
+  },
+  "UIViewController-oEU-Ed-8kK": {
+   "UIReferencedStoryboardName": "TransportMapping"
+  },
+  "UIViewController-ZBr-D0-AkX": {
+   "UIReferencedStoryboardName": "Mixer"
+  },
+  "UIViewController-bny-7C-6TR": {
+   "UIReferencedStoryboardName": "Waveform"
+  }
+ },
+ "UIViewControllerIdentifiersToNibNames": {
+  "UIViewController-LgG-EX-rvQ": "UIViewController-LgG-EX-rvQ",
+  "UIViewController-hI3-xg-pKW": "UIViewController-hI3-xg-pKW",
+  "UIViewController-IAa-zT-5R8": "UIViewController-IAa-zT-5R8",
+  "UIViewController-2hM-so-ggp": "UIViewController-2hM-so-ggp",
+  "UIViewController-ZwX-wp-noT": "UIViewController-ZwX-wp-noT",
+  "UIViewController-oEU-Ed-8kK": "UIViewController-oEU-Ed-8kK",
+  "UIViewController-ZBr-D0-AkX": "UIViewController-ZBr-D0-AkX",
+  "UIViewController-bny-7C-6TR": "UIViewController-bny-7C-6TR"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "UIViewController-2hM-so-ggp"
+}

@@ -1,0 +1,7 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "RoutingMultiSelectorNavigationController": "RoutingMultiSelectorNavigationController",
+  "RoutingMultiSelectorSourcesViewController": "RoutingMultiSelectorSourcesViewController"
+ },
+ "UIStoryboardVersion": 1
+}

@@ -1,0 +1,17 @@
+{
+ "UIStoryboardVersion": 1,
+ "UIViewControllerIdentifiersToExternalStoryboardReferences": {
+  "UIViewController-SG9-5m-9Sm": {
+   "UIReferencedStoryboardName": "MixerPad"
+  },
+  "UIViewController-bg1-vB-vI9": {
+   "UIReferencedStoryboardName": "MixerModeMultiControl"
+  }
+ },
+ "UIViewControllerIdentifiersToNibNames": {
+  "UIViewController-SG9-5m-9Sm": "UIViewController-SG9-5m-9Sm",
+  "UIViewController-bg1-vB-vI9": "UIViewController-bg1-vB-vI9",
+  "Mixer_iPad9_7": "Mixer_iPad9_7"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "Mixer_iPad9_7"
+}

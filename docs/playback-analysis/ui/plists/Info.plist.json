@@ -1,0 +1,102 @@
+{
+ "UIRequiredDeviceCapabilities": [
+  "arm64"
+ ],
+ "UIRequiresFullScreen": true,
+ "CFBundleInfoDictionaryVersion": "6.0",
+ "UISupportedInterfaceOrientations~ipad": [
+  "UIInterfaceOrientationLandscapeLeft",
+  "UIInterfaceOrientationLandscapeRight"
+ ],
+ "DTPlatformVersion": "18.4",
+ "DTCompiler": "com.apple.compilers.llvm.clang.1_0",
+ "DTSDKName": "iphoneos18.4",
+ "CFBundleName": "Playback",
+ "UIViewControllerBasedStatusBarAppearance": true,
+ "NSPhotoLibraryUsageDescription": "Send photos to help resolve issues.",
+ "DTAppStoreToolsBuild": "17C503a",
+ "CFBundleIcons": {
+  "CFBundlePrimaryIcon": {
+   "CFBundleIconFiles": [
+    "AppIcon60x60"
+   ],
+   "CFBundleIconName": "AppIcon"
+  }
+ },
+ "UIStatusBarStyle": "UIStatusBarStyleLightContent",
+ "LSApplicationCategoryType": "public.app-category.music",
+ "NSBluetoothAlwaysUsageDescription": "Playback does not require the use of Bluetooth.",
+ "LSRequiresIPhoneOS": true,
+ "CFBundleDisplayName": "Playback",
+ "LSApplicationQueriesSchemes": [
+  "https",
+  "itms-apps",
+  "chartbuilder"
+ ],
+ "NSLocationWhenInUseUsageDescription": "Provide location to help resolve issues.",
+ "UIStatusBarHidden~ipad": false,
+ "UIBackgroundModes": [
+  "audio",
+  "remote-notification"
+ ],
+ "DTSDKBuild": "22E235",
+ "CFBundleShortVersionString": "8.5.3",
+ "CFBundleSupportedPlatforms": [
+  "iPhoneOS"
+ ],
+ "UISupportedInterfaceOrientations": [
+  "UIInterfaceOrientationLandscapeRight",
+  "UIInterfaceOrientationLandscapeLeft"
+ ],
+ "BuildMachineOSBuild": "24G517",
+ "DTPlatformBuild": "22E235",
+ "MinimumOSVersion": "12.4",
+ "CFBundlePackageType": "APPL",
+ "GitHash": "",
+ "CFBundleDevelopmentRegion": "en",
+ "CFBundleVersion": "85308",
+ "NSBluetoothPeripheralUsageDescription": "Playback does not require the use of Bluetooth.",
+ "DTXcodeBuild": "16E140",
+ "NSBonjourServices": [
+  "_bonjour._tcp",
+  "_lnp._tcp."
+ ],
+ "UIStatusBarHidden": false,
+ "UIDeviceFamily": [
+  1,
+  2
+ ],
+ "UILaunchStoryboardName": "Launch Screen",
+ "NSMicrophoneUsageDescription": "Playback does not require the use of your microphone.",
+ "CFBundleIdentifier": "com.multitracks.custommixplayer",
+ "DTXcode": "1630",
+ "CFBundleExecutable": "Playback",
+ "NSAppTransportSecurity": {
+  "NSExceptionMinimumTLSVersion": "TLSv1.2",
+  "NSAllowsArbitraryLoads": true
+ },
+ "LSMinimumSystemVersion": "12.3.0",
+ "CFBundleIcons~ipad": {
+  "CFBundlePrimaryIcon": {
+   "CFBundleIconFiles": [
+    "AppIcon60x60",
+    "AppIcon76x76"
+   ],
+   "CFBundleIconName": "AppIcon"
+  }
+ },
+ "CFBundleSignature": "????",
+ "NSFaceIDUsageDescription": "Face ID is used to log into Playback.",
+ "DTPlatformName": "iphoneos",
+ "NSLocalNetworkUsageDescription": "Playback uses local network to support Playback Sync and Remote functionality.",
+ "ITSAppUsesNonExemptEncryption": false,
+ "CFBundleURLTypes": [
+  {
+   "CFBundleTypeRole": "Viewer",
+   "CFBundleURLName": "Playback",
+   "CFBundleURLSchemes": [
+    "playback"
+   ]
+  }
+ ]
+}

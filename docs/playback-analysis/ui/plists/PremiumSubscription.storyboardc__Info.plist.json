@@ -1,0 +1,7 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "PremiumSubscription": "PremiumSubscription"
+ },
+ "UIStoryboardDesignatedEntryPointIdentifier": "PremiumSubscription",
+ "UIStoryboardVersion": 1
+}

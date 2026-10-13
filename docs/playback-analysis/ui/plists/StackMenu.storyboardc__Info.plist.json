@@ -1,0 +1,8 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "StackMenuViewController": "StackMenuViewController",
+  "StackMenuNotificationsTableViewController": "StackMenuNotificationsTableViewController",
+  "StackMenuPlaybackRemoteTableViewController": "StackMenuPlaybackRemoteTableViewController"
+ },
+ "UIStoryboardVersion": 1
+}

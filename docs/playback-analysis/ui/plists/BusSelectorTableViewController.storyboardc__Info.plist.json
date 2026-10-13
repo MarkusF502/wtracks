@@ -1,0 +1,6 @@
+{
+ "UIViewControllerIdentifiersToNibNames": {
+  "BusSelectorTableViewController": "BusSelectorTableViewController"
+ },
+ "UIStoryboardVersion": 1
+}
