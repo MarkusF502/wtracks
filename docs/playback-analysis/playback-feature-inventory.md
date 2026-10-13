@@ -29,3 +29,18 @@ Status: DONE = implemented in WTracks with tests; PARTIAL; TODO. "Own" marks a d
 | Custom sounds directories (clicks, guides, pads) | strings "Custom Clicks/Guides/Pads Directory Path" | DONE for clicks and guides (settings): own file naming = bundled names (`<Family>-<voice>.wav`, `guidecue-…-<lang>-<gender>-<name>.wav`), custom guides override bundled ones; pads out of scope |
 | Playback Remote (local-network control) | `WSServer`, `PlaybackRemoteView`, strings "Allow Remote Connections" | DONE as our own protocol (NOT compatible with the iOS app, whose cloud/organization pairing and wire format were not recovered): WebSocket host on the LAN (`remote_server.dart`), 4-digit PIN pairing, the control actions as commands, status every 250 ms, connected devices with disconnect; off by default. Android needs the INTERNET permission (added) |
 | Waveform: sections, markers, grid, trim, veil | `Waveform*` classes, setting "Waveform Grid" | partial |
+
+## Performance screen layout
+
+Evidence: Transport/Mixer/Waveform storyboards in `ui/view-trees` (classes TransportTempoTimeSignatureButton,
+TransportPlayPauseButton, TransportFadeButton, TransportEditButton, MixerTrackFaderCapView, MixerLoopButton,
+MixerMasterFader, MixerVUMeterView; colours #151618, #686868, #B8B8B8, #0EED0A, #FF9400, #5856D6, #5C96E3, #FFC444) and
+user-supplied screenshots of the iPad/iPhone app. Status: DONE (layout), screenshots in `docs/ui-performance/`.
+Implemented: top transport bar (tempo/meter box → metronome sheet, time box, play/pause, fade 5 s, edit → sections, menu),
+setlist card strip with key, transition arrow and current-song marker, waveform with coloured section regions, badges and a
+loop toggle per section (long press queues it), playhead and loop-pass chip, vertical-fader mixer with solo/mute/route,
+meters, bus strips, and a right column with AUTO, section loop, infinite loop and the Master fader.
+Own: CLICK toggle in the PAD slot (pad out of scope); the left button is stop/return-to-zero (song navigation sits in the
+setlist strip); section colours by the first letter of the name (no section type in our model); generated card colours
+(no artwork); "Loop" uses the section's own repeat count and "Inf Loop" repeats until released; two-row transport bar
+below 600 px; no MUTE MIDI or mixer/waveform mode button yet.
