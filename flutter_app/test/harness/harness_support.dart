@@ -88,6 +88,14 @@ class FakeEngine implements WTracksEngine {
   }
 
   @override
+  Future<bool> loadClickBankAsync(List<String?> paths) async => loadClickBank(paths);
+  @override
+  bool loadClickBank(List<String?> paths) {
+    if (paths.length != 4) return false;
+    for (var voice = 0; voice < 4; voice++) { loadClickSound(voice, paths[voice]); }
+    return true;
+  }
+  @override
   Future<bool> loadClickSoundAsync(int voice, String? path) async =>
       loadClickSound(voice, path);
   @override

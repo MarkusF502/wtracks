@@ -42,14 +42,12 @@ void main() {
     addTearDown(() => directory.delete(recursive: true));
     final service = ClickResourceService(bundle: FileAssetBundle(), directoryResolver: () async => directory);
     final paths = await service.prepare('Classic');
-    for (var voice = 0; voice < 4; voice++) {
-      expect(await engine.loadClickSoundAsync(voice, paths[voice]), true, reason: engine.lastError);
-    }
+    expect(await engine.loadClickBankAsync(paths), true, reason: engine.lastError);
+    expect(await engine.loadClickBankAsync([paths[0], '/missing/invalid.wav', paths[2], paths[3]]), false);
+    expect(await engine.loadClickBankAsync([paths[0]]), false);
     expect(engine.configureClick(const ClickSettings(timeSignatureNumerator: 6, timeSignatureDenominator: 8,
       bpmUnit: 8, bpm: 97.375, eighthGain: 0.7, volume: 0.4)), true, reason: engine.lastError);
     expect(engine.configureClick(const ClickSettings(bpmUnit: 3)), false);
-    for (var voice = 0; voice < 4; voice++) {
-      expect(await engine.loadClickSoundAsync(voice, null), true);
-    }
+    expect(await engine.loadClickBankAsync([null, null, null, null]), true);
   }, skip: !nativeEngineAvailable() ? 'Native library unavailable' : false);
 }

@@ -10,9 +10,19 @@ class DelayedClickEngine extends FakeEngine {
   final entered = Completer<void>();
   final release = Completer<void>();
   @override
-  Future<bool> loadClickSoundAsync(int voice, String? path) async {
-    if (voice == 0) { entered.complete(); await release.future; }
-    return super.loadClickSoundAsync(voice, path);
+  Future<bool> loadClickBankAsync(List<String?> paths) async {
+    entered.complete();
+    await release.future;
+    return super.loadClickBankAsync(paths);
+  }
+}
+
+class FailingBankEngine extends FakeEngine {
+  bool failBank = false;
+  @override
+  Future<bool> loadClickBankAsync(List<String?> paths) async {
+    if (failBank) return false;
+    return super.loadClickBankAsync(paths);
   }
 }
 
@@ -80,8 +90,24 @@ void main() {
     await unloading;
     expect(container.read(currentTrackProvider), null);
     expect(engine.configuredClick, null);
-    expect(engine.calls.where((call) => call.startsWith('clickSound')).length, 1);
+    expect(engine.calls.where((call) => call.startsWith('clickSound')).length, 4);
     expect(engine.calls.last, 'unload');
+  });
+
+  test('failed timbre bank leaves saved family and native settings intact', () async {
+    final engine = FailingBankEngine();
+    final container = ProviderContainer(overrides: [engineProvider.overrideWithValue(engine),
+      clickResourceServiceProvider.overrideWithValue(SyntheticResourceService())]);
+    addTearDown(container.dispose);
+    final notifier = container.read(currentTrackProvider.notifier);
+    const settings = ClickSettings(timbreFamily: 'Classic', volume: 0.3);
+    expect(await notifier.load(const Track(id: 'bank', title: 'Bank', channels: [], clickSettings: settings)), true);
+    engine.failBank = true;
+    final calls = engine.calls.length;
+    expect(await notifier.updateClickTimbre('Woodblock'), false);
+    expect(container.read(currentTrackProvider)?.clickSettings.toJson(), settings.toJson());
+    expect(engine.configuredClick?.toJson(), settings.toJson());
+    expect(engine.calls.length, calls);
   });
 
 }

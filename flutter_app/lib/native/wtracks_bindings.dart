@@ -89,6 +89,8 @@ typedef _ConfigureClickDart =
     );
 typedef _LoadClickSoundNative = Bool Function(Int32, Pointer<Utf8>);
 typedef _LoadClickSoundDart = bool Function(int, Pointer<Utf8>);
+typedef _LoadClickBankNative = Bool Function(Pointer<Pointer<Utf8>>, Int32);
+typedef _LoadClickBankDart = bool Function(Pointer<Pointer<Utf8>>, int);
 typedef _ClickGainNative = Void Function(Float);
 typedef _ClickGainDart = void Function(double);
 
@@ -140,6 +142,7 @@ class WTracksEngine {
   late final _SetClickOffsetDart _setClickOffset;
   late final _ConfigureClickDart _configureClick;
   late final _LoadClickSoundDart _loadClickSound;
+  late final _LoadClickBankDart _loadClickBank;
   late final _ClickGainDart _setClickGain;
   late final _GenerateWaveformDart _generateWaveformPeaks;
 
@@ -226,6 +229,7 @@ class WTracksEngine {
         .lookupFunction<_LoadClickSoundNative, _LoadClickSoundDart>(
           'wtracks_load_click_sound',
         );
+    _loadClickBank = _lib.lookupFunction<_LoadClickBankNative, _LoadClickBankDart>('wtracks_load_click_bank');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
       'wtracks_set_click_gain',
     );
@@ -353,6 +357,22 @@ class WTracksEngine {
     );
     if (ok) _setClickGain(settings.volume);
     return ok;
+  }
+
+  Future<bool> loadClickBankAsync(List<String?> paths) =>
+      Isolate.run(() => WTracksEngine().loadClickBank(paths));
+
+  bool loadClickBank(List<String?> paths) {
+    if (paths.length != 4) return false;
+    final pointers = paths.map((path) => path?.toNativeUtf8() ?? nullptr).toList();
+    final bank = calloc<Pointer<Utf8>>(4);
+    try {
+      for (var voice = 0; voice < 4; voice++) { bank[voice] = pointers[voice]; }
+      return _loadClickBank(bank, 4);
+    } finally {
+      for (final pointer in pointers) { if (pointer != nullptr) malloc.free(pointer); }
+      calloc.free(bank);
+    }
   }
 
   Future<bool> loadClickSoundAsync(int voice, String? path) =>

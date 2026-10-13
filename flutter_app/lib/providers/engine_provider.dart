@@ -81,16 +81,15 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           debugPrint('Falha ao carregar música: ${engine.lastError}');
           return false;
         }
-        for (var voice = 0; voice < 4; voice++) {
-          if (!await engine.loadClickSoundAsync(voice, clickPaths[voice])) {
-            engine.unloadTrack();
-            state = null;
-            return false;
-          }
-          if (_disposed || generation != _generation) {
-            if (!_disposed) engine.unloadTrack();
-            return false;
-          }
+        final bankLoaded = await engine.loadClickBankAsync(clickPaths);
+        if (_disposed || generation != _generation) {
+          if (!_disposed) engine.unloadTrack();
+          return false;
+        }
+        if (!bankLoaded) {
+          engine.unloadTrack();
+          state = null;
+          return false;
         }
         if (!engine.configureClick(track.clickSettings)) {
           engine.unloadTrack();
@@ -214,23 +213,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           return false;
         }
         final engine = ref.read(engineProvider);
-        for (var voice = 0; voice < 4; voice++) {
-          if (!await engine.loadClickSoundAsync(voice, paths[voice])) {
-            // A partial family must not be presented as successfully selected.
-            for (var clear = 0; clear < 4; clear++) {
-              await engine.loadClickSoundAsync(clear, null);
-            }
-            if (!_disposed && generation == _generation && state != null) {
-              state = state!.copyWith(
-      clickSettings: state!.clickSettings.copyWith(
-                  timbreFamily: 'synthetic',
-                ),
-    );
-  }
-            return false;
-          }
-          if (_disposed || generation != _generation) return false;
-        }
+        final bankLoaded = await engine.loadClickBankAsync(paths);
+        if (_disposed || generation != _generation || !bankLoaded) return false;
         return updateClickSettings(
           state!.clickSettings.copyWith(timbreFamily: family),
         );
