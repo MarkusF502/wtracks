@@ -124,6 +124,15 @@ class FakeEngine implements WTracksEngine {
       excluded ? excludedFromFade.add(channelIndex) : excludedFromFade.remove(channelIndex);
   @override
   double get fadeGain => fadeGainValue;
+  List<double> channelPeaks = [];
+  List<double> outputPeaks = [0, 0];
+  @override
+  (List<double>, List<double>) takeMeters() {
+    final taken = (channelPeaks, outputPeaks);
+    channelPeaks = [for (final _ in channelPeaks) 0.0];
+    outputPeaks = [0, 0];
+    return taken;
+  }
   @override
   int pollTransportEvents() {
     final events = pendingEvents;

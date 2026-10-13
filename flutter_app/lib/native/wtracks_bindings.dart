@@ -118,6 +118,8 @@ typedef _DoubleBoolNative = Bool Function(Double);
 typedef _DoubleBoolDart = bool Function(double);
 typedef _EventsNative = Uint32 Function();
 typedef _EventsDart = int Function();
+typedef _TakeMetersNative = Int32 Function(Pointer<Float>, Int32, Pointer<Float>, Int32);
+typedef _TakeMetersDart = int Function(Pointer<Float>, int, Pointer<Float>, int);
 typedef _ConfigurePrerollNative = Bool Function(Bool, Pointer<Double>, Int32, Pointer<Pointer<Utf8>>, Int32);
 typedef _ConfigurePrerollDart = bool Function(bool, Pointer<Double>, int, Pointer<Pointer<Utf8>>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
@@ -269,6 +271,7 @@ class WTracksEngine {
   late final _ChannelFlagDart _setChannelExcludedFromFade;
   late final _GetPositionDart _getFadeGain;
   late final _EventsDart _pollTransportEvents;
+  late final _TakeMetersDart _takeMeters;
   late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
     _lib = _openLibrary();
@@ -399,6 +402,7 @@ class WTracksEngine {
     _setChannelExcludedFromFade = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_channel_excluded_from_fade');
     _getFadeGain = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_fade_gain');
     _pollTransportEvents = _lib.lookupFunction<_EventsNative, _EventsDart>('wtracks_poll_transport_events');
+    _takeMeters = _lib.lookupFunction<_TakeMetersNative, _TakeMetersDart>('wtracks_take_meters');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
@@ -767,6 +771,19 @@ class WTracksEngine {
   /// Eventos desde a última leitura: [transportEventEndReached] | [transportEventFadeFinished].
   int pollTransportEvents() => _pollTransportEvents();
   static const transportEventEndReached = 1, transportEventFadeFinished = 2;
+
+  /// Picos lineares desde a leitura anterior (e zera): por canal (pós-fader) e por saída (pós-master, L/R).
+  (List<double>, List<double>) takeMeters() {
+    const capacity = 64, outputs = 2;
+    final channels = calloc<Float>(capacity), out = calloc<Float>(outputs);
+    try {
+      final count = _takeMeters(channels, capacity, out, outputs).clamp(0, capacity);
+      return ([for (var i = 0; i < count; i++) channels[i]], [for (var i = 0; i < outputs; i++) out[i]]);
+    } finally {
+      calloc.free(channels);
+      calloc.free(out);
+    }
+  }
   void setChannelSoloMuted(int channelIndex, bool muted) => _setChannelSoloMuted(channelIndex, muted);
 
   /// Estado efetivo do mixer na posição atual (automação ligada) ou os valores manuais.

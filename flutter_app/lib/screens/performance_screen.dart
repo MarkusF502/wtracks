@@ -15,6 +15,7 @@ import 'midi_screen.dart';
 import 'tempo_map_screen.dart';
 import 'mixer_automation_screen.dart';
 import 'song_ending_sheet.dart';
+import '../providers/meter_provider.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -1004,20 +1005,25 @@ class _Mixer extends ConsumerWidget {
                             fontWeight: FontWeight.bold)),
                   ),
                 const Text('MASTER', style: TextStyle(color: _textFaint, fontSize: 10)),
-                SizedBox(
-                  width: 140,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(trackHeight: 2, overlayShape: SliderComponentShape.noOverlay),
-                    child: Slider(
-                      key: const Key('master-volume'),
-                      value: masterVolume.clamp(0.0, 2.0),
-                      max: 2,
-                      onChanged: notifier.setMasterVolume,
+                Flexible(
+                  flex: 4,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 140),
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(trackHeight: 2, overlayShape: SliderComponentShape.noOverlay),
+                      child: Slider(
+                        key: const Key('master-volume'),
+                        value: masterVolume.clamp(0.0, 2.0),
+                        max: 2,
+                        onChanged: notifier.setMasterVolume,
+                      ),
                     ),
                   ),
                 ),
                 Text('${(masterVolume * 100).round()}%',
                     style: const TextStyle(color: _textFaint, fontSize: 10)),
+                const SizedBox(width: 6),
+                const _MasterMeter(),
               ],
             ),
           ),
@@ -1029,6 +1035,7 @@ class _Mixer extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final channel = track.channels[index];
                 return _MixerChannelStrip(
+                  index: index,
                   label: channel.label,
                   color: _colorForChannel(index),
                   volume: mix != null && index < mix.volumes.length ? mix.volumes[index] : channel.volume,
@@ -1067,6 +1074,7 @@ class _MixerChannelStrip extends StatelessWidget {
   final String label;
   final Color color;
   final double volume; // 0.0 - 1.0
+  final int index; // canal no motor (medidor)
   final bool muted;
   final bool soloed;
   final ChannelRoute route;
@@ -1079,6 +1087,7 @@ class _MixerChannelStrip extends StatelessWidget {
     required this.label,
     required this.color,
     required this.volume,
+    required this.index,
     required this.muted,
     required this.soloed,
     required this.route,
@@ -1125,6 +1134,10 @@ class _MixerChannelStrip extends StatelessWidget {
             ),
           ),
           Expanded(
+            child: Row(children: [
+              const SizedBox(width: 6),
+              _ChannelMeter(index: index),
+              Expanded(
             child: RotatedBox(
               quarterTurns: 3,
               child: SliderTheme(
@@ -1140,6 +1153,8 @@ class _MixerChannelStrip extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+            ]),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1170,6 +1185,67 @@ class _MixerChannelStrip extends StatelessWidget {
             height: 22,
           ),
           const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+/// Barra de nível (-60..0 dB): verde, amarelo a partir de -12 dB, vermelho a partir de -3 dB.
+class _MeterBar extends StatelessWidget {
+  final double level; // 0..1
+  final Axis axis;
+  final double thickness;
+  const _MeterBar({super.key, required this.level, this.axis = Axis.vertical, this.thickness = 4});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = level >= 57 / 60
+        ? const Color(0xFFFF3B4E)
+        : level >= 48 / 60
+            ? const Color(0xFFFFC107)
+            : const Color(0xFF00C896);
+    return Container(
+      width: axis == Axis.vertical ? thickness : null,
+      height: axis == Axis.horizontal ? thickness : null,
+      color: _border,
+      child: FractionallySizedBox(
+        alignment: axis == Axis.vertical ? Alignment.bottomCenter : Alignment.centerLeft,
+        heightFactor: axis == Axis.vertical ? level : null,
+        widthFactor: axis == Axis.horizontal ? level : null,
+        child: Container(color: color),
+      ),
+    );
+  }
+}
+
+class _ChannelMeter extends ConsumerWidget {
+  final int index;
+  const _ChannelMeter({required this.index});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final level = ref.watch(meterProvider.select((m) => index < m.channels.length ? m.channels[index] : 0.0));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: _MeterBar(key: Key('meter-$index'), level: level),
+    );
+  }
+}
+
+class _MasterMeter extends ConsumerWidget {
+  const _MasterMeter();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final outputs = ref.watch(meterProvider.select((m) => m.outputs));
+    double at(int i) => i < outputs.length ? outputs[i] : 0.0;
+    return SizedBox(
+      width: 36,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _MeterBar(key: const Key('meter-master-l'), level: at(0), axis: Axis.horizontal, thickness: 3),
+          const SizedBox(height: 2),
+          _MeterBar(key: const Key('meter-master-r'), level: at(1), axis: Axis.horizontal, thickness: 3),
         ],
       ),
     );

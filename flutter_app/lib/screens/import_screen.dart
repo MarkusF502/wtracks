@@ -121,12 +121,14 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         for (final entry in _mapping.entries) entry.value: _files[entry.key],
       };
 
+      final defaultVolume = ref.read(appSettingsProvider).defaultChannelVolume;
       final channelInfos = <ChannelInfo>[
         for (var slot = 0; slot < _defaultChannelSlots.length; slot++)
           if (channels[slot] != null)
             ChannelInfo(
               label: _defaultChannelSlots[slot].$1,
               filePath: channels[slot]!.localPath,
+              volume: defaultVolume,
             ),
       ];
 

@@ -11,6 +11,8 @@ import '../services/guide_resource_service.dart';
 import '../services/guide_preferences_store.dart';
 import '../services/dynamic_guides.dart';
 import '../models/guide_settings.dart';
+import '../models/app_settings.dart';
+import '../services/app_preferences_store.dart';
 import '../services/time_pitch_service.dart';
 import '../services/midi_preferences_store.dart';
 import '../models/automation_cue.dart';
@@ -118,6 +120,35 @@ final guideCatalogProvider = FutureProvider<GuideCatalog>(
   (ref) async => GuideCatalog((await ref.watch(guideResourcesProvider.future)).map((r) => r['name'] as String)),
 );
 final guidePreferencesProvider = Provider<GuidePreferencesStore>((ref) => GuidePreferencesStore());
+final appPreferencesProvider = Provider<AppPreferencesStore>((ref) => AppPreferencesStore());
+
+/// Preferências gerais (começa nos padrões e assume o arquivo quando ele é lido).
+class AppSettingsNotifier extends Notifier<AppSettings> {
+  bool _touched = false;
+
+  @override
+  AppSettings build() {
+    _load();
+    return const AppSettings();
+  }
+
+  Future<void> _load() async {
+    final saved = await ref.read(appPreferencesProvider).load();
+    if (!_touched) state = saved;
+  }
+
+  Future<void> apply(AppSettings settings) async {
+    _touched = true;
+    state = settings;
+    try {
+      await ref.read(appPreferencesProvider).save(settings);
+    } on Exception catch (e) {
+      debugPrint('Não foi possível salvar as preferências: $e');
+    }
+  }
+}
+
+final appSettingsProvider = NotifierProvider<AppSettingsNotifier, AppSettings>(AppSettingsNotifier.new);
 
 /// Preferências globais de guia. Começa nos padrões; quando o arquivo é lido, as guias da música carregada são
 /// refeitas (o carregamento de músicas não espera pelo disco).

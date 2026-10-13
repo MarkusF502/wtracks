@@ -8,6 +8,7 @@ import '../services/track_navigation.dart';
 import 'import_screen.dart';
 import 'performance_screen.dart';
 import 'setlists_screen.dart';
+import 'settings_screen.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -112,6 +113,11 @@ class LibraryScreen extends ConsumerWidget {
             tooltip: 'Setlists',
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const SetlistsScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Configurações',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
