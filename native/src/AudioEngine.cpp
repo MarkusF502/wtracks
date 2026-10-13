@@ -55,7 +55,7 @@ void AudioEngine::shutdown()
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; applyClickScale();
+    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; userTempoChanges.clear(); applyClickScale();
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -144,7 +144,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         channels = std::move(newChannels);
         loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
-        timeScale=1.0; applyClickScale(); std::swap(guideTimeline,staleGuides); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
+        timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
     }
 
     clearCueQueue();
@@ -158,7 +158,7 @@ void AudioEngine::unloadCurrentTrack()
     stop();
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; applyClickScale();
+    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; userTempoChanges.clear(); applyClickScale();
 }
 
 juce::String AudioEngine::getLastError() const
@@ -479,7 +479,23 @@ void AudioEngine::applyClickScale()
     // Caller holds channelsLock. Beats are laid out on the processed timeline.
     clickTimeline.bpm=userClickBpm/timeScale; clickTimeline.offset=userClickOffset*timeScale; clickTimeline.reset();
     timecode.onsetSeconds=userTimecodeOnset*timeScale; timecode.reset();
+    if (!tempoChangesValid(userTempoChanges,userClickOffset)) userTempoChanges.clear();  // an offset past a change invalidates it
+    clickTimeline.changes=userTempoChanges;
+    for (auto& change : clickTimeline.changes) { change.start*=timeScale; change.bpm/=timeScale; }
+    midiClock.changes=clickTimeline.changes;
     midiClock.bpm=clickTimeline.bpm; midiClock.offset=clickTimeline.offset; midiClock.bpmUnit=clickTimeline.bpmUnit;
+}
+
+bool AudioEngine::setClickTempoChanges(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count)
+{
+    if (count < 0 || count > 512 || (count && (!starts || !bpms || !numerators || !denominators))) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid tempo changes"); return false;
+    }
+    std::vector<TempoChange> proposed(static_cast<size_t>(count));
+    for (int i=0;i<count;++i) proposed[static_cast<size_t>(i)]={starts[i],bpms[i],numerators[i],denominators[i]};
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (!tempoChangesValid(proposed,userClickOffset)) { setLastError(EngineErrorCode::FormatMismatch,"Invalid tempo changes"); return false; }
+    userTempoChanges=std::move(proposed); applyClickScale(); setLastError(EngineErrorCode::None,""); return true;
 }
 
 void AudioEngine::setClickGain(float gain)

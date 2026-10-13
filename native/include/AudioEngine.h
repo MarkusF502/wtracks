@@ -91,6 +91,8 @@ public:
     bool configureClick(double bpm, int numerator, int denominator, int bpmUnit, double offset, double accent, double quarter, double eighth, double sixteenth);
     bool loadClickSound(int voice, const juce::String& path);
     bool loadClickBank(const std::array<juce::String,4>& paths);
+    // Tempo/meter changes after the base segment (song time). Replaces the previous list; invalid lists change nothing.
+    bool setClickTempoChanges(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count);
     void setClickGain(float gain);
     // MIDI output. The sink receives realtime clock (0xF8 at 24 ppqn on the click grid), start/continue/stop and cue messages.
     static juce::StringArray listMidiOutputs();  // "identifier\tname" per device
@@ -152,6 +154,7 @@ private:
 
     double timeScale = 1.0;
     double userClickBpm = 120.0, userClickOffset = 0.0;
+    std::vector<TempoChange> userTempoChanges;
     void applyClickScale();
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;

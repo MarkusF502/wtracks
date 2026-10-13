@@ -2,6 +2,8 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <array>
 #include <cmath>
+#include <vector>
+#include "TempoMap.h"
 
 namespace wtracks {
 // Scheduling is derived from the master sample position, never from rounded periods.
@@ -9,6 +11,7 @@ namespace wtracks {
 class ClickTimeline {
 public:
     double bpm = 120.0, offset = 0.0;
+    std::vector<TempoChange> changes;  // after the base segment; see TempoMap.h
     int numerator = 4, denominator = 4, bpmUnit = 4;
     std::array<double, 4> gains {{1.0, 1.0, 0.0, 0.0}};
     float masterGain = 1.0f;
@@ -26,14 +29,14 @@ public:
     }
     void reset() { starts.fill(-1); }
     void render(juce::AudioBuffer<float>& output, int destination, int count, int64_t position, double rate, bool audible) {
-        const long double tick = (60.0L / bpm) * rate * bpmUnit / denominator / 4.0L;
-        const long double origin = static_cast<long double>(offset) * rate;
         for (int i=0; i<count; ++i) {
             const int64_t sample = position+i;
-            const auto index = static_cast<int64_t>(std::floor((sample-origin+0.5L) / tick));
-            if (index >= 0 && static_cast<int64_t>(std::llround(origin+index*tick)) == sample) {
+            const auto where = locateTempo(bpm, numerator, denominator, offset, changes, sample, rate);
+            const long double tick = (60.0L / where.bpm) * rate * bpmUnit / where.denominator / 4.0L;
+            const auto index = static_cast<int64_t>(std::floor((sample-where.origin+0.5L) / tick));
+            if (index >= 0 && sample < where.limit && static_cast<int64_t>(std::llround(where.origin+index*tick)) == sample) {
                 const int sub = static_cast<int>(index % 4);
-                const int voice = sub == 0 ? ((index/4)%numerator == 0 ? 0 : 1) : (sub == 2 ? 2 : 3);
+                const int voice = sub == 0 ? ((index/4)%where.numerator == 0 ? 0 : 1) : (sub == 2 ? 2 : 3);
                 starts[voice] = sample;
             }
             float sum = 0;

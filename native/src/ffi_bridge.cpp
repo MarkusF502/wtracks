@@ -207,6 +207,12 @@ bool wtracks_configure_timecode(int rateIndex, int64_t startFrame, double onsetS
 
 void wtracks_set_timecode_enabled(bool enabled) { if (engine) engine->setTimecodeEnabled(enabled); }
 
+bool wtracks_set_click_tempo_changes(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return engine ? engine->setClickTempoChanges(starts, bpms, numerators, denominators, count) : false;
+}
+
 bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);

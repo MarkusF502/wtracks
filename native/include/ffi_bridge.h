@@ -84,6 +84,9 @@ WTRACKS_API uint64_t wtracks_get_midi_dropped();
 WTRACKS_API bool wtracks_configure_timecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain);
 WTRACKS_API void wtracks_set_timecode_enabled(bool enabled);
 
+// Tempo/meter changes after the base click segment (song time, strictly increasing, past the click offset).
+WTRACKS_API bool wtracks_set_click_tempo_changes(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count);
+
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
 WTRACKS_API void wtracks_set_guides_enabled(bool enabled);
