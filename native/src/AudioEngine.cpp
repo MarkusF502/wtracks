@@ -73,6 +73,7 @@ void AudioEngine::shutdown()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     stop();
+    midiInput.reset();
     midiRouter.close();
 
     audioSourcePlayer.setSource(nullptr);
@@ -183,6 +184,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
     }
 
     clearCueQueue();
+    releaseHeldNotesNow();  // notes of the previous song
     DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
     return true;
 }
@@ -221,12 +223,88 @@ void AudioEngine::setLastError(EngineErrorCode code, const juce::String& errorMe
 
 void AudioEngine::play()
 {
-    const juce::SpinLock::ScopedLockType lock(channelsLock);
-    if (channels.empty())
-        return;
-    if (!playing.load()) { beginPreroll(); fadeOut.cancel(); endFadeTriggered=false; }
-    playing = true;
+    bool started=false;
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        if (channels.empty())
+            return;
+        if (!playing.load()) { beginPreroll(); fadeOut.cancel(); endFadeTriggered=false; started=true; }
+        playing = true;
+    }
+    if (started) chaseCuesNow();
 }
+
+void AudioEngine::releaseHeldNotesNow()
+{
+    std::array<std::bitset<128>,16> held;
+    { const juce::SpinLock::ScopedLockType lock(channelsLock); held=heldNotes; for (auto& c : heldNotes) c.reset(); }
+    if (!midiRouter.isOpen()) return;
+    for (int ch=0;ch<16;++ch) for (int note=0;note<128;++note)
+        if (held[static_cast<size_t>(ch)][static_cast<size_t>(note)]) {
+            const uint8_t off[3]={static_cast<uint8_t>(0x80|ch),static_cast<uint8_t>(note),0}; midiRouter.sendNow(off,3);
+        }
+}
+
+void AudioEngine::releaseHeldNotesRealtime(double blockHostMs, int offset) noexcept
+{
+    for (int ch=0;ch<16;++ch) {
+        auto& held=heldNotes[static_cast<size_t>(ch)];
+        if (held.none()) continue;
+        for (int note=0;note<128;++note) if (held[static_cast<size_t>(note)]) {
+            const uint8_t off[3]={static_cast<uint8_t>(0x80|ch),static_cast<uint8_t>(note),0};
+            midiRouter.push(blockHostMs,offset,currentSampleRate,off,3);
+        }
+        held.reset();
+    }
+}
+
+void AudioEngine::chaseCuesNow()
+{
+    // Playback sends "prerolled" MIDI events when playback starts mid-song (requestsMIDIEventOutputAtIndex:isPrerolled:,
+    // deduplicating control and program changes); ours: the last program change of each channel and the last value of each
+    // controller before the playhead, program changes first.
+    if (!midiRouter.isOpen()) return;
+    std::array<int16_t,16> program; program.fill(-1);
+    std::array<std::array<int16_t,128>,16> controllers; for (auto& c : controllers) c.fill(-1);
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        const int64_t position=currentSamplePosition.load();
+        for (size_t i=0;i<cueTimeline.size();++i) {
+            const auto& cue=cueTimeline.at(i);
+            if (static_cast<int64_t>(std::llround(cue.timeSeconds*timeScale*currentSampleRate)) >= position) break;
+            const int kind=cue.midi[0] & 0xF0, ch=cue.midi[0] & 0x0F;
+            if (cue.midiSize == 2 && kind == 0xC0) program[static_cast<size_t>(ch)]=cue.midi[1];
+            else if (cue.midiSize == 3 && kind == 0xB0) controllers[static_cast<size_t>(ch)][cue.midi[1]]=cue.midi[2];
+        }
+    }
+    for (int ch=0;ch<16;++ch) if (program[static_cast<size_t>(ch)] >= 0) {
+        const uint8_t pc[2]={static_cast<uint8_t>(0xC0|ch),static_cast<uint8_t>(program[static_cast<size_t>(ch)])}; midiRouter.sendNow(pc,2);
+    }
+    for (int ch=0;ch<16;++ch) for (int cc=0;cc<128;++cc) if (controllers[static_cast<size_t>(ch)][static_cast<size_t>(cc)] >= 0) {
+        const uint8_t msg[3]={static_cast<uint8_t>(0xB0|ch),static_cast<uint8_t>(cc),static_cast<uint8_t>(controllers[static_cast<size_t>(ch)][static_cast<size_t>(cc)])};
+        midiRouter.sendNow(msg,3);
+    }
+}
+
+juce::StringArray AudioEngine::listMidiInputs()
+{
+    juce::StringArray result;
+    for (const auto& device : juce::MidiInput::getAvailableDevices()) result.add(device.identifier + "\t" + device.name);
+    return result;
+}
+
+bool AudioEngine::openMidiInput(const juce::String& deviceIdentifier)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    auto port=std::make_unique<MidiInputPort>(midiInputQueue);
+    if (!port->open(deviceIdentifier)) { setLastError(EngineErrorCode::DeviceInitFailed,"MIDI input unavailable"); return false; }
+    midiInput=std::move(port); midiInputQueue.clear(); return true;
+}
+
+void AudioEngine::closeMidiInput() { const std::lock_guard<std::recursive_mutex> control(controlMutex); midiInput.reset(); }
+bool AudioEngine::isMidiInputOpen() const { return midiInput != nullptr && midiInput->isOpen(); }
+int AudioEngine::pollMidiInput(uint32_t* out, int maxCount) { return midiInputQueue.poll(out,maxCount); }
+bool AudioEngine::injectMidiInput(const uint8_t* bytes, int size) { return midiInputQueue.push(bytes,size); }
 
 bool AudioEngine::beginPreroll()
 {
@@ -252,6 +330,7 @@ void AudioEngine::pause()
     playing = false;
     { const juce::SpinLock::ScopedLockType lock(channelsLock); preroll.cancel(); fadeOut.cancel(); }
     stopMidiClock();
+    releaseHeldNotesNow();
 }
 
 void AudioEngine::stop()
@@ -280,10 +359,12 @@ void AudioEngine::seekToSeconds(double seconds)
             channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(streamSeconds*channel.fileSampleRate)));
             channel.resampler->flushBuffers();
         }
-        loopPasses=0;
+        loopPasses=0; loopWraps=0;
         clickTimeline.reset(); guideTimeline.reset(); preroll.cancel(); fadeOut.cancel(); endFadeTriggered=false;
     }
+    releaseHeldNotesNow();
     if (prefillChannels()) playing=resume;
+    if (resume) chaseCuesNow();
 }
 
 double AudioEngine::getCurrentPositionSeconds() const
@@ -367,7 +448,7 @@ bool AudioEngine::setLoop(double start, double end, bool enabled, int repeats)
     bank->repeats=repeats;
     if (repeats > 0) parkStreamsAt(bank->end);  // the continuation after the last pass reads ahead while the cache plays
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true; loopPasses=0;
+    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true; loopPasses=0; loopWraps=0;
     const double seconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
     if (seconds < start || seconds >= end) currentSamplePosition=static_cast<int64_t>(std::llround(start*currentSampleRate));
     clickTimeline.reset(); guideTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
@@ -439,9 +520,10 @@ void AudioEngine::normalizeLoopPosition()
     const auto end=static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate));
     if (position >= start && position < end) return;
     const int64_t overflow=position >= end ? position-end : 0;
+    bool swapped=false;
     if (position >= end && queuedLoopEnabled && queuedLoop) {
         // Retain the previous cache until a control-thread queue operation destroys it.
-        activeLoop.swap(queuedLoop); queuedLoopEnabled=false; loopPasses=0;
+        activeLoop.swap(queuedLoop); queuedLoopEnabled=false; loopPasses=0; swapped=true;
         if (activeLoop->repeats > 0)  // park the streams at the new loop end; read-ahead refills during its passes
             for (auto& channel : channels) if (channel.bufferedSource) {
                 channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(activeLoop->end*channel.fileSampleRate)));
@@ -455,6 +537,7 @@ void AudioEngine::normalizeLoopPosition()
     const auto nextEnd=static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate));
     currentSamplePosition=nextStart+overflow % juce::jmax<int64_t>(1,nextEnd-nextStart);
     clickTimeline.reset(); guideTimeline.reset();
+    loopWraps=swapped ? 0 : loopWraps+1; ++loopJumps;
 }
 bool AudioEngine::getLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled; }
 bool AudioEngine::getQueuedLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled; }
@@ -958,6 +1041,7 @@ void AudioEngine::closeMidiOutput()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     stopMidiClock();
+    releaseHeldNotesNow();
     midiRouter.flush(200);
     midiRouter.close();
 }
@@ -995,6 +1079,11 @@ bool AudioEngine::sendMidiMessage(const uint8_t* bytes, int size)
 
 bool AudioEngine::configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count)
 {
+    return configureCues(times,midiBytes,midiSizes,nullptr,count);
+}
+
+bool AudioEngine::configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, const uint8_t* flags, int count)
+{
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     const double length=getTotalLengthSeconds();
     if (count < 0 || static_cast<size_t>(count) > CueTimeline::kMaxCues || (count && (!times || !midiBytes || !midiSizes || length <= 0))) {
@@ -1003,6 +1092,7 @@ bool AudioEngine::configureCues(const double* times, const uint8_t* midiBytes, c
     std::vector<CueTimeline::Cue> cues(static_cast<size_t>(count));
     for (int i=0;i<count;++i) {
         auto& cue=cues[static_cast<size_t>(i)]; cue.timeSeconds=times[i]; cue.midiSize=midiSizes[i];
+        cue.disableLoop=flags && (flags[i] & 1);
         if (cue.midiSize > 3) { setLastError(EngineErrorCode::FormatMismatch,"Invalid cue message"); return false; }
         for (int b=0;b<cue.midiSize;++b) cue.midi[b]=midiBytes[3*i+b];
     }
@@ -1123,7 +1213,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         if (!loopEnabled && !presetLoops.empty())
             for (const auto& preset : presetLoops)
                 if (position == static_cast<int64_t>(std::llround(preset->start*currentSampleRate))) {
-                    activeLoop=preset; loopEnabled=true; loopPasses=0; queuedLoop.reset(); queuedLoopEnabled=false;
+                    activeLoop=preset; loopEnabled=true; loopPasses=0; loopWraps=0; queuedLoop.reset(); queuedLoopEnabled=false;
                     if (preset->repeats > 0)
                         for (auto& channel : channels) if (channel.bufferedSource) {
                             channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(preset->end*channel.fileSampleRate)));
@@ -1148,7 +1238,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         }
         if (fadeOut.active()) room=juce::jmin(room,fadeOut.remaining);  // the fade ends exactly at a chunk end
         const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),room));
-        if (count <= 0) { currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); break; }
+        if (count <= 0) { currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); releaseHeldNotesRealtime(blockHostMs,written); break; }
         if (!loopEnabled && !channelsReady(count,0)) { ++underrunCount; break; }
         const bool fading=fadeOut.active();
         if (fading)
@@ -1228,9 +1318,19 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                     const uint8_t pulse=MidiClockTimeline::kClock; midiRouter.push(blockHostMs,written+offset,currentSampleRate,&pulse,1); });
             }
         }
+        if (loopJumps != loopJumpsSeen) { loopJumpsSeen=loopJumps; releaseHeldNotesRealtime(blockHostMs,written); }  // rewound
         cueTimeline.render(count,position,currentSampleRate,[&](size_t index,int offset) {
             const auto& cue=cueTimeline.at(index);
-            if (cue.midiSize && midiRouter.isOpen()) midiRouter.push(blockHostMs,written+offset,currentSampleRate,cue.midi,cue.midiSize);
+            if (cue.disableLoop && loopEnabled && activeLoop && loopWraps > 0) {
+                const long double at=static_cast<long double>(cue.timeSeconds)*timeScale;
+                if (at >= activeLoop->start && at < activeLoop->end) return;  // repeat of a disableLoop cue
+            }
+            if (cue.midiSize && midiRouter.isOpen()) {
+                midiRouter.push(blockHostMs,written+offset,currentSampleRate,cue.midi,cue.midiSize);
+                const int kind=cue.midi[0] & 0xF0; const auto ch=static_cast<size_t>(cue.midi[0] & 0x0F);
+                if (cue.midiSize == 3 && kind == 0x90 && cue.midi[2] > 0) heldNotes[ch].set(cue.midi[1]);
+                else if (cue.midiSize == 3 && (kind == 0x80 || kind == 0x90)) heldNotes[ch].reset(cue.midi[1]);
+            }
             const auto head=cueHead.load(std::memory_order_relaxed);
             if (head-cueTail.load(std::memory_order_acquire) >= cueQueue.size()) { cueDropped.fetch_add(1); return; }
             cueQueue[head % cueQueue.size()].store(static_cast<uint32_t>(index),std::memory_order_relaxed);
@@ -1250,13 +1350,15 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         }
         currentSamplePosition=position+count; written+=count;
         if (fadeOut.active() && (fadeOut.remaining-=count) <= 0) {  // silence reached: pause where the fade ended
-            fadeOut.cancel(); playing=false; transportEvents.fetch_or(FadeFinished);
+            fadeOut.cancel(); playing=false; transportEvents.fetch_or(FadeFinished); releaseHeldNotesRealtime(blockHostMs,written);
             normalizeLoopPosition();
             if (!loopEnabled && position+count >= end) { currentSamplePosition=end; transportEvents.fetch_or(EndReached); }
             break;
         }
         normalizeLoopPosition();
-        if (!loopEnabled && position+count >= end) { currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); break; }
+        if (!loopEnabled && position+count >= end) {
+            currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); releaseHeldNotesRealtime(blockHostMs,written); break;
+        }
     }
 }
 

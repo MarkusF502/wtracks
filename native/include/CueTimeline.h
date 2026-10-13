@@ -17,6 +17,7 @@ public:
         double timeSeconds = 0;
         uint8_t midiSize = 0;       // 0 = no message
         uint8_t midi[3] = {0, 0, 0};
+        bool disableLoop = false;  // Playback MIDIEvent.disableLoop: does not fire again on loop repeats
     };
     static constexpr size_t kMaxCues = 4096;
 

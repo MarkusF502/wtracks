@@ -275,6 +275,34 @@ int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, i
 {
     return engine ? engine->takeMeters(channelPeaks,capacity,outputPeaks,outputCapacity) : 0;
 }
+bool wtracks_configure_cues_ex(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, const uint8_t* flags, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureCues(times,midiBytes,midiSizes,flags,count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Cue preparation failed"); return false; }
+}
+
+int wtracks_midi_list_inputs(char* buffer, int capacity)
+{
+    const auto text = wtracks::AudioEngine::listMidiInputs().joinIntoString("\n") + "\n";
+    const auto utf8 = text.toStdString();
+    const int needed = static_cast<int>(utf8.size()) + 1;
+    if (buffer && capacity >= needed) std::memcpy(buffer, utf8.c_str(), static_cast<size_t>(needed));
+    return needed;
+}
+
+bool wtracks_midi_open_input(const char* identifier)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return engine && identifier ? engine->openMidiInput(juce::String::fromUTF8(identifier)) : false;
+}
+
+void wtracks_midi_close_input() { const std::lock_guard<std::mutex> lock(engineLifetimeMutex); if (engine) engine->closeMidiInput(); }
+bool wtracks_midi_input_open() { return engine ? engine->isMidiInputOpen() : false; }
+int wtracks_poll_midi_input(uint32_t* out, int maxCount) { return engine ? engine->pollMidiInput(out,maxCount) : 0; }
+bool wtracks_inject_midi_input(const uint8_t* bytes, int size) { return engine ? engine->injectMidiInput(bytes,size) : false; }
+
 bool wtracks_configure_buses(int count) { return engine ? engine->configureBuses(count) : false; }
 bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono) { return engine ? engine->setBus(index,volume,muted,outputBase,mono) : false; }
 void wtracks_set_bus_solo_muted(int index, bool muted) { if (engine) engine->setBusSoloMuted(index,muted); }

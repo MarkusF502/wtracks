@@ -120,6 +120,15 @@ WTRACKS_API uint32_t wtracks_poll_transport_events();
 // Peaks since the previous call (then reset): post-fader per channel, per output after the master. Returns channels.
 WTRACKS_API int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity);
 // Buses (<= 16): channel -> bus -> output. bus -1 = none.
+// MIDI cues with flags (bit 0 = disableLoop).
+WTRACKS_API bool wtracks_configure_cues_ex(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, const uint8_t* flags, int count);
+// MIDI input for mappings: list as "identifier\tname" lines; messages packed byte0 | byte1<<8 | byte2<<16 | size<<24.
+WTRACKS_API int wtracks_midi_list_inputs(char* buffer, int capacity);
+WTRACKS_API bool wtracks_midi_open_input(const char* identifier);
+WTRACKS_API void wtracks_midi_close_input();
+WTRACKS_API bool wtracks_midi_input_open();
+WTRACKS_API int wtracks_poll_midi_input(uint32_t* out, int maxCount);
+WTRACKS_API bool wtracks_inject_midi_input(const uint8_t* bytes, int size);
 WTRACKS_API bool wtracks_configure_buses(int count);
 WTRACKS_API bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono);
 WTRACKS_API void wtracks_set_bus_solo_muted(int index, bool muted);

@@ -14,6 +14,8 @@
 #include "MidiClock.h"
 #include "CueTimeline.h"
 #include "MidiRouter.h"
+#include "MidiInput.h"
+#include <bitset>
 #include "Timecode.h"
 #include <memory>
 #include <mutex>
@@ -162,6 +164,15 @@ public:
     bool sendMidiMessage(const uint8_t* bytes, int size);
     // Automation / MIDI cues in song time. Message bytes: midiSizes[i] (0 = none, else 2 or 3) bytes at midiBytes[3*i].
     bool configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count);
+    // flags[i] bit 0 = disableLoop (the cue fires on a loop's first pass only).
+    bool configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, const uint8_t* flags, int count);
+    // MIDI input for control mappings (see MidiInput.h). Messages: byte0 | byte1<<8 | byte2<<16 | size<<24.
+    static juce::StringArray listMidiInputs();
+    bool openMidiInput(const juce::String& deviceIdentifier);
+    void closeMidiInput();
+    bool isMidiInputOpen() const;
+    int pollMidiInput(uint32_t* out, int maxCount);
+    bool injectMidiInput(const uint8_t* bytes, int size);
     int pollCues(uint32_t* out, int maxCount);
     uint64_t getMidiDroppedCount() const;
     // Linear timecode on one output channel (0 = first). Runs in real time on the processed timeline at the nominal rate;
@@ -259,6 +270,16 @@ private:
     std::atomic<uint64_t> cueHead { 0 }, cueTail { 0 }, cueDropped { 0 };
     std::mutex cuePollMutex;
     void stopMidiClock();
+    // Notes switched on by cues and not yet off (Playback MIDIOutAVAudioUnit.currentNoteOnEvents). Released with note-offs
+    // on pause, stop, seek, loop jumps, the end of the song and a new song.
+    std::array<std::bitset<128>, 16> heldNotes;
+    void releaseHeldNotesNow();                                   // control thread, caller holds channelsLock
+    void releaseHeldNotesRealtime(double blockHostMs, int offset) noexcept;  // audio thread
+    void chaseCuesNow();                                         // last program/control change of each channel before the playhead
+    uint64_t loopJumps = 0, loopJumpsSeen = 0;
+    int loopWraps = 0;  // repeats of the active loop since it began (disableLoop cues)
+    MidiInputQueue midiInputQueue;
+    std::unique_ptr<MidiInputPort> midiInput;
     void clearCueQueue();
     GuideTimeline guideTimeline;
     Preroll preroll;
