@@ -90,7 +90,8 @@ public:
     // FadeFinished event. Seek, pause, stop, play and new songs cancel it. During a pre-roll count-in it pauses at once.
     bool startFadeOut(double seconds);
     void cancelFadeOut();
-    // Fade over the last `seconds` of the song (playhead based); 0 disables.
+    // End fade: once the playhead passes `seconds` before the song end (outside loops), the transport fade of that
+    // length starts, as if the fade button was pressed (once per play/seek). 0 disables.
     bool setEndFade(double seconds);
     void setChannelExcludedFromFade(int channelIndex, bool excluded);
     // Current manual fade gain (1..0) or -1 when no fade runs.
@@ -208,6 +209,7 @@ private:
     MixerAutomation mixerAutomation;
     FadeOut fadeOut;
     double endFadeSeconds = 0;
+    bool endFadeTriggered = false;
     std::atomic<uint32_t> transportEvents { 0 };
     std::vector<float> fadeGains;
     std::array<PeakMeter, 64> channelMeters;

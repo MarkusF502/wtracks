@@ -12,11 +12,13 @@ namespace wtracks {
 // Reconstructed behavior: exact rounded sample cues, four voices, oldest steal.
 // Control-thread configure/reset and render must be externally synchronized.
 //
-// Dynamic guides: Playback's GuideCue carries a normal and a replacement resource (cueFilePath /
-// replacementCountCueFilePath) and GuideAU "selects normal or replacement resource" when a cue fires
-// (subsystem-contracts.md). The selection rule is not recovered; ours (own choice): a cue announcing a section
-// (`targetSeconds`, song time) that the playhead will not reach because the active loop wraps first plays its
-// replacement (a spoken count) instead. A cue may have only a replacement: it is silent unless the loop wraps.
+// Dynamic guides. Playback's GuideDSPKernel::process (GuideAUFramework 0x6140, cue stride 0x28: cueType, sectionTypeID,
+// cueEnabled, cueSequenceTimecode, songMapElementStartTimecode, file, replacement file) plays a type-0 cue only while a
+// next song-map element is queued, or for sectionTypeID 7; while the current element repeats with nothing queued the
+// cue stays silent. The replacement file is used for type 0 / section 7 when the queued element is the current one,
+// and for disabled type-1 cues. Our engine has no per-element queue; the mapping: a cue announcing a section
+// (`targetSeconds`) that the playhead will not reach because the active loop wraps first plays its replacement, or
+// nothing when it has none (section-name cues). Cues without a target always play (counts).
 class GuideTimeline {
 public:
     struct Sound { std::vector<float> mono; double sourceRate=44100; };

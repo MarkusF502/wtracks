@@ -29,12 +29,10 @@ public:
     }
 
     void runTest() override {
-        beginTest("FadeOut gains: linear manual fade, playhead-based end fade");
+        beginTest("FadeOut gains: linear manual fade");
         {
             FadeOut f; expectEquals(f.gain(0),1.0f); f.start(4);
             expectEquals(f.gain(0),1.0f); expectEquals(f.gain(3),0.25f);
-            expectEquals(FadeOut::endGain(0,100,0),1.0f); expectEquals(FadeOut::endGain(50,100,50),1.0f);
-            expectEquals(FadeOut::endGain(75,100,50),0.5f); expectEquals(FadeOut::endGain(100,100,50),0.0f);
         }
 
         auto dir=juce::File::getSpecialLocation(juce::File::tempDirectory).getNonexistentChildFile("wtracks_fade","",false); dir.createDirectory();
@@ -69,14 +67,17 @@ public:
             expectWithinAbsoluteError(l[999],1.0f,1e-5f);
         }
 
-        beginTest("End fade follows the playhead over the last seconds; end of song raises EndReached");
-        {
-            AudioEngine engine; start(engine,64);
+        beginTest("End fade starts the transport fade at the fade start point; it ends with the song");
+        for (int block : {64,1000}) {
+            AudioEngine engine; start(engine,block);
             expect(engine.setEndFade(1.0)); expect(!engine.setEndFade(-1)); expect(!engine.setEndFade(61));
-            engine.seekToSeconds(2.5); engine.play(); auto l=render(engine,96000,64);
-            expectWithinAbsoluteError(l[0],0.5f,1e-5f); expectWithinAbsoluteError(l[24000],0.5f,1e-5f);
+            engine.seekToSeconds(2.5); engine.play(); auto l=render(engine,96000,block);
+            expectWithinAbsoluteError(l[0],0.5f,1e-5f); expectWithinAbsoluteError(l[23999],0.5f,1e-5f);
             expectWithinAbsoluteError(l[48000],0.25f,1e-4f); expectEquals(l[72000],0.0f);
-            expect(!engine.isPlaying()); expect(engine.pollTransportEvents()==uint32_t(AudioEngine::EndReached));
+            expect(!engine.isPlaying());
+            expect((engine.pollTransportEvents() & AudioEngine::FadeFinished) != 0);
+            engine.seekToSeconds(3.5); engine.play(); render(engine,10,block);
+            expectWithinAbsoluteError(engine.getFadeGain(),1.0-10/48000.0,1e-6);  // inside the last second: starts at once
             expect(engine.loadTrack("again",{dc})); engine.seekToSeconds(3.5); engine.play(); l=render(engine,1000,64);
             expectWithinAbsoluteError(l[999],0.5f,1e-5f);  // a new song starts without end fade
         }

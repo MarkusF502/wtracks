@@ -97,9 +97,9 @@ inline void applyGainTargets(float* const* out, int outputs, int start, int coun
 }
 
 namespace wtracks {
-// Fade out (Playback: transport "5 Second Fade Out", SongArrangement.endFade, excludeFromFade). The curve and what
-// happens afterwards were not recovered; ours: linear in amplitude, counted in real (device) samples, and playback pauses
-// when it reaches silence. The end fade is a function of the playhead: gain = (end - position) / length, clamped.
+// Fade out (Playback: transport "5 Second Fade Out"; SongTrack fades default to 5.0 s, `currentFadeVolume`,
+// `fadeWorkItem` — pseudocode/fade.c FUN_10002a5fc). The per-track volume stepping curve was not recovered; ours is
+// linear in amplitude, counted in real (device) samples, and playback pauses when it reaches silence.
 struct FadeOut {
     int64_t total = 0, remaining = 0;
     bool active() const noexcept { return remaining > 0; }
@@ -107,10 +107,6 @@ struct FadeOut {
     void cancel() noexcept { total = remaining = 0; }
     // Gain of frame i of the next chunk (1 when idle); reaches 1/total on the last fading frame.
     float gain(int i) const noexcept { return active() ? static_cast<float>(remaining - i) / static_cast<float>(total) : 1.0f; }
-    static float endGain(int64_t position, int64_t end, int64_t length) noexcept {
-        if (length <= 0 || position <= end - length) return 1.0f;
-        return position >= end ? 0.0f : static_cast<float>(end - position) / static_cast<float>(length);
-    }
 };
 }
 

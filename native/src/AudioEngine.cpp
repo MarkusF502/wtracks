@@ -222,7 +222,7 @@ void AudioEngine::play()
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (channels.empty())
         return;
-    if (!playing.load()) { beginPreroll(); fadeOut.cancel(); }
+    if (!playing.load()) { beginPreroll(); fadeOut.cancel(); endFadeTriggered=false; }
     playing = true;
 }
 
@@ -279,7 +279,7 @@ void AudioEngine::seekToSeconds(double seconds)
             channel.resampler->flushBuffers();
         }
         loopPasses=0;
-        clickTimeline.reset(); guideTimeline.reset(); preroll.cancel(); fadeOut.cancel();
+        clickTimeline.reset(); guideTimeline.reset(); preroll.cancel(); fadeOut.cancel(); endFadeTriggered=false;
     }
     if (prefillChannels()) playing=resume;
 }
@@ -1070,14 +1070,21 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                 const auto at=static_cast<int64_t>(std::llround(preset->start*currentSampleRate));
                 if (at > position && at-position < room) room=at-position;
             }
+        // End fade (Playback Sequencer: arrangement.endFade starts the transport fade once the playhead passes the
+        // channel group's fadeStartTimecode, and the fade button lights up): the chunk stops at that point.
+        const int64_t endFadeLength=endFadeSeconds > 0 ? static_cast<int64_t>(std::llround(endFadeSeconds*currentSampleRate)) : 0;
+        if (endFadeLength > 0 && !endFadeTriggered && !loopEnabled && !fadeOut.active()) {
+            const int64_t fadeStart=end-endFadeLength;
+            if (position >= fadeStart && position < end) { fadeOut.start(endFadeLength); endFadeTriggered=true; }
+            else if (fadeStart > position && fadeStart-position < room) room=fadeStart-position;
+        }
         if (fadeOut.active()) room=juce::jmin(room,fadeOut.remaining);  // the fade ends exactly at a chunk end
         const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),room));
         if (count <= 0) { currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); break; }
         if (!loopEnabled && !channelsReady(count,0)) { ++underrunCount; break; }
-        const int64_t endFadeLength=endFadeSeconds > 0 ? static_cast<int64_t>(std::llround(endFadeSeconds*currentSampleRate)) : 0;
-        const bool fading=fadeOut.active() || (endFadeLength > 0 && position+count > end-endFadeLength);
+        const bool fading=fadeOut.active();
         if (fading)
-            for (int i=0;i<count;++i) fadeGains[static_cast<size_t>(i)]=fadeOut.gain(i)*FadeOut::endGain(position+i,end,endFadeLength);
+            for (int i=0;i<count;++i) fadeGains[static_cast<size_t>(i)]=fadeOut.gain(i);
         for (size_t index=0;index<channels.size();++index) {
             auto& channel=channels[index]; scratchBuffer.clear();
             if (loopEnabled && activeLoop) {
