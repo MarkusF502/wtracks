@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 
 namespace wtracks {
 // Reconstructed from MixerAUFramework / BusChannelAUFramework static contracts (see
@@ -32,15 +34,24 @@ struct ChannelRoute {
 
 // Adds `source` (two channels) scaled by the per-sample ramp into out[...][start, start + count).
 // The ramp advances even when the route is invalid, so state is independent of host block size.
-inline void mixStem(const float* left, const float* right, float* const* out, int outputs, int start, int count,
-                    ChannelRoute route, GainRamp& ramp, float step) noexcept {
+// Returns the peak of what the channel contributed (post-fader; 0 when the route is invalid) for the meters.
+inline float mixStem(const float* left, const float* right, float* const* out, int outputs, int start, int count,
+                     ChannelRoute route, GainRamp& ramp, float step) noexcept {
     const bool routed = route.valid(outputs);
+    float peak = 0;
     for (int i = 0; i < count; ++i) {
         const float gain = ramp.next(step);
         if (!routed) continue;
-        if (route.mono) out[route.base][start + i] += gain * (left[i] + right[i]) * 0.5f;
-        else { out[route.base][start + i] += gain * left[i]; out[route.base + 1][start + i] += gain * right[i]; }
+        if (route.mono) {
+            const float v = gain * (left[i] + right[i]) * 0.5f;
+            out[route.base][start + i] += v; peak = std::max(peak, std::abs(v));
+        } else {
+            const float l = gain * left[i], r = gain * right[i];
+            out[route.base][start + i] += l; out[route.base + 1][start + i] += r;
+            peak = std::max(peak, std::max(std::abs(l), std::abs(r)));
+        }
     }
+    return peak;
 }
 
 inline void applyGain(float* const* out, int outputs, int start, int count, GainRamp& ramp, float step) noexcept {
@@ -55,16 +66,24 @@ namespace wtracks {
 // Automated variants: target(i) gives the gain target of frame i; the de-click ramp follows it (a target moving slower
 // than the ramp step is reproduced exactly, faster changes take the 10 ms ramp).
 template <class Target>
-inline void mixStemTargets(const float* left, const float* right, float* const* out, int outputs, int start, int count,
-                           ChannelRoute route, GainRamp& ramp, float step, Target&& target) noexcept {
+inline float mixStemTargets(const float* left, const float* right, float* const* out, int outputs, int start, int count,
+                            ChannelRoute route, GainRamp& ramp, float step, Target&& target) noexcept {
     const bool routed = route.valid(outputs);
+    float peak = 0;
     for (int i = 0; i < count; ++i) {
         ramp.set(target(i));
         const float gain = ramp.next(step);
         if (!routed) continue;
-        if (route.mono) out[route.base][start + i] += gain * (left[i] + right[i]) * 0.5f;
-        else { out[route.base][start + i] += gain * left[i]; out[route.base + 1][start + i] += gain * right[i]; }
+        if (route.mono) {
+            const float v = gain * (left[i] + right[i]) * 0.5f;
+            out[route.base][start + i] += v; peak = std::max(peak, std::abs(v));
+        } else {
+            const float l = gain * left[i], r = gain * right[i];
+            out[route.base][start + i] += l; out[route.base + 1][start + i] += r;
+            peak = std::max(peak, std::max(std::abs(l), std::abs(r)));
+        }
     }
+    return peak;
 }
 
 template <class Target>
@@ -92,5 +111,18 @@ struct FadeOut {
         if (length <= 0 || position <= end - length) return 1.0f;
         return position >= end ? 0.0f : static_cast<float>(end - position) / static_cast<float>(length);
     }
+};
+}
+
+namespace wtracks {
+// Peak meters (Playback: MixerVUMeterView; ballistics not recovered). The audio thread raises a held peak with a
+// lock-free max; the reader takes it and resets it, so each read covers everything since the previous one.
+struct PeakMeter {
+    std::atomic<float> held { 0.0f };
+    void raise(float peak) noexcept {
+        float current = held.load(std::memory_order_relaxed);
+        while (peak > current && !held.compare_exchange_weak(current, peak, std::memory_order_relaxed)) {}
+    }
+    float take() noexcept { return held.exchange(0.0f, std::memory_order_relaxed); }
 };
 }

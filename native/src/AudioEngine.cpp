@@ -178,6 +178,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
         std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0); resetAutomationBases();
         fadeOut.cancel(); endFadeSeconds=0; transportEvents=0;
+        for (auto& meter : channelMeters) meter.take();
     }
 
     clearCueQueue();
@@ -548,6 +549,28 @@ double AudioEngine::getFadeGain() const
 }
 
 uint32_t AudioEngine::pollTransportEvents() { return transportEvents.exchange(0); }
+
+int AudioEngine::takeMeters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity)
+{
+    for (int i=0;i<static_cast<int>(channelMeters.size());++i) {
+        const float peak=channelMeters[static_cast<size_t>(i)].take();
+        if (channelPeaks && i < capacity) channelPeaks[i]=peak;
+    }
+    for (int i=0;i<static_cast<int>(outputMeters.size());++i) {
+        const float peak=outputMeters[static_cast<size_t>(i)].take();
+        if (outputPeaks && i < outputCapacity) outputPeaks[i]=peak;
+    }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    return static_cast<int>(channels.size());
+}
+
+void AudioEngine::meterOutputs(const juce::AudioBuffer<float>& buffer, int start, int count) noexcept
+{
+    for (int ch=0;ch<buffer.getNumChannels() && ch<static_cast<int>(outputMeters.size());++ch) {
+        const auto range=juce::FloatVectorOperations::findMinAndMax(buffer.getReadPointer(ch,start),count);
+        outputMeters[static_cast<size_t>(ch)].raise(std::max(std::abs(range.getStart()),std::abs(range.getEnd())));
+    }
+}
 
 void AudioEngine::resetAutomationBases()
 {
@@ -1023,6 +1046,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                            clickTimeline,currentSampleRate,clickEnabled.load(),guidesEnabled.load());
             masterRamp.set(masterAutomated ? mixerAutomation.value(MixerAutomation::kMaster,currentSamplePosition.load(),currentSampleRate) : masterVolume);
             applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
+            meterOutputs(*info.buffer,info.startSample+written,count);
             written+=count; continue;
         }
         normalizeLoopPosition();
@@ -1070,7 +1094,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                 && (mixerAutomation.has(volumeParam) || mixerAutomation.has(muteParam));
             const bool fades=fading && !channel.excludedFromFade;
             if (automated || fades) {
-                mixStemTargets(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
+                const float peak=mixStemTargets(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
                                info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp,rampStep,[&](int i) {
                     const int64_t sample=position+i;
                     float target;
@@ -1079,12 +1103,14 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                     else target=mixerAutomation.value(volumeParam,sample,currentSampleRate);
                     return fades ? target*fadeGains[static_cast<size_t>(i)] : target;
                 });
+                if (index < channelMeters.size()) channelMeters[index].raise(peak);
                 continue;
             }
             channel.ramp.set((channel.muted || channel.soloMuted) ? 0.0f : channel.volume);
             if (channel.ramp.silent()) continue;
-            mixStem(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
+            const float peak=mixStem(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
                     info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp,rampStep);
+            if (index < channelMeters.size()) channelMeters[index].raise(peak);
         }
         // Click, guides and count-in tails share one mono bus that fades with the song and feeds every output.
         guideScratch.clear();
@@ -1120,6 +1146,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             masterRamp.set(masterVolume);
             applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
         }
+        meterOutputs(*info.buffer,info.startSample+written,count);
         if (timecodeEnabled.load() && timecodeOutput < info.buffer->getNumChannels()) {  // after the master stage: timecode keeps its own level
             timecodeScratch.clear(); timecode.render(timecodeScratch.getWritePointer(0),count,position,currentSampleRate);
             info.buffer->addFrom(timecodeOutput,info.startSample+written,timecodeScratch,0,0,count);

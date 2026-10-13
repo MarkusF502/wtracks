@@ -98,6 +98,10 @@ public:
     enum TransportEvent : uint32_t { EndReached = 1, FadeFinished = 2 };
     // Events raised by the audio thread since the last poll (bitmask of TransportEvent).
     uint32_t pollTransportEvents();
+    // Peak meters since the previous call (and reset): post-fader per channel (<= 64) and per output after the master
+    // (<= 8; timecode excluded). Fills `capacity` / `outputCapacity` entries (0 past the song's channels or the
+    // device's outputs). Returns the song's channel count. Lock-free on the audio side.
+    int takeMeters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity);
     // Mixer automation (own design, see MixerAutomation.h). Params: channel volume c, channel mute 64+c, master 128.
     // Replaces the previous points; invalid input changes nothing. Points for channels the song lacks are ignored.
     bool configureMixerAutomation(const double* starts, const double* ends, const int* params, const float* values, int count);
@@ -206,6 +210,9 @@ private:
     double endFadeSeconds = 0;
     std::atomic<uint32_t> transportEvents { 0 };
     std::vector<float> fadeGains;
+    std::array<PeakMeter, 64> channelMeters;
+    std::array<PeakMeter, 8> outputMeters;
+    void meterOutputs(const juce::AudioBuffer<float>& buffer, int start, int count) noexcept;
     std::atomic<bool> automationEnabled { true };
     void resetAutomationBases();
     GainRamp masterRamp;

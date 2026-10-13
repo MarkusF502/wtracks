@@ -271,6 +271,10 @@ bool wtracks_set_end_fade(double seconds) { return engine ? engine->setEndFade(s
 void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded) { if (engine) engine->setChannelExcludedFromFade(channelIndex,excluded); }
 double wtracks_get_fade_gain() { return engine ? engine->getFadeGain() : -1.0; }
 uint32_t wtracks_poll_transport_events() { return engine ? engine->pollTransportEvents() : 0; }
+int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity)
+{
+    return engine ? engine->takeMeters(channelPeaks,capacity,outputPeaks,outputCapacity) : 0;
+}
 
 bool wtracks_set_loop(double start, double end, bool enabled)
 {
