@@ -288,6 +288,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           return false;
         }
         engine.setAutomationEnabled(track.automationEnabled);
+        engine.setEndFade(track.endFade ? Track.fadeSeconds : 0);
         engine.setMidiClockEnabled(track.midiClockEnabled);
         if (!engine.configureTimecode(track.timecode)) {
           engine.unloadTrack();
@@ -301,6 +302,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         for (var i = 0; i < track.channels.length; i++) {
           engine.setChannelVolume(i, track.channels[i].volume);
           engine.setChannelRoute(i, track.channels[i].route);
+          engine.setChannelExcludedFromFade(i, track.channels[i].excludeFromFade);
         }
         engine.setMasterVolume(track.masterVolume);
         _syncEffectiveMutes();
@@ -501,6 +503,29 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     if (track == null) return;
     ref.read(engineProvider).setAutomationEnabled(enabled);
     state = track.copyWith(automationEnabled: enabled);
+  }
+
+  /// Fade nos últimos 5 s da música (SongArrangement.endFade).
+  void setEndFade(bool enabled) {
+    final track = state;
+    if (track == null) return;
+    ref.read(engineProvider).setEndFade(enabled ? Track.fadeSeconds : 0);
+    state = track.copyWith(endFade: enabled);
+  }
+
+  void setChannelExcludedFromFade(int index, bool excluded) {
+    final track = state;
+    if (track == null || index < 0 || index >= track.channels.length) return;
+    ref.read(engineProvider).setChannelExcludedFromFade(index, excluded);
+    final channels = [...track.channels];
+    channels[index] = channels[index].copyWith(excludeFromFade: excluded);
+    state = track.copyWith(channels: channels);
+  }
+
+  /// O que a setlist faz quando esta música termina.
+  void setTransition(SongTransition transition) {
+    final track = state;
+    if (track != null) state = track.copyWith(transition: transition);
   }
 
   /// A duração das transições é medida em tempos: mudanças de andamento movem o início das rampas.
@@ -842,6 +867,20 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
     state = state.where((t) => t.id != id).toList();
   }
 
+  /// Troca a transição de setlist da música [id] (carregada ou não) e salva.
+  Future<void> setTransition(String id, SongTransition transition) async {
+    final index = state.indexWhere((t) => t.id == id);
+    if (index < 0) return;
+    final saved = await ref.read(persistenceServiceProvider).saveTrack(state[index].copyWith(transition: transition));
+    state = [...state]..[index] = saved;
+    if (ref.read(currentTrackProvider)?.id == id) ref.read(currentTrackProvider.notifier).setTransition(transition);
+    final editor = ref.read(setlistEditorProvider);
+    if (editor != null && editor.tracks.any((t) => t.id == id)) {
+      ref.read(setlistEditorProvider.notifier).setLoadedSetlist(
+          editor.copyWith(tracks: [for (final t in editor.tracks) t.id == id ? t.copyWith(transition: transition) : t]));
+    }
+  }
+
   /// Renomeia a track [id] direto na biblioteca (não precisa estar
   /// carregada no engine). Se for a track atualmente carregada, atualiza
   /// também o [currentTrackProvider] pra UI de performance refletir na
@@ -880,10 +919,12 @@ class TransportState {
   final int underrunCount;
   /// Contagem do pré-roll de seção em curso (a posição espera no início da seção).
   final bool prerolling;
+  /// Fade de saída em curso (botão de transporte).
+  final bool fading;
   const TransportState({this.positionSeconds = 0, this.lengthSeconds = 0, this.isPlaying = false,
     this.loopEnabled = false, this.loopStart = 0, this.loopEnd = 0,
     this.queuedLoopEnabled = false, this.queuedLoopStart = 0, this.queuedLoopEnd = 0, this.underrunCount = 0,
-    this.prerolling = false});
+    this.prerolling = false, this.fading = false});
   bool activeSection(SongSection section) => loopEnabled &&
       (loopStart - section.startSeconds).abs() <= 0.001 && (loopEnd - section.endSeconds).abs() <= 0.001;
   bool queuedSection(SongSection section) => queuedLoopEnabled &&
@@ -893,10 +934,10 @@ class TransportState {
       other.positionSeconds == positionSeconds && other.lengthSeconds == lengthSeconds && other.isPlaying == isPlaying &&
       other.loopEnabled == loopEnabled && other.loopStart == loopStart && other.loopEnd == loopEnd &&
       other.queuedLoopEnabled == queuedLoopEnabled && other.queuedLoopStart == queuedLoopStart && other.queuedLoopEnd == queuedLoopEnd && other.underrunCount == underrunCount &&
-      other.prerolling == prerolling;
+      other.prerolling == prerolling && other.fading == fading;
   @override
   int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying, loopEnabled, loopStart, loopEnd,
-      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling);
+      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling, fading);
 }
 
 class TransportNotifier extends Notifier<TransportState> {
@@ -914,6 +955,8 @@ class TransportNotifier extends Notifier<TransportState> {
         unawaited(_background('stop'));
       }
       if (next != state) state = next;
+      final events = engine.pollTransportEvents();
+      if (events != 0) unawaited(ref.read(setlistSessionProvider.notifier).songFinished());
       final track = ref.read(currentTrackProvider);
       final automated = track != null && track.automationEnabled && track.mixerAutomation.isNotEmpty;
       final mix = automated ? engine.mixState() : null;
@@ -940,7 +983,7 @@ class TransportNotifier extends Notifier<TransportState> {
       lengthSeconds: engine.totalLengthSeconds, isPlaying: engine.isPlaying,
       loopEnabled: loop[0] == 1, loopStart: loop[1], loopEnd: loop[2],
       queuedLoopEnabled: loop[3] == 1, queuedLoopStart: loop[4], queuedLoopEnd: loop[5],
-      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling);
+      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling, fading: engine.fadeGain >= 0);
   }
   void refresh() { final next = _snapshot(ref.read(engineProvider)); if (next != state) state = next; }
   bool disableLoop() { final ok = ref.read(engineProvider).setLoop(0, 0, false); if (ok) refresh(); return ok; }
@@ -993,7 +1036,63 @@ class TransportNotifier extends Notifier<TransportState> {
   }
 
   void seekTo(double seconds) => ref.read(engineProvider).seekToSeconds(seconds);
+
+  /// Botão de transporte "5 Second Fade Out": termina pausando (e a setlist segue a transição da música).
+  bool fadeOut() {
+    final ok = ref.read(engineProvider).startFadeOut(Track.fadeSeconds);
+    refresh();
+    return ok;
+  }
 }
+
+/// Setlist em execução: a música atual é `setlist.tracks[index]`.
+@immutable
+class SetlistSession {
+  final Setlist setlist;
+  final int index;
+  const SetlistSession(this.setlist, this.index);
+  Track get current => setlist.tracks[index];
+  Track? get next => index + 1 < setlist.tracks.length ? setlist.tracks[index + 1] : null;
+  Track? get previous => index > 0 ? setlist.tracks[index - 1] : null;
+}
+
+/// Navegação na setlist e transições ao fim da música (Playback: "Cue Next Song" carrega a próxima, parada no
+/// início; "Stay In Song" fica). A música aberta fora de uma setlist encerra a sessão.
+class SetlistSessionNotifier extends Notifier<SetlistSession?> {
+  @override
+  SetlistSession? build() => null;
+
+  void begin(Setlist setlist, int index) {
+    if (index >= 0 && index < setlist.tracks.length) state = SetlistSession(setlist, index);
+  }
+
+  void end() => state = null;
+
+  /// Carrega a música [index] da setlist (versão mais recente da biblioteca).
+  Future<bool> go(int index) async {
+    final session = state;
+    if (session == null || index < 0 || index >= session.setlist.tracks.length) return false;
+    final listed = session.setlist.tracks[index];
+    final track = ref.read(trackLibraryProvider).where((t) => t.id == listed.id).firstOrNull ?? listed;
+    final ok = await ref.read(currentTrackProvider.notifier).load(track);
+    if (ok && identical(state, session)) state = SetlistSession(session.setlist, index);
+    return ok;
+  }
+
+  Future<bool> next() => go((state?.index ?? -2) + 1);
+  Future<bool> previous() => go((state?.index ?? 0) - 1);
+
+  /// Fim da música ou do fade: aplica a transição da música atual.
+  Future<void> songFinished() async {
+    final session = state;
+    final track = ref.read(currentTrackProvider);
+    if (session == null || track == null || track.id != session.current.id) return;
+    if (track.transition == SongTransition.stayInSong || session.next == null) return;
+    await go(session.index + 1);
+  }
+}
+
+final setlistSessionProvider = NotifierProvider<SetlistSessionNotifier, SetlistSession?>(SetlistSessionNotifier.new);
 
 final transportProvider =
     NotifierProvider<TransportNotifier, TransportState>(TransportNotifier.new);

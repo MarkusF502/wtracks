@@ -14,6 +14,7 @@ import 'time_pitch_sheet.dart';
 import 'midi_screen.dart';
 import 'tempo_map_screen.dart';
 import 'mixer_automation_screen.dart';
+import 'song_ending_sheet.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -89,6 +90,8 @@ class PerformanceScreen extends ConsumerWidget {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)));
                 case 'tempo':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TempoMapScreen(trackId: track.id)));
+                case 'ending':
+                  showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const SongEndingSheet());
                 case 'automation':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MixerAutomationScreen(trackId: track.id)));
               }
@@ -98,6 +101,7 @@ class PerformanceScreen extends ConsumerWidget {
               PopupMenuItem(value: 'pitch', child: Text('Tom e andamento')),
               PopupMenuItem(value: 'guides', child: Text('Guias')),
               PopupMenuItem(value: 'automation', child: Text('Automação do mixer')),
+              PopupMenuItem(value: 'ending', child: Text('Fim da música e fade')),
               PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
             ],
           ),
@@ -179,6 +183,7 @@ class PerformanceScreen extends ConsumerWidget {
     return Column(
       children: [
         _Header(track: track),
+        _SetlistBar(track: track),
         _WaveformTimeline(track: track, onSeek: notifier.seekTo),
         _Transport(onStop: notifier.stop, track: track),
         Expanded(child: _Mixer(track: track)),
@@ -195,6 +200,7 @@ class PerformanceScreen extends ConsumerWidget {
           child: Column(
             children: [
               _Header(track: track),
+              _SetlistBar(track: track),
               _WaveformTimeline(track: track, onSeek: notifier.seekTo),
               Expanded(
                 child: Center(
@@ -789,6 +795,7 @@ class _Transport extends ConsumerWidget {
     // muda (não a cada tick de posição/duração do polling de 100ms).
     final isPlaying = ref.watch(transportProvider.select((t) => t.isPlaying));
     final prerolling = ref.watch(transportProvider.select((t) => t.prerolling));
+    final fading = ref.watch(transportProvider.select((t) => t.fading));
     final transportNotifier = ref.read(transportProvider.notifier);
     final onPlayPause = isPlaying ? transportNotifier.pause : transportNotifier.play;
 
@@ -814,6 +821,13 @@ class _Transport extends ConsumerWidget {
           ),
           _TransportButton(icon: Icons.stop, accent: const Color(0xFFFF3B4E), onTap: onStop),
           _PlayButton(isPlaying: isPlaying, prerolling: prerolling, onTap: onPlayPause),
+          _TransportButton(
+            icon: Icons.trending_down,
+            accent: const Color(0xFFF5A020),
+            isActive: fading,
+            tooltip: 'Fade de 5 segundos',
+            onTap: () => transportNotifier.fadeOut(),
+          ),
           
           // Indicador de BPM clicável
           GestureDetector(
@@ -851,13 +865,57 @@ class _Transport extends ConsumerWidget {
   }
 }
 
+/// Setlist em execução: posição, próxima música e navegação.
+class _SetlistBar extends ConsumerWidget {
+  final Track track;
+  const _SetlistBar({required this.track});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(setlistSessionProvider);
+    if (session == null || session.current.id != track.id) return const SizedBox.shrink();
+    final notifier = ref.read(setlistSessionProvider.notifier);
+    final next = session.next;
+    final label = next == null
+        ? 'Última música'
+        : (track.transition == SongTransition.cueNextSong ? 'Próxima: ${next.title}' : 'Fica na música · depois: ${next.title}');
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Música anterior',
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            onPressed: session.previous == null ? null : notifier.previous,
+            icon: const Icon(Icons.skip_previous),
+          ),
+          Text('${session.index + 1}/${session.setlist.tracks.length}', style: const TextStyle(color: _textFaint, fontSize: 11)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _textDim, fontSize: 12))),
+          IconButton(
+            tooltip: 'Próxima música',
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            onPressed: next == null ? null : notifier.next,
+            icon: const Icon(Icons.skip_next),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TransportButton extends StatelessWidget {
   final IconData icon;
   final Color accent;
   final bool isActive;
   final VoidCallback onTap;
+  final String? tooltip;
 
-  const _TransportButton({required this.icon, required this.accent, required this.onTap, this.isActive = false});
+  const _TransportButton({required this.icon, required this.accent, required this.onTap, this.isActive = false, this.tooltip});
 
   @override
   Widget build(BuildContext context) {
@@ -868,7 +926,12 @@ class _TransportButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: SizedBox(width: 48, height: 48, child: Icon(icon, color: isActive ? accent : _textDim)),
+        child: SizedBox(
+            width: 48,
+            height: 48,
+            child: tooltip == null
+                ? Icon(icon, color: isActive ? accent : _textDim)
+                : Tooltip(message: tooltip!, child: Icon(icon, color: isActive ? accent : _textDim))),
       ),
     );
   }

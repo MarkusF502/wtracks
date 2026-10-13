@@ -101,6 +101,35 @@ class FakeEngine implements WTracksEngine {
   void setAutomationEnabled(bool enabled) => automationEnabled = enabled;
   @override
   MixState mixState() => mix;
+  double fadeGainValue = -1;
+  int pendingEvents = 0;
+  double endFadeSeconds = 0;
+  final excludedFromFade = <int>{};
+  @override
+  bool startFadeOut(double seconds) {
+    calls.add('fadeOut($seconds)');
+    if (!playing) return false;
+    fadeGainValue = 1;
+    return true;
+  }
+  @override
+  void cancelFadeOut() => fadeGainValue = -1;
+  @override
+  bool setEndFade(double seconds) {
+    endFadeSeconds = seconds;
+    return true;
+  }
+  @override
+  void setChannelExcludedFromFade(int channelIndex, bool excluded) =>
+      excluded ? excludedFromFade.add(channelIndex) : excludedFromFade.remove(channelIndex);
+  @override
+  double get fadeGain => fadeGainValue;
+  @override
+  int pollTransportEvents() {
+    final events = pendingEvents;
+    pendingEvents = 0;
+    return events;
+  }
   @override
   double timeScale = 1;
   bool failTimeScale = false;

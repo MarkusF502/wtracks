@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
 import '../widgets/dialog_text_controller.dart';
+import '../providers/engine_provider.dart';
 import '../providers/setlist_provider.dart';
 import '../services/track_navigation.dart';
 import '../theme/app_colors.dart';
@@ -181,7 +182,9 @@ class _SetlistEditorScreenState extends ConsumerState<SetlistEditorScreen> {
                       index: index,
                       track: track,
                       isLandscape: isLandscape,
-                      onTap: () => openTrack(context, ref, track),
+                      onTap: () => openTrack(context, ref, track, setlist: setlist, index: index),
+                      onTransition: () => ref.read(trackLibraryProvider.notifier).setTransition(track.id,
+                          track.transition == SongTransition.cueNextSong ? SongTransition.stayInSong : SongTransition.cueNextSong),
                       onRemove: () =>
                           ref.read(setlistEditorProvider.notifier).removeTrack(track.id),
                     );
@@ -199,6 +202,7 @@ class _SongRow extends StatelessWidget {
   final bool isLandscape;
   final VoidCallback onTap;
   final VoidCallback onRemove;
+  final VoidCallback onTransition;
 
   const _SongRow({
     required super.key,
@@ -207,6 +211,7 @@ class _SongRow extends StatelessWidget {
     required this.isLandscape,
     required this.onTap,
     required this.onRemove,
+    required this.onTransition,
   });
 
   @override
@@ -262,6 +267,13 @@ class _SongRow extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            IconButton(
+              icon: Icon(track.transition == SongTransition.cueNextSong ? Icons.skip_next : Icons.repeat_one, color: kTextDim),
+              tooltip: track.transition == SongTransition.cueNextSong
+                  ? 'Ao terminar: preparar a próxima música'
+                  : 'Ao terminar: ficar na música',
+              onPressed: onTransition,
+            ),
             IconButton(
               icon: const Icon(Icons.remove_circle_outline, color: kTextDim),
               tooltip: 'Remover do setlist',
