@@ -147,6 +147,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         timeScale=1.0; applyClickScale(); std::swap(guideTimeline,staleGuides); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
     }
 
+    clearCueQueue();
     DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
     return true;
 }
@@ -615,6 +616,12 @@ void AudioEngine::setMidiClockEnabled(bool enabled)
     if (!enabled) stopMidiClock();
 }
 
+void AudioEngine::clearCueQueue()
+{
+    const std::lock_guard<std::mutex> lock(cuePollMutex);
+    cueTail.store(cueHead.load(std::memory_order_acquire),std::memory_order_release);
+}
+
 void AudioEngine::stopMidiClock()
 {
     // Only one of the control thread and the audio callback sends the stop message.
@@ -651,7 +658,7 @@ bool AudioEngine::configureCues(const double* times, const uint8_t* midiBytes, c
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         prepared.setTimeScale(timeScale); std::swap(cueTimeline,prepared); stale=std::move(prepared);
     }
-    setLastError(EngineErrorCode::None,""); return true;
+    clearCueQueue(); setLastError(EngineErrorCode::None,""); return true;
 }
 
 int AudioEngine::pollCues(uint32_t* out, int maxCount)

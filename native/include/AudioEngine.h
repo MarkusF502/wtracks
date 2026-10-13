@@ -159,6 +159,7 @@ private:
     std::atomic<uint64_t> cueHead { 0 }, cueTail { 0 }, cueDropped { 0 };
     std::mutex cuePollMutex;
     void stopMidiClock();
+    void clearCueQueue();
     GuideTimeline guideTimeline;
     juce::AudioBuffer<float> guideScratch;
     std::atomic<bool> guidesEnabled { false };
