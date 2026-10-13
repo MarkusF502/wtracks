@@ -62,6 +62,10 @@ public:
     // repeats: number of passes before playback continues past the loop end (0 = loop until disabled).
     bool setLoop(double startSeconds, double endSeconds, bool enabled, int repeats = 0);
     bool enqueueLoop(double startSeconds, double endSeconds, int repeats = 0);
+    // Sections that start looping by themselves when playback reaches their start (Playback's "preset infinite loop").
+    // Prepared like any loop cache (<= 16 sections, 128 MiB in total); replaces the previous set, kept across stop/seek,
+    // dropped with the song. Disabling the loop mid-section does not re-trigger it until the playhead reaches the start again.
+    bool configurePresetLoops(const double* starts, const double* ends, const int* repeats, int count);
     void clearQueuedLoop();
     bool getLoopEnabled() const;
     void getLoopState(double* out6) const;
@@ -143,6 +147,7 @@ private:
     void normalizeLoopPosition();
     std::shared_ptr<LoopCache> prepareLoop(double startSeconds, double endSeconds);
     int loopPasses=0;
+    std::vector<std::shared_ptr<LoopCache>> presetLoops;
     void parkStreamsAt(double seconds);
     std::vector<Channel> channels;
     mutable juce::SpinLock channelsLock;

@@ -74,7 +74,7 @@ public:
         const auto deadline = juce::Time::getMillisecondCounter() + static_cast<uint32_t>(timeoutMs);
         while (juce::Time::getMillisecondCounter() < deadline) {
             wake.signal();
-            { const std::lock_guard<std::mutex> lock(controlMutex); if (control.empty() && tail.load() == head.load()) return true; }
+            { const std::lock_guard<std::mutex> lock(controlMutex); if (control.empty() && tail.load() == head.load() && !busy.load(std::memory_order_acquire)) return true; }
             juce::Thread::sleep(1);
         }
         return false;
@@ -86,6 +86,7 @@ private:
         std::vector<Event> pending;
         while (!threadShouldExit() && active.load(std::memory_order_acquire)) {
             wake.wait(2);
+            busy.store(true, std::memory_order_release);  // flush() must not report empty while events are in hand
             pending.clear();
             { const std::lock_guard<std::mutex> lock(controlMutex); pending.swap(control); }
             auto read = tail.load(std::memory_order_relaxed);
@@ -101,13 +102,15 @@ private:
                 for (const auto& event : scheduled) if (sink) sink->send(event.data, event.size, std::max(event.hostMs + kLeadMs, now));
             }
             tail.store(read, std::memory_order_release);
+            busy.store(false, std::memory_order_release);
         }
+        busy.store(false, std::memory_order_release);
     }
 
     std::array<Event, kCapacity> ring {};
     std::atomic<uint64_t> head { 0 }, tail { 0 }, dropped { 0 };
     std::atomic<double> latest { 0.0 };
-    std::atomic<bool> active { false };
+    std::atomic<bool> active { false }, busy { false };
     juce::WaitableEvent wake;
     std::mutex sinkMutex, controlMutex;
     std::unique_ptr<MidiSink> sink;

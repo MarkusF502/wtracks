@@ -213,6 +213,14 @@ bool wtracks_set_click_tempo_changes(const double* starts, const double* bpms, c
     return engine ? engine->setClickTempoChanges(starts, bpms, numerators, denominators, count) : false;
 }
 
+bool wtracks_configure_preset_loops(const double* starts, const double* ends, const int* repeats, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configurePresetLoops(starts, ends, repeats, count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Preset loop preparation failed"); return false; }
+}
+
 bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);

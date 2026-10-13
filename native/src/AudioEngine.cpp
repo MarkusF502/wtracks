@@ -55,7 +55,7 @@ void AudioEngine::shutdown()
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; userTempoChanges.clear(); applyClickScale();
+    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -137,14 +137,14 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
     
     // 2. Swap Atômico: Substitui as trilhas instantaneamente! A agenda de guias
     // pertencia à música anterior e é descartada fora do lock.
-    GuideTimeline staleGuides; CueTimeline staleCues;
+    GuideTimeline staleGuides; CueTimeline staleCues; std::vector<std::shared_ptr<LoopCache>> stalePresets;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
         channels = std::move(newChannels);
         loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
-        timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
+        timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
     }
 
     clearCueQueue();
@@ -158,7 +158,7 @@ void AudioEngine::unloadCurrentTrack()
     stop();
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; userTempoChanges.clear(); applyClickScale();
+    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
 }
 
 juce::String AudioEngine::getLastError() const
@@ -315,6 +315,26 @@ bool AudioEngine::setLoop(double start, double end, bool enabled, int repeats)
     clickTimeline.reset(); guideTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
 }
 
+bool AudioEngine::configurePresetLoops(const double* starts, const double* ends, const int* repeats, int count)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    if (count < 0 || count > 16 || (count && (!starts || !ends || !repeats))) { setLastError(EngineErrorCode::FormatMismatch,"Invalid preset loops"); return false; }
+    std::vector<std::shared_ptr<LoopCache>> prepared;
+    double previousEnd=0; uint64_t bytes=0;
+    for (int i=0;i<count;++i) {
+        double s0=starts[i], e0=ends[i];
+        if (repeats[i] < 0 || repeats[i] > 1000 || !std::isfinite(s0) || !std::isfinite(e0) || s0 < previousEnd) { setLastError(EngineErrorCode::FormatMismatch,"Invalid preset loops"); return false; }
+        loopToFileTime(s0,e0);
+        auto bank=prepareLoop(s0,e0); if (!bank) return false;
+        for (const auto& stem : bank->stems) bytes+=static_cast<uint64_t>(stem.getNumSamples())*2*sizeof(float);
+        if (bytes > 128ULL*1024*1024) { setLastError(EngineErrorCode::FormatMismatch,"Preset loops exceed 128 MiB"); return false; }
+        bank->repeats=repeats[i]; previousEnd=ends[i]; prepared.push_back(std::move(bank));
+    }
+    std::vector<std::shared_ptr<LoopCache>> stale;
+    { const juce::SpinLock::ScopedLockType lock(channelsLock); stale.swap(presetLoops); presetLoops=std::move(prepared); }
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
 bool AudioEngine::enqueueLoop(double start, double end, int repeats)
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
@@ -449,7 +469,7 @@ bool AudioEngine::setTimeScale(double scale)
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0) { setLastError(EngineErrorCode::FormatMismatch,"Invalid time scale"); return false; }
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
+    timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); presetLoops.clear();  // caches were cut for the old scale
     applyClickScale(); guideTimeline.setTimeScale(scale); cueTimeline.setTimeScale(scale);
     setLastError(EngineErrorCode::None,""); return true;
 }
@@ -806,8 +826,26 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     while (written < info.numSamples) {
         normalizeLoopPosition();
         const int64_t position=currentSamplePosition.load();
+        // Preset loops: engage when the playhead is exactly on a preset section start; never mid-section.
+        if (!loopEnabled && !presetLoops.empty())
+            for (const auto& preset : presetLoops)
+                if (position == static_cast<int64_t>(std::llround(preset->start*currentSampleRate))) {
+                    activeLoop=preset; loopEnabled=true; loopPasses=0; queuedLoop.reset(); queuedLoopEnabled=false;
+                    if (preset->repeats > 0)
+                        for (auto& channel : channels) if (channel.bufferedSource) {
+                            channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(preset->end*channel.fileSampleRate)));
+                            channel.resampler->flushBuffers();
+                        }
+                    break;
+                }
         const int64_t boundary=loopEnabled && activeLoop ? static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate)) : end;
-        const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),boundary-position));
+        int64_t room=boundary-position;
+        if (!loopEnabled)
+            for (const auto& preset : presetLoops) {  // stop the streaming chunk exactly at the next preset start
+                const auto at=static_cast<int64_t>(std::llround(preset->start*currentSampleRate));
+                if (at > position && at-position < room) room=at-position;
+            }
+        const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),room));
         if (count <= 0) { currentSamplePosition=end; playing=false; break; }
         if (!loopEnabled && !channelsReady(count,0)) { ++underrunCount; break; }
         for (size_t index=0;index<channels.size();++index) {
