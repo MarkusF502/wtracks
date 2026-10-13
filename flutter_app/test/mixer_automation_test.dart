@@ -28,7 +28,8 @@ void main() {
       for (final bad in [
         const AutomationItem('channel:64:volume', 0.5),
         const AutomationItem('channel:x:volume', 0.5),
-        const AutomationItem('bus:1:volume', 0.5),
+        const AutomationItem('bus:16:volume', 0.5),
+        const AutomationItem('aux:1:volume', 0.5),
         AutomationItem(AutomationItem.channelMute(0), 0.5),
         AutomationItem(AutomationItem.channelVolume(0), 1.5),
         const AutomationItem(AutomationItem.masterVolume, 2.5),

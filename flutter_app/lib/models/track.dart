@@ -35,6 +35,66 @@ enum SongTransition {
       SongTransition.values.firstWhere((t) => t.name == name, orElse: () => SongTransition.cueNextSong);
 }
 
+/// Bus da música (Playback SongBus{volume, muted} + BusChannelAU): as faixas atribuídas somam em estéreo, o bus aplica
+/// volume/mute/solo e vai para a sua saída. [id] é estável (as faixas apontam para ele); a ordem define o índice no motor.
+@immutable
+class SongBus {
+  final String id, name;
+  final double volume;
+  final bool muted, soloed;
+  final ChannelRoute route;
+  static const maxBuses = 16;
+  const SongBus({required this.id, required this.name, this.volume = 1.0, this.muted = false, this.soloed = false,
+      this.route = ChannelRoute.stereo});
+
+  bool get isValid => id.isNotEmpty && name.trim().isNotEmpty && volume.isFinite && volume >= 0 && volume <= 1;
+
+  SongBus copyWith({String? name, double? volume, bool? muted, bool? soloed, ChannelRoute? route}) => SongBus(
+        id: id,
+        name: name ?? this.name,
+        volume: volume ?? this.volume,
+        muted: muted ?? this.muted,
+        soloed: soloed ?? this.soloed,
+        route: route ?? this.route,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'name': name, 'volume': volume, 'muted': muted, 'soloed': soloed, 'route': route.name};
+
+  factory SongBus.fromJson(Map<String, dynamic> json) {
+    final bus = SongBus(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      volume: ((json['volume'] as num?)?.toDouble() ?? 1.0).clamp(0.0, 1.0),
+      muted: json['muted'] as bool? ?? false,
+      soloed: json['soloed'] as bool? ?? false,
+      route: ChannelRoute.parse(json['route']),
+    );
+    if (!bus.isValid) throw const FormatException('Bus inválido');
+    return bus;
+  }
+
+  static List<SongBus> fromJsonList(List<dynamic> values) {
+    final buses = values.map((v) => SongBus.fromJson(v as Map<String, dynamic>)).toList();
+    if (buses.length > maxBuses || buses.map((b) => b.id).toSet().length != buses.length) {
+      throw const FormatException('Buses inválidos');
+    }
+    return List.unmodifiable(buses);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is SongBus &&
+      other.id == id &&
+      other.name == name &&
+      other.volume == volume &&
+      other.muted == muted &&
+      other.soloed == soloed &&
+      other.route == route;
+  @override
+  int get hashCode => Object.hash(id, name, volume, muted, soloed, route);
+}
+
 /// Representa um canal dentro de uma [Track] -- ex: "Click", "Bateria".
 /// [filePath] é sempre um caminho LOCAL (já copiado do content:// original
 /// pelo FileImportService) -- é isso que vai direto pro loadTrack() nativo.
@@ -47,6 +107,7 @@ class ChannelInfo {
   final bool soloed; // conceito só do Dart -- o AudioEngine não tem solo nativo
   final ChannelRoute route;
   final bool excludeFromFade; // não enfraquece no fade de saída
+  final String? busId; // bus da música (null = direto para a sua saída)
 
   const ChannelInfo({
     required this.label,
@@ -56,6 +117,7 @@ class ChannelInfo {
     this.soloed = false,
     this.route = ChannelRoute.stereo,
     this.excludeFromFade = false,
+    this.busId,
   });
 
   ChannelInfo copyWith({
@@ -66,6 +128,7 @@ class ChannelInfo {
     bool? soloed,
     ChannelRoute? route,
     bool? excludeFromFade,
+    Object? busId = _keep,
   }) {
     return ChannelInfo(
       label: label ?? this.label,
@@ -75,8 +138,11 @@ class ChannelInfo {
       soloed: soloed ?? this.soloed,
       route: route ?? this.route,
       excludeFromFade: excludeFromFade ?? this.excludeFromFade,
+      busId: identical(busId, _keep) ? this.busId : busId as String?,
     );
   }
+
+  static const _keep = Object();
 
   Map<String, dynamic> toJson() => {
         'label': label,
@@ -86,6 +152,7 @@ class ChannelInfo {
         'soloed': soloed,
         'route': route.name,
         'excludeFromFade': excludeFromFade,
+        if (busId != null) 'busId': busId,
       };
 
   factory ChannelInfo.fromJson(Map<String, dynamic> json) => ChannelInfo(
@@ -96,6 +163,7 @@ class ChannelInfo {
         soloed: json['soloed'] as bool? ?? false,
         route: ChannelRoute.parse(json['route']),
         excludeFromFade: json['excludeFromFade'] as bool? ?? false,
+        busId: json['busId'] as String?,
       );
 }
 
@@ -245,6 +313,7 @@ class Track {
   final List<AutomationCue> automationCues;
   /// Automação do mixer (pontos que movem faders/mute/master) e o botão de transporte que a liga.
   final List<MixerAutomationCue> mixerAutomation;
+  final List<SongBus> buses;
   final bool automationEnabled;
   /// Transição na setlist e fade de saída nos últimos 5 s (SongArrangement.endFade).
   final SongTransition transition;
@@ -269,6 +338,7 @@ class Track {
     this.timePitch = const TimePitchSettings(),
     this.automationCues = const [],
     this.mixerAutomation = const [],
+    this.buses = const [],
     this.automationEnabled = true,
     this.transition = SongTransition.cueNextSong,
     this.endFade = false,
@@ -292,6 +362,7 @@ class Track {
     TimePitchSettings? timePitch,
     List<AutomationCue>? automationCues,
     List<MixerAutomationCue>? mixerAutomation,
+    List<SongBus>? buses,
     bool? automationEnabled,
     SongTransition? transition,
     bool? endFade,
@@ -312,6 +383,7 @@ class Track {
       timePitch: timePitch ?? this.timePitch,
       automationCues: automationCues ?? this.automationCues,
       mixerAutomation: mixerAutomation ?? this.mixerAutomation,
+      buses: buses ?? this.buses,
       automationEnabled: automationEnabled ?? this.automationEnabled,
       transition: transition ?? this.transition,
       endFade: endFade ?? this.endFade,
@@ -330,6 +402,9 @@ class Track {
 
   List<String> get channelFilePaths => channels.map((c) => c.filePath).toList();
 
+  /// Índice do bus [id] (posição na lista) ou -1.
+  int busIndex(String? id) => id == null ? -1 : buses.indexWhere((b) => b.id == id);
+
   Map<String, dynamic> toJson() => {
         'schemaVersion': currentSchemaVersion,
         'sections': sections.map((s) => s.toJson()).toList(),
@@ -339,6 +414,7 @@ class Track {
         'timePitch': timePitch.toJson(),
         'automationCues': automationCues.map((c) => c.toJson()).toList(),
         'mixerAutomation': mixerAutomation.map((c) => c.toJson()).toList(),
+        'buses': buses.map((b) => b.toJson()).toList(),
         'automationEnabled': automationEnabled,
         'transition': transition.name,
         'endFade': endFade,
@@ -361,6 +437,7 @@ class Track {
         timePitch: TimePitchSettings.fromJson(json['timePitch']),
         automationCues: AutomationCue.fromJsonList(json['automationCues'] as List? ?? const []),
         mixerAutomation: MixerAutomationCue.fromJsonList(json['mixerAutomation'] as List? ?? const []),
+        buses: SongBus.fromJsonList(json['buses'] as List? ?? const []),
         automationEnabled: json['automationEnabled'] as bool? ?? true,
         transition: SongTransition.parse(json['transition']),
         endFade: json['endFade'] as bool? ?? false,

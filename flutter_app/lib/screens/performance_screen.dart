@@ -15,6 +15,7 @@ import 'midi_screen.dart';
 import 'tempo_map_screen.dart';
 import 'mixer_automation_screen.dart';
 import 'song_ending_sheet.dart';
+import 'buses_screen.dart';
 import '../providers/meter_provider.dart';
 
 const _bg = Color(0xFF07070E);
@@ -91,6 +92,8 @@ class PerformanceScreen extends ConsumerWidget {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)));
                 case 'tempo':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TempoMapScreen(trackId: track.id)));
+                case 'buses':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BusesScreen(trackId: track.id)));
                 case 'ending':
                   showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const SongEndingSheet());
                 case 'automation':
@@ -103,6 +106,7 @@ class PerformanceScreen extends ConsumerWidget {
               PopupMenuItem(value: 'guides', child: Text('Guias')),
               PopupMenuItem(value: 'automation', child: Text('Automação do mixer')),
               PopupMenuItem(value: 'ending', child: Text('Fim da música e fade')),
+              PopupMenuItem(value: 'buses', child: Text('Buses e roteamento')),
               PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
             ],
           ),
@@ -1031,8 +1035,27 @@ class _Mixer extends ConsumerWidget {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              itemCount: track.channels.length,
+              itemCount: track.channels.length + track.buses.length,
               itemBuilder: (context, index) {
+                if (index >= track.channels.length) {
+                  final b = index - track.channels.length;
+                  final bus = track.buses[b];
+                  return _MixerChannelStrip(
+                    index: b,
+                    isBus: true,
+                    label: 'BUS ${bus.name}',
+                    color: const Color(0xFF8A8AA0),
+                    volume: mix != null && b < mix.busVolumes.length ? mix.busVolumes[b] : bus.volume,
+                    muted: mix != null && b < mix.busMutes.length ? mix.busMutes[b] : bus.muted,
+                    soloed: bus.soloed,
+                    route: bus.route,
+                    onRouteToggled: () => notifier.updateBus(
+                        bus.copyWith(route: ChannelRoute.values[(bus.route.index + 1) % ChannelRoute.values.length])),
+                    onVolumeChanged: (v) => notifier.updateBus(bus.copyWith(volume: v)),
+                    onMuteToggled: () => notifier.updateBus(bus.copyWith(muted: !bus.muted)),
+                    onSoloToggled: () => notifier.toggleBusSolo(bus.id),
+                  );
+                }
                 final channel = track.channels[index];
                 return _MixerChannelStrip(
                   index: index,
@@ -1074,7 +1097,8 @@ class _MixerChannelStrip extends StatelessWidget {
   final String label;
   final Color color;
   final double volume; // 0.0 - 1.0
-  final int index; // canal no motor (medidor)
+  final int index; // canal (ou bus) no motor (medidor)
+  final bool isBus;
   final bool muted;
   final bool soloed;
   final ChannelRoute route;
@@ -1088,6 +1112,7 @@ class _MixerChannelStrip extends StatelessWidget {
     required this.color,
     required this.volume,
     required this.index,
+    this.isBus = false,
     required this.muted,
     required this.soloed,
     required this.route,
@@ -1136,7 +1161,7 @@ class _MixerChannelStrip extends StatelessWidget {
           Expanded(
             child: Row(children: [
               const SizedBox(width: 6),
-              _ChannelMeter(index: index),
+              _ChannelMeter(index: index, isBus: isBus),
               Expanded(
             child: RotatedBox(
               quarterTurns: 3,
@@ -1221,13 +1246,17 @@ class _MeterBar extends StatelessWidget {
 
 class _ChannelMeter extends ConsumerWidget {
   final int index;
-  const _ChannelMeter({required this.index});
+  final bool isBus;
+  const _ChannelMeter({required this.index, this.isBus = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final level = ref.watch(meterProvider.select((m) => index < m.channels.length ? m.channels[index] : 0.0));
+    final level = ref.watch(meterProvider.select((m) {
+      final levels = isBus ? m.buses : m.channels;
+      return index < levels.length ? levels[index] : 0.0;
+    }));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: _MeterBar(key: Key('meter-$index'), level: level),
+      child: _MeterBar(key: Key(isBus ? 'meter-bus-$index' : 'meter-$index'), level: level),
     );
   }
 }

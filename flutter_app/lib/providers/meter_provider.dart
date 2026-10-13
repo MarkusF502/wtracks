@@ -11,12 +11,14 @@ import 'engine_provider.dart';
 class MeterLevels {
   final List<double> channels;
   final List<double> outputs;
-  const MeterLevels(this.channels, this.outputs);
+  final List<double> buses;
+  const MeterLevels(this.channels, this.outputs, [this.buses = const []]);
   static const silent = MeterLevels([], []);
   @override
-  bool operator ==(Object other) => other is MeterLevels && listEquals(other.channels, channels) && listEquals(other.outputs, outputs);
+  bool operator ==(Object other) =>
+      other is MeterLevels && listEquals(other.channels, channels) && listEquals(other.outputs, outputs) && listEquals(other.buses, buses);
   @override
-  int get hashCode => Object.hash(Object.hashAll(channels), Object.hashAll(outputs));
+  int get hashCode => Object.hash(Object.hashAll(channels), Object.hashAll(outputs), Object.hashAll(buses));
 }
 
 /// Converte um pico linear para a escala do medidor: -60 dB..0 dB -> 0..1 (acima de 0 dB fica em 1).
@@ -47,7 +49,7 @@ class MeterNotifier extends AutoDisposeNotifier<MeterLevels> {
             for (var i = 0; i < peaks.length; i++)
               math.max(meterFraction(peaks[i]), (i < previous.length ? previous[i] : 0) - fall).clamp(0.0, 1.0),
           ];
-      final next = MeterLevels(decay(channels, state.channels), decay(outputs, state.outputs));
+      final next = MeterLevels(decay(channels, state.channels), decay(outputs, state.outputs), decay(engine.takeBusMeters(), state.buses));
       if (next != state) state = next;
     });
     ref.onDispose(() => _timer?.cancel());

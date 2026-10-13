@@ -17,23 +17,35 @@ class AutomationItem {
 
   static String channelVolume(int channel) => 'channel:$channel:volume';
   static String channelMute(int channel) => 'channel:$channel:mute';
+  static String busVolume(int bus) => 'bus:$bus:volume';
+  static String busMute(int bus) => 'bus:$bus:mute';
   static const masterVolume = 'master:volume';
-  static const maxChannels = 64;
+  static const maxChannels = 64, maxBuses = 16;
 
-  /// Parâmetro nativo (MixerAutomation.h): volume c, mute 64+c, master 128; null se o id é inválido.
+  /// Parâmetro nativo (MixerAutomation.h): volume c, mute 64+c, master 128, bus 129+b / mute 145+b; null se inválido.
   int? get param {
     if (automationID == masterVolume) return 128;
-    final match = RegExp(r'^channel:(\d{1,2}):(volume|mute)$').firstMatch(automationID);
+    final match = RegExp(r'^(channel|bus):(\d{1,2}):(volume|mute)$').firstMatch(automationID);
     if (match == null) return null;
-    final channel = int.parse(match[1]!);
-    if (channel >= maxChannels) return null;
-    return match[2] == 'mute' ? maxChannels + channel : channel;
+    final index = int.parse(match[2]!);
+    final mute = match[3] == 'mute';
+    if (match[1] == 'bus') {
+      if (index >= maxBuses) return null;
+      return 129 + (mute ? maxBuses : 0) + index;
+    }
+    if (index >= maxChannels) return null;
+    return mute ? maxChannels + index : index;
   }
 
   bool get isMute => automationID.endsWith(':mute');
   int? get channel {
     final p = param;
-    return p == null || p == 128 ? null : p % maxChannels;
+    return p == null || p >= 128 ? null : p % maxChannels;
+  }
+
+  int? get bus {
+    final p = param;
+    return p == null || p <= 128 ? null : (p - 129) % maxBuses;
   }
 
   bool get isValid {
@@ -97,7 +109,7 @@ class MixerAutomationCue {
         timeSeconds <= 86400 &&
         transitionBeats >= 0 &&
         transitionBeats <= maxTransitionBeats &&
-        items.length <= 2 * AutomationItem.maxChannels + 1 &&
+        items.length <= 2 * AutomationItem.maxChannels + 1 + 2 * AutomationItem.maxBuses &&
         items.every((i) => i.isValid && ids.add(i.automationID));
   }
 
@@ -149,6 +161,10 @@ class MixerAutomationCue {
           AutomationItem(AutomationItem.channelMute(i), track.channels[i].muted ? 1 : 0),
         ],
         AutomationItem(AutomationItem.masterVolume, track.masterVolume.clamp(0.0, 2.0)),
+        for (var b = 0; b < track.buses.length && b < AutomationItem.maxBuses; b++) ...[
+          AutomationItem(AutomationItem.busVolume(b), track.buses[b].volume.clamp(0.0, 1.0)),
+          AutomationItem(AutomationItem.busMute(b), track.buses[b].muted ? 1 : 0),
+        ],
       ];
 
   @override
@@ -189,7 +205,7 @@ class AutomationPoint {
 ///   atingido), mas nunca antes do início dela;
 /// - itens de canais que a música não tem são ignorados.
 List<AutomationPoint> automationPoints(List<MixerAutomationCue> cues, ClickSettings click, List<TempoChange> tempoChanges,
-    {int? channelCount}) {
+    {int? channelCount, int? busCount}) {
   final points = <AutomationPoint>[];
   final lastStart = <int, double>{}, lastEnd = <int, double>{};
   for (final cue in cues) {
@@ -201,6 +217,8 @@ List<AutomationPoint> automationPoints(List<MixerAutomationCue> cues, ClickSetti
       if (param == null || !item.isValid) continue;
       final channel = item.channel;
       if (channel != null && channelCount != null && channel >= channelCount) continue;
+      final bus = item.bus;
+      if (bus != null && busCount != null && bus >= busCount) continue;
       var start = item.isMute ? at : ramp;
       if (cue.applyTransitionLengthCorrection) start = math.max(start, lastEnd[param] ?? 0);
       start = math.min(at, math.max(start, lastStart[param] ?? 0));

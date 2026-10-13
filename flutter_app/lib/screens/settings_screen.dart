@@ -22,6 +22,13 @@ class SettingsScreen extends ConsumerWidget {
           value: settings.faderDefault80,
           onChanged: (v) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(faderDefault80: v)),
         ),
+        SwitchListTile(
+          key: const Key('stereo-split'),
+          title: const Text('Enviar click e guia para a esquerda e faixas para a direita'),
+          subtitle: const Text('Somente saída estéreo'),
+          value: settings.stereoSplit,
+          onChanged: (v) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(stereoSplit: v)),
+        ),
         ListTile(
           leading: const Icon(Icons.record_voice_over_outlined),
           title: const Text('Guias'),

@@ -126,20 +126,26 @@ final appPreferencesProvider = Provider<AppPreferencesStore>((ref) => AppPrefere
 class AppSettingsNotifier extends Notifier<AppSettings> {
   bool _touched = false;
 
+  bool _disposed = false;
+
   @override
   AppSettings build() {
-    _load();
+    ref.onDispose(() => _disposed = true);
+    _load(ref.read(engineProvider), ref.read(appPreferencesProvider));
     return const AppSettings();
   }
 
-  Future<void> _load() async {
-    final saved = await ref.read(appPreferencesProvider).load();
-    if (!_touched) state = saved;
+  Future<void> _load(WTracksEngine engine, AppPreferencesStore store) async {
+    final saved = await store.load();
+    if (_touched || _disposed) return;
+    state = saved;
+    engine.setStereoSplit(saved.stereoSplit);
   }
 
   Future<void> apply(AppSettings settings) async {
     _touched = true;
     state = settings;
+    ref.read(engineProvider).setStereoSplit(settings.stereoSplit);
     try {
       await ref.read(appPreferencesProvider).save(settings);
     } on Exception catch (e) {
@@ -313,6 +319,12 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           state = null;
           return false;
         }
+        if (!_applyBuses(engine, track)) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
+        engine.setStereoSplit(ref.read(appSettingsProvider).stereoSplit);
         if (!engine.configureMixerAutomation(_automationPointsFor(track))) {
           engine.unloadTrack();
           state = null;
@@ -477,13 +489,20 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     if (track == null) return;
 
     final engine = ref.read(engineProvider);
-    final anySoloed = track.channels.any((c) => c.soloed);
+    final anySoloed = track.channels.any((c) => c.soloed) || track.buses.any((b) => b.soloed);
+    bool busSoloed(String? id) => track.buses.any((b) => b.id == id && b.soloed);
 
-    // O solo tem sua própria porta no motor: um mute automatizado não pode desfazê-lo.
+    // O solo tem sua própria porta no motor: um mute automatizado não pode desfazê-lo. Escolha própria para buses:
+    // com algo solado, soa a faixa solada ou de bus solado, e o bus solado ou que contém uma faixa solada.
     for (var i = 0; i < track.channels.length; i++) {
       final channel = track.channels[i];
       engine.setChannelMuted(i, channel.muted);
-      engine.setChannelSoloMuted(i, anySoloed && !channel.soloed);
+      engine.setChannelSoloMuted(i, anySoloed && !channel.soloed && !busSoloed(channel.busId));
+    }
+    for (var b = 0; b < track.buses.length; b++) {
+      final bus = track.buses[b];
+      final holdsSolo = track.channels.any((c) => c.busId == bus.id && c.soloed);
+      engine.setBusSoloMuted(b, anySoloed && !bus.soloed && !holdsSolo);
     }
   }
 
@@ -515,8 +534,78 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     return true;
   }
 
-  List<AutomationPoint> _automationPointsFor(Track track) =>
-      automationPoints(track.mixerAutomation, track.clickSettings, track.tempoChanges, channelCount: track.channels.length);
+  List<AutomationPoint> _automationPointsFor(Track track) => automationPoints(
+      track.mixerAutomation, track.clickSettings, track.tempoChanges,
+      channelCount: track.channels.length, busCount: track.buses.length);
+
+  /// Envia os buses e a atribuição das faixas ao motor (a ordem de [Track.buses] é o índice nativo).
+  bool _applyBuses(WTracksEngine engine, Track track) {
+    if (track.buses.length > SongBus.maxBuses || !engine.configureBuses(track.buses.length)) return false;
+    for (var b = 0; b < track.buses.length; b++) {
+      if (!engine.setBus(b, track.buses[b])) return false;
+    }
+    for (var i = 0; i < track.channels.length; i++) {
+      if (!engine.setChannelBus(i, track.busIndex(track.channels[i].busId))) return false;
+    }
+    return true;
+  }
+
+  /// Troca a lista de buses/atribuições: o motor recebe tudo de novo (buses removidos soltam suas faixas).
+  bool _replaceBuses(Track updated) {
+    final engine = ref.read(engineProvider);
+    if (!_applyBuses(engine, updated)) {
+      final previous = state;
+      if (previous != null) _applyBuses(engine, previous);
+      return false;
+    }
+    state = updated;
+    _resendMixerAutomation(updated);
+    _syncEffectiveMutes();
+    return true;
+  }
+
+  bool addBus(SongBus bus) {
+    final track = state;
+    if (track == null || track.buses.length >= SongBus.maxBuses || !bus.isValid || track.buses.any((b) => b.id == bus.id)) {
+      return false;
+    }
+    return _replaceBuses(track.copyWith(buses: [...track.buses, bus]));
+  }
+
+  bool removeBus(String id) {
+    final track = state;
+    if (track == null || !track.buses.any((b) => b.id == id)) return false;
+    return _replaceBuses(track.copyWith(
+      buses: track.buses.where((b) => b.id != id).toList(),
+      channels: [for (final c in track.channels) c.busId == id ? c.copyWith(busId: null) : c],
+    ));
+  }
+
+  bool assignChannelToBus(int index, String? busId) {
+    final track = state;
+    if (track == null || index < 0 || index >= track.channels.length || (busId != null && track.busIndex(busId) < 0)) return false;
+    final channels = [...track.channels];
+    channels[index] = channels[index].copyWith(busId: busId);
+    return _replaceBuses(track.copyWith(channels: channels));
+  }
+
+  /// Volume, mute, rota ou nome de um bus.
+  bool updateBus(SongBus bus) {
+    final track = state;
+    final index = track?.busIndex(bus.id) ?? -1;
+    if (track == null || index < 0 || !bus.isValid) return false;
+    if (!ref.read(engineProvider).setBus(index, bus)) return false;
+    final buses = [...track.buses];
+    buses[index] = bus;
+    state = track.copyWith(buses: buses);
+    _syncEffectiveMutes();
+    return true;
+  }
+
+  void toggleBusSolo(String id) {
+    final bus = state?.buses.where((b) => b.id == id).firstOrNull;
+    if (bus != null) updateBus(bus.copyWith(soloed: !bus.soloed));
+  }
 
   /// Troca a automação do mixer; o motor valida antes de o estado mudar.
   bool updateMixerAutomation(String trackId, List<MixerAutomationCue> cues) {

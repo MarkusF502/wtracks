@@ -133,6 +133,39 @@ class FakeEngine implements WTracksEngine {
     outputPeaks = [0, 0];
     return taken;
   }
+  int busCount = 0;
+  final busSettings = <int, SongBus>{};
+  final channelBuses = <int, int>{};
+  final busSoloMuted = <int, bool>{};
+  bool stereoSplit = false;
+  List<double> busPeaks = [];
+  bool failBuses = false;
+  @override
+  bool configureBuses(int count) {
+    if (failBuses) return false;
+    busCount = count;
+    busSettings.removeWhere((k, _) => k >= count);
+    channelBuses.updateAll((_, v) => v >= count ? -1 : v);
+    return true;
+  }
+  @override
+  bool setBus(int index, SongBus bus) {
+    if (index >= busCount) return false;
+    busSettings[index] = bus;
+    return true;
+  }
+  @override
+  void setBusSoloMuted(int index, bool muted) => busSoloMuted[index] = muted;
+  @override
+  bool setChannelBus(int channelIndex, int bus) {
+    if (bus >= busCount) return false;
+    channelBuses[channelIndex] = bus;
+    return true;
+  }
+  @override
+  void setStereoSplit(bool enabled) => stereoSplit = enabled;
+  @override
+  List<double> takeBusMeters() => busPeaks;
   @override
   int pollTransportEvents() {
     final events = pendingEvents;

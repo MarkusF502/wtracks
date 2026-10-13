@@ -120,6 +120,16 @@ typedef _EventsNative = Uint32 Function();
 typedef _EventsDart = int Function();
 typedef _TakeMetersNative = Int32 Function(Pointer<Float>, Int32, Pointer<Float>, Int32);
 typedef _TakeMetersDart = int Function(Pointer<Float>, int, Pointer<Float>, int);
+typedef _IntBoolNative = Bool Function(Int32);
+typedef _IntBoolDart = bool Function(int);
+typedef _SetBusNative = Bool Function(Int32, Float, Bool, Int32, Bool);
+typedef _SetBusDart = bool Function(int, double, bool, int, bool);
+typedef _ChannelBusNative = Bool Function(Int32, Int32);
+typedef _ChannelBusDart = bool Function(int, int);
+typedef _BusStateNative = Int32 Function(Pointer<Float>, Pointer<Uint8>, Int32);
+typedef _BusStateDart = int Function(Pointer<Float>, Pointer<Uint8>, int);
+typedef _BusMetersNative = Int32 Function(Pointer<Float>, Int32);
+typedef _BusMetersDart = int Function(Pointer<Float>, int);
 typedef _ConfigurePrerollNative = Bool Function(Bool, Pointer<Double>, Int32, Pointer<Pointer<Utf8>>, Int32);
 typedef _ConfigurePrerollDart = bool Function(bool, Pointer<Double>, int, Pointer<Pointer<Utf8>>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
@@ -184,12 +194,20 @@ class MixState {
   final List<double> volumes;
   final List<bool> mutes;
   final double master;
-  const MixState(this.volumes, this.mutes, this.master);
+  final List<double> busVolumes;
+  final List<bool> busMutes;
+  const MixState(this.volumes, this.mutes, this.master, {this.busVolumes = const [], this.busMutes = const []});
   @override
   bool operator ==(Object other) =>
-      other is MixState && listEquals(other.volumes, volumes) && listEquals(other.mutes, mutes) && other.master == master;
+      other is MixState &&
+      listEquals(other.volumes, volumes) &&
+      listEquals(other.mutes, mutes) &&
+      other.master == master &&
+      listEquals(other.busVolumes, busVolumes) &&
+      listEquals(other.busMutes, busMutes);
   @override
-  int get hashCode => Object.hash(Object.hashAll(volumes), Object.hashAll(mutes), master);
+  int get hashCode =>
+      Object.hash(Object.hashAll(volumes), Object.hashAll(mutes), master, Object.hashAll(busVolumes), Object.hashAll(busMutes));
 }
 
 class WTracksEngine {
@@ -272,6 +290,13 @@ class WTracksEngine {
   late final _GetPositionDart _getFadeGain;
   late final _EventsDart _pollTransportEvents;
   late final _TakeMetersDart _takeMeters;
+  late final _IntBoolDart _configureBuses;
+  late final _SetBusDart _setBus;
+  late final _ChannelFlagDart _setBusSoloMuted;
+  late final _ChannelBusDart _setChannelBus;
+  late final _SetClickEnabledDart _setStereoSplit;
+  late final _BusStateDart _getBusState;
+  late final _BusMetersDart _takeBusMeters;
   late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
     _lib = _openLibrary();
@@ -403,6 +428,13 @@ class WTracksEngine {
     _getFadeGain = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_fade_gain');
     _pollTransportEvents = _lib.lookupFunction<_EventsNative, _EventsDart>('wtracks_poll_transport_events');
     _takeMeters = _lib.lookupFunction<_TakeMetersNative, _TakeMetersDart>('wtracks_take_meters');
+    _configureBuses = _lib.lookupFunction<_IntBoolNative, _IntBoolDart>('wtracks_configure_buses');
+    _setBus = _lib.lookupFunction<_SetBusNative, _SetBusDart>('wtracks_set_bus');
+    _setBusSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_bus_solo_muted');
+    _setChannelBus = _lib.lookupFunction<_ChannelBusNative, _ChannelBusDart>('wtracks_set_channel_bus');
+    _setStereoSplit = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_stereo_split');
+    _getBusState = _lib.lookupFunction<_BusStateNative, _BusStateDart>('wtracks_get_bus_state');
+    _takeBusMeters = _lib.lookupFunction<_BusMetersNative, _BusMetersDart>('wtracks_take_bus_meters');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
@@ -772,6 +804,26 @@ class WTracksEngine {
   int pollTransportEvents() => _pollTransportEvents();
   static const transportEventEndReached = 1, transportEventFadeFinished = 2;
 
+  /// Buses da música (até 16), na ordem de [Track.buses].
+  bool configureBuses(int count) => _configureBuses(count);
+  bool setBus(int index, SongBus bus) => _setBus(index, bus.volume, bus.muted, bus.route.outputBase, bus.route.mono);
+  void setBusSoloMuted(int index, bool muted) => _setBusSoloMuted(index, muted);
+  /// [bus] -1 = direto para a saída do canal.
+  bool setChannelBus(int channelIndex, int bus) => _setChannelBus(channelIndex, bus);
+  /// "Enviar click e guia para a esquerda e faixas para a direita".
+  void setStereoSplit(bool enabled) => _setStereoSplit(enabled);
+  /// Picos dos buses desde a leitura anterior (e zera).
+  List<double> takeBusMeters() {
+    const capacity = 16;
+    final peaks = calloc<Float>(capacity);
+    try {
+      final count = _takeBusMeters(peaks, capacity).clamp(0, capacity);
+      return [for (var i = 0; i < count; i++) peaks[i]];
+    } finally {
+      calloc.free(peaks);
+    }
+  }
+
   /// Picos lineares desde a leitura anterior (e zera): por canal (pós-fader) e por saída (pós-master, L/R).
   (List<double>, List<double>) takeMeters() {
     const capacity = 64, outputs = 2;
@@ -793,7 +845,11 @@ class WTracksEngine {
     final mutes = calloc<Uint8>(capacity);
     try {
       final count = _getMixState(volumes, mutes, capacity, master).clamp(0, capacity);
-      return MixState([for (var i = 0; i < count; i++) volumes[i]], [for (var i = 0; i < count; i++) mutes[i] != 0], master.value);
+      final channelVolumes = [for (var i = 0; i < count; i++) volumes[i]];
+      final channelMutes = [for (var i = 0; i < count; i++) mutes[i] != 0];
+      final buses = _getBusState(volumes, mutes, 16).clamp(0, 16);
+      return MixState(channelVolumes, channelMutes, master.value,
+          busVolumes: [for (var i = 0; i < buses; i++) volumes[i]], busMutes: [for (var i = 0; i < buses; i++) mutes[i] != 0]);
     } finally {
       calloc.free(volumes);
       calloc.free(master);

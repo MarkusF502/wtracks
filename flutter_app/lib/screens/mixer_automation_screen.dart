@@ -271,6 +271,10 @@ class _AutomationDialogState extends State<_AutomationDialog> {
                   ),
                 ),
                 _volume(AutomationItem.masterVolume, 'Master', 2, widget.track.masterVolume.clamp(0.0, 2.0)),
+                for (var b = 0; b < widget.track.buses.length && b < AutomationItem.maxBuses; b++) ...[
+                  _volume(AutomationItem.busVolume(b), 'Bus ${widget.track.buses[b].name}', 1, widget.track.buses[b].volume),
+                  _mute(AutomationItem.busMute(b), 'Mute bus ${widget.track.buses[b].name}'),
+                ],
                 for (var i = 0; i < channels.length && i < AutomationItem.maxChannels; i++) ...[
                   _volume(AutomationItem.channelVolume(i), channels[i].label, 1, channels[i].volume.clamp(0.0, 1.0)),
                   _mute(AutomationItem.channelMute(i), 'Mute ${channels[i].label}'),
