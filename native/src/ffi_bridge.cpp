@@ -2,6 +2,7 @@
 #include "../include/ffi_bridge.h"
 #include "../include/AudioEngine.h"
 #include "../include/WaveformExtractor.h"
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -156,6 +157,47 @@ bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, d
 }
 
 void wtracks_cancel_time_pitch(int64_t token) { wtracks::cancelTimePitch(token); }
+
+int wtracks_midi_list_outputs(char* buffer, int capacity)
+{
+    const auto text = wtracks::AudioEngine::listMidiOutputs().joinIntoString("\n") + "\n";
+    const auto utf8 = text.toStdString();
+    const int needed = static_cast<int>(utf8.size()) + 1;
+    if (buffer && capacity >= needed) std::memcpy(buffer, utf8.c_str(), static_cast<size_t>(needed));
+    return needed;
+}
+
+bool wtracks_midi_open_output(const char* identifier)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return engine && identifier ? engine->openMidiOutput(juce::String::fromUTF8(identifier)) : false;
+}
+
+void wtracks_midi_close_output()
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (engine) engine->closeMidiOutput();
+}
+
+bool wtracks_midi_output_open() { return engine && engine->isMidiOutputOpen(); }
+void wtracks_set_midi_clock_enabled(bool enabled) { if (engine) engine->setMidiClockEnabled(enabled); }
+
+bool wtracks_send_midi(const uint8_t* bytes, int size)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return engine ? engine->sendMidiMessage(bytes, size) : false;
+}
+
+bool wtracks_configure_cues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureCues(times, midiBytes, midiSizes, count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Cue preparation failed"); return false; }
+}
+
+int wtracks_poll_cues(uint32_t* out, int maxCount) { return engine ? engine->pollCues(out, maxCount) : 0; }
+uint64_t wtracks_get_midi_dropped() { return engine ? engine->getMidiDroppedCount() : 0; }
 
 bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
 {

@@ -67,6 +67,19 @@ WTRACKS_API double wtracks_get_time_scale();
 WTRACKS_API bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, double timeFactor, double pitchFactor, bool complexAlgorithm, int64_t token);
 WTRACKS_API void wtracks_cancel_time_pitch(int64_t token);
 
+// MIDI output (clock 0xF8 on the click grid, 0xFA/0xFB/0xFC, cue messages). Devices are listed as "id\tname\n" lines;
+// the return value is the byte size needed including the terminating NUL (buffer is filled only when large enough).
+WTRACKS_API int wtracks_midi_list_outputs(char* buffer, int capacity);
+WTRACKS_API bool wtracks_midi_open_output(const char* identifier);
+WTRACKS_API void wtracks_midi_close_output();
+WTRACKS_API bool wtracks_midi_output_open();
+WTRACKS_API void wtracks_set_midi_clock_enabled(bool enabled);
+WTRACKS_API bool wtracks_send_midi(const uint8_t* bytes, int size);
+// Cues in song time; midiBytes holds 3 bytes per cue, midiSizes 0 (no message), 2 or 3. Cue indexes are polled.
+WTRACKS_API bool wtracks_configure_cues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count);
+WTRACKS_API int wtracks_poll_cues(uint32_t* out, int maxCount);
+WTRACKS_API uint64_t wtracks_get_midi_dropped();
+
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
 WTRACKS_API void wtracks_set_guides_enabled(bool enabled);

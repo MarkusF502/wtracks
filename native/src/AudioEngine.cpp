@@ -47,6 +47,7 @@ void AudioEngine::shutdown()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     stop();
+    midiRouter.close();
 
     audioSourcePlayer.setSource(nullptr);
     deviceManager.removeAudioCallback(&audioSourcePlayer);
@@ -54,7 +55,7 @@ void AudioEngine::shutdown()
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{}; timeScale=1.0; applyClickScale();
+    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; applyClickScale();
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -136,14 +137,14 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
     
     // 2. Swap Atômico: Substitui as trilhas instantaneamente! A agenda de guias
     // pertencia à música anterior e é descartada fora do lock.
-    GuideTimeline staleGuides;
+    GuideTimeline staleGuides; CueTimeline staleCues;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
         channels = std::move(newChannels);
         loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
-        timeScale=1.0; applyClickScale(); std::swap(guideTimeline,staleGuides);
+        timeScale=1.0; applyClickScale(); std::swap(guideTimeline,staleGuides); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
     }
 
     DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
@@ -156,7 +157,7 @@ void AudioEngine::unloadCurrentTrack()
     stop();
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{}; timeScale=1.0; applyClickScale();
+    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; timeScale=1.0; applyClickScale();
 }
 
 juce::String AudioEngine::getLastError() const
@@ -191,12 +192,14 @@ void AudioEngine::play()
 void AudioEngine::pause()
 {
     playing = false;
+    stopMidiClock();
 }
 
 void AudioEngine::stop()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     playing=false;
+    stopMidiClock();
     { const juce::SpinLock::ScopedLockType lock(channelsLock);
       loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); }
     seekToSeconds(0);
@@ -420,7 +423,7 @@ bool AudioEngine::setTimeScale(double scale)
     if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0) { setLastError(EngineErrorCode::FormatMismatch,"Invalid time scale"); return false; }
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
-    applyClickScale(); guideTimeline.setTimeScale(scale);
+    applyClickScale(); guideTimeline.setTimeScale(scale); cueTimeline.setTimeScale(scale);
     setLastError(EngineErrorCode::None,""); return true;
 }
 
@@ -474,6 +477,7 @@ void AudioEngine::applyClickScale()
 {
     // Caller holds channelsLock. Beats are laid out on the processed timeline.
     clickTimeline.bpm=userClickBpm/timeScale; clickTimeline.offset=userClickOffset*timeScale; clickTimeline.reset();
+    midiClock.bpm=clickTimeline.bpm; midiClock.offset=clickTimeline.offset; midiClock.bpmUnit=clickTimeline.bpmUnit;
 }
 
 void AudioEngine::setClickGain(float gain)
@@ -570,6 +574,95 @@ bool AudioEngine::configureGuides(const double* times, const char** paths, const
     setLastError(EngineErrorCode::None,""); return true;
 }
 
+juce::StringArray AudioEngine::listMidiOutputs()
+{
+    juce::StringArray result;
+    for (const auto& device : juce::MidiOutput::getAvailableDevices()) result.add(device.identifier + "\t" + device.name);
+    return result;
+}
+
+bool AudioEngine::openMidiOutput(const juce::String& deviceIdentifier)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    auto device = juce::MidiOutput::openDevice(deviceIdentifier);
+    if (!device) { setLastError(EngineErrorCode::DeviceInitFailed,"MIDI output unavailable"); return false; }
+    attachMidiSink(std::make_unique<JuceMidiSink>(std::move(device)));
+    return true;
+}
+
+void AudioEngine::attachMidiSink(std::unique_ptr<MidiSink> sink)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    midiClockRunning=false;
+    midiRouter.open(std::move(sink));
+    setLastError(EngineErrorCode::None,"");
+}
+
+void AudioEngine::closeMidiOutput()
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    stopMidiClock();
+    midiRouter.flush(200);
+    midiRouter.close();
+}
+
+bool AudioEngine::isMidiOutputOpen() const { return midiRouter.isOpen(); }
+uint64_t AudioEngine::getMidiDroppedCount() const { return midiRouter.droppedEvents() + cueDropped.load(); }
+
+void AudioEngine::setMidiClockEnabled(bool enabled)
+{
+    midiClockEnabled=enabled;
+    if (!enabled) stopMidiClock();
+}
+
+void AudioEngine::stopMidiClock()
+{
+    // Only one of the control thread and the audio callback sends the stop message.
+    if (midiClockRunning.exchange(false)) { const uint8_t stop=MidiClockTimeline::kStop; midiRouter.sendNow(&stop,1); }
+}
+
+bool AudioEngine::sendMidiMessage(const uint8_t* bytes, int size)
+{
+    CueTimeline::Cue cue; cue.midiSize=static_cast<uint8_t>(juce::jlimit(0,255,size));
+    if (!bytes || size < 2 || size > 3) { setLastError(EngineErrorCode::FormatMismatch,"Invalid MIDI message"); return false; }
+    for (int i=0;i<size;++i) cue.midi[i]=bytes[i];
+    if (!CueTimeline::midiValid(cue)) { setLastError(EngineErrorCode::FormatMismatch,"Invalid MIDI message"); return false; }
+    if (!midiRouter.isOpen()) { setLastError(EngineErrorCode::DeviceInitFailed,"MIDI output not open"); return false; }
+    midiRouter.sendNow(bytes,size); return true;
+}
+
+bool AudioEngine::configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    const double length=getTotalLengthSeconds();
+    if (count < 0 || static_cast<size_t>(count) > CueTimeline::kMaxCues || (count && (!times || !midiBytes || !midiSizes || length <= 0))) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid cue schedule"); return false;
+    }
+    std::vector<CueTimeline::Cue> cues(static_cast<size_t>(count));
+    for (int i=0;i<count;++i) {
+        auto& cue=cues[static_cast<size_t>(i)]; cue.timeSeconds=times[i]; cue.midiSize=midiSizes[i];
+        if (cue.midiSize > 3) { setLastError(EngineErrorCode::FormatMismatch,"Invalid cue message"); return false; }
+        for (int b=0;b<cue.midiSize;++b) cue.midi[b]=midiBytes[3*i+b];
+    }
+    CueTimeline prepared;
+    if (!prepared.configure(std::move(cues),length)) { setLastError(EngineErrorCode::FormatMismatch,"Invalid cue schedule"); return false; }
+    CueTimeline stale;
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        prepared.setTimeScale(timeScale); std::swap(cueTimeline,prepared); stale=std::move(prepared);
+    }
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
+int AudioEngine::pollCues(uint32_t* out, int maxCount)
+{
+    if (!out || maxCount <= 0) return 0;
+    const std::lock_guard<std::mutex> lock(cuePollMutex);
+    int n=0; auto tail=cueTail.load(std::memory_order_relaxed); const auto head=cueHead.load(std::memory_order_acquire);
+    while (tail != head && n < maxCount) { out[n++]=cueQueue[tail % cueQueue.size()].load(std::memory_order_relaxed); ++tail; }
+    cueTail.store(tail,std::memory_order_release); return n;
+}
+
 void AudioEngine::generateClickBuffers(double sampleRate)
 {
     const int length = static_cast<int>(sampleRate*0.03);
@@ -634,12 +727,16 @@ void AudioEngine::releaseResources()
 void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
 {
     info.clearActiveBufferRegion();
+    if (!playing.load() && midiClockRunning.exchange(false)) {  // pause/EOF seen by the audio thread: realtime-safe path
+        const uint8_t stop=MidiClockTimeline::kStop; midiRouter.push(juce::Time::getMillisecondCounterHiRes(),0,44100.0,&stop,1);
+    }
     if (!playing.load() || info.buffer == nullptr || info.numSamples <= 0) return;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (!playing.load() || channels.empty() || !isPrepared || preparedBlockSize <= 0) return;
     const auto& first=channels.front();
     const int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
     const float rampStep=GainRamp::stepFor(currentSampleRate);
+    const double blockHostMs=juce::Time::getMillisecondCounterHiRes();
     int written=0;
     while (written < info.numSamples) {
         normalizeLoopPosition();
@@ -668,6 +765,24 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         guideScratch.clear(); guideTimeline.render(guideScratch.getWritePointer(0),count,position,currentSampleRate,guidesEnabled.load());
         for(int output=0;output<info.buffer->getNumChannels();++output)
             info.buffer->addFrom(output,info.startSample+written,guideScratch,0,0,count);
+        if (midiRouter.isOpen()) {
+            if (midiClockEnabled.load()) {
+                if (!midiClockRunning.load()) {
+                    const uint8_t start=MidiClockTimeline::startMessageFor(position); midiClockRunning=true;
+                    midiRouter.push(blockHostMs,written,currentSampleRate,&start,1);
+                }
+                midiClock.render(count,position,currentSampleRate,[&](int offset) {
+                    const uint8_t pulse=MidiClockTimeline::kClock; midiRouter.push(blockHostMs,written+offset,currentSampleRate,&pulse,1); });
+            }
+        }
+        cueTimeline.render(count,position,currentSampleRate,[&](size_t index,int offset) {
+            const auto& cue=cueTimeline.at(index);
+            if (cue.midiSize && midiRouter.isOpen()) midiRouter.push(blockHostMs,written+offset,currentSampleRate,cue.midi,cue.midiSize);
+            const auto head=cueHead.load(std::memory_order_relaxed);
+            if (head-cueTail.load(std::memory_order_acquire) >= cueQueue.size()) { cueDropped.fetch_add(1); return; }
+            cueQueue[head % cueQueue.size()].store(static_cast<uint32_t>(index),std::memory_order_relaxed);
+            cueHead.store(head+1,std::memory_order_release);
+        });
         masterRamp.set(masterVolume);
         applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
         currentSamplePosition=position+count; written+=count;

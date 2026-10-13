@@ -4,10 +4,14 @@
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_core/juce_core.h>
+#include <array>
 #include <atomic>
 #include "ClickTimeline.h"
 #include "GuideTimeline.h"
 #include "MixerStage.h"
+#include "MidiClock.h"
+#include "CueTimeline.h"
+#include "MidiRouter.h"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -87,6 +91,18 @@ public:
     bool loadClickSound(int voice, const juce::String& path);
     bool loadClickBank(const std::array<juce::String,4>& paths);
     void setClickGain(float gain);
+    // MIDI output. The sink receives realtime clock (0xF8 at 24 ppqn on the click grid), start/continue/stop and cue messages.
+    static juce::StringArray listMidiOutputs();  // "identifier\tname" per device
+    bool openMidiOutput(const juce::String& deviceIdentifier);
+    void attachMidiSink(std::unique_ptr<MidiSink> sink);
+    void closeMidiOutput();
+    bool isMidiOutputOpen() const;
+    void setMidiClockEnabled(bool enabled);
+    bool sendMidiMessage(const uint8_t* bytes, int size);
+    // Automation / MIDI cues in song time. Message bytes: midiSizes[i] (0 = none, else 2 or 3) bytes at midiBytes[3*i].
+    bool configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count);
+    int pollCues(uint32_t* out, int maxCount);
+    uint64_t getMidiDroppedCount() const;
     bool configureGuides(const double* times, const char** paths, const float* gains, int count);
     void setGuidesEnabled(bool enabled);
 
@@ -135,6 +151,14 @@ private:
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
     GainRamp masterRamp;
+    MidiClockTimeline midiClock;
+    CueTimeline cueTimeline;
+    MidiRouter midiRouter;
+    std::atomic<bool> midiClockEnabled { false }, midiClockRunning { false };
+    std::array<std::atomic<uint32_t>, 1024> cueQueue {};
+    std::atomic<uint64_t> cueHead { 0 }, cueTail { 0 }, cueDropped { 0 };
+    std::mutex cuePollMutex;
+    void stopMidiClock();
     GuideTimeline guideTimeline;
     juce::AudioBuffer<float> guideScratch;
     std::atomic<bool> guidesEnabled { false };
