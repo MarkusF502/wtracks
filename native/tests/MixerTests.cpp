@@ -25,18 +25,24 @@ public:
     }
 
     void runTest() override {
-        beginTest("GainRamp is linear, per sample and adopts the first target");
+        beginTest("GainRamp: 20 ms linear de-zipper (sampleRate * 0.02), first target adopted, continuous targets followed");
         {
-            GainRamp ramp; ramp.set(0.7f); expectEquals(ramp.value,0.7f);
-            ramp.set(0); const float step=GainRamp::stepFor(48000); expectWithinAbsoluteError(step,1.0f/480,1e-9f);
-            for (int i=0;i<480;++i) ramp.next(step); expect(ramp.value<1e-6f); ramp.next(step); expect(ramp.silent());
+            const int frames=GainRamp::framesFor(48000); expectEquals(frames,960);
+            GainRamp ramp; ramp.set(0.7f,frames); expectEquals(ramp.value,0.7f);
+            ramp.set(0,frames); for (int i=0;i<480;++i) ramp.next();
+            expectWithinAbsoluteError(ramp.value,0.35f,1e-5f); expect(!ramp.silent());
+            for (int i=0;i<480;++i) ramp.next(); expectEquals(ramp.value,0.0f); expect(ramp.silent());
+            ramp.set(0.0005f,frames); expectEquals(ramp.next(),0.0005f);  // below one ramp step per frame: exact
+            ramp.set(1,frames); for (int i=0;i<480;++i) ramp.next();
+            ramp.set(0.5f,frames); for (int i=0;i<479;++i) ramp.next();       // retarget keeps the end time
+            expectWithinAbsoluteError(ramp.next(),0.5f,1e-6f); expectEquals(ramp.remaining,0);
         }
         beginTest("mixStem: stereo, mono and invalid routes");
         {
             const float left[4]={0.5f,0.5f,0.5f,0.5f}, right[4]={0.25f,0.25f,0.25f,0.25f};
             auto run=[&](ChannelRoute route,int outputs,float gain,float& o0,float& o1,float& o2) {
-                float a[4]={},b[4]={},c[4]={}; float* out[3]={a,b,c}; GainRamp ramp; ramp.set(gain);
-                mixStem(left,right,out,outputs,0,4,route,ramp,0.01f); o0=a[3]; o1=b[3]; o2=c[3];
+                float a[4]={},b[4]={},c[4]={}; float* out[3]={a,b,c}; GainRamp ramp; ramp.set(gain,960);
+                mixStem(left,right,out,outputs,0,4,route,ramp); o0=a[3]; o1=b[3]; o2=c[3];
             };
             float o0,o1,o2;
             run({0,false},2,1,o0,o1,o2); expectEquals(o0,0.5f); expectEquals(o1,0.25f); expectEquals(o2,0.f);
@@ -67,14 +73,14 @@ public:
             expect(!engine.setChannelRoute(0,-1,false)); expect(!engine.setChannelRoute(5,0,false)); expect(!engine.setChannelRoute(0,64,false));
         }
 
-        beginTest("Mute and volume ramp linearly over 10 ms independent of host block size");
+        beginTest("Mute and volume ramp linearly over 20 ms (fixed duration) independent of host block size");
         for (int block : {64,100,480,1024}) {
             AudioEngine engine; fresh(engine,block,{a}); engine.play(); std::vector<float> l,r;
             render(engine,2000,block,l,r); expectWithinAbsoluteError(l[1999],0.5f,1e-5f);
             engine.setChannelMuted(0,true); render(engine,1200,block,l,r);
-            for (int i=0;i<1200;++i) expectWithinAbsoluteError(l[static_cast<size_t>(i)],0.5f*juce::jmax(0.f,1.f-(i+1)/480.f),2e-5f);
+            for (int i=0;i<1200;++i) expectWithinAbsoluteError(l[static_cast<size_t>(i)],0.5f*juce::jmax(0.f,1.f-(i+1)/960.f),2e-5f);
             engine.setChannelMuted(0,false); engine.setChannelVolume(0,0.5f); render(engine,1200,block,l,r);
-            for (int i=0;i<1200;++i) expectWithinAbsoluteError(l[static_cast<size_t>(i)],0.5f*juce::jmin(0.5f,(i+1)/480.f),2e-5f);
+            for (int i=0;i<1200;++i) expectWithinAbsoluteError(l[static_cast<size_t>(i)],0.5f*juce::jmin(0.5f,0.5f*(i+1)/960.f),2e-5f);
             expectEquals(engine.getUnderrunCount(),uint64_t(0));
         }
 

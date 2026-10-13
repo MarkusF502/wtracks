@@ -34,7 +34,7 @@ public:
             for (int t=0;t<4;++t) writers.emplace_back([&m,t]{ for (int i=0;i<10000;++i) m.raise(static_cast<float>(t*10000+i)/40000.0f); });
             for (auto& w : writers) w.join();
             expectEquals(m.take(),39999/40000.0f);
-            float a=0,b=0; expectEquals(mixStem(&a,&b,nullptr,0,0,1,{0,false},*std::make_unique<GainRamp>(),0.1f),0.0f);  // invalid route
+            float a=0,b=0; expectEquals(mixStem(&a,&b,nullptr,0,0,1,{0,false},*std::make_unique<GainRamp>()),0.0f);  // invalid route
         }
 
         auto dir=juce::File::getSpecialLocation(juce::File::tempDirectory).getNonexistentChildFile("wtracks_meters","",false); dir.createDirectory();
@@ -51,7 +51,7 @@ public:
             expectWithinAbsoluteError(channels[0],0.25f,1e-5f); expectWithinAbsoluteError(channels[1],0.1f,1e-5f);
             expectWithinAbsoluteError(outputs[0],(0.25f+0.1f)*2,1e-4f); expectWithinAbsoluteError(outputs[1],(0.125f-0.1f)*2,1e-4f);
             expectEquals(channels[2],0.0f);  // beyond the song's channels: silent
-            engine.setChannelMuted(1,true); render(engine,1024,256); engine.takeMeters(channels,4,outputs,2);  // 10 ms de-click
+            engine.setChannelMuted(1,true); render(engine,1024,256); engine.takeMeters(channels,4,outputs,2);  // 20 ms de-zipper
             render(engine,4800,256); engine.takeMeters(channels,4,outputs,2);
             expectEquals(channels[1],0.0f);
             expect(engine.setChannelRoute(0,0,true)); render(engine,4800,256); engine.takeMeters(channels,4,outputs,2);

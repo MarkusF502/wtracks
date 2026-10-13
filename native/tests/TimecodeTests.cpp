@@ -152,7 +152,7 @@ public:
             engine.play(); juce::AudioBuffer<float> out(2, 256); std::vector<float> left, right;
             for (int block = 0; block < 400; ++block) { juce::AudioSourceChannelInfo info(&out, 0, 256); engine.getNextAudioBlock(info);
                 for (int i = 0; i < 256; ++i) { left.push_back(out.getSample(0, i)); right.push_back(out.getSample(1, i)); } }
-            // Master at zero and the stem muted: the left channel is silent once the 10 ms ramps finish; timecode only on the right.
+            // Master at zero and the stem muted: the left channel is silent once the 20 ms ramps finish; timecode only on the right.
             float leftPeak = 0; for (size_t i = 2000; i < left.size(); ++i) leftPeak = std::max(leftPeak, std::fabs(left[i]));
             expectEquals(leftPeak, 0.f);
             for (size_t i = 0; i < 12000; ++i) expectEquals(right[i], 0.f);  // silent until the 0.25 s onset

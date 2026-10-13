@@ -80,7 +80,7 @@ public:
             expect(apply(engine,{{1,1,MixerAutomation::mute(0),1.0f},{1,1,MixerAutomation::mute(1),0.0f}})); engine.play();
             auto l=render(engine,2*48000,256);
             expectWithinAbsoluteError(l[47999],0.5f,1e-5f);       // ch1 manually muted before its first point
-            expectWithinAbsoluteError(l[48000+240],0.5f,1e-5f);   // swapped after the 10 ms ramp
+            expectWithinAbsoluteError(l[48000+240],0.5f,1e-5f);   // crossfaded by the 20 ms ramps
             expectWithinAbsoluteError(l[48000+500],0.5f,1e-5f);
             engine.setChannelSoloMuted(1,true); l=render(engine,1000,256);
             expectWithinAbsoluteError(l[999],0.0f,1e-6f);
