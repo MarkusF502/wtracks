@@ -29,6 +29,8 @@ public:
         }
         cues=std::move(proposed);reset();return true;
     }
+    // Cue times are song time; the audio runs `scale` times longer (processed tempo). Callers reset afterwards.
+    void setTimeScale(double scale) noexcept { timeScale=scale; reset(); }
     void reset() noexcept { for (auto& v:voices) v={}; initialized=false; }
     size_t size() const noexcept { return cues.size(); }
     // Adds mono output. No memory ownership changes, allocations, or I/O here.
@@ -68,8 +70,8 @@ public:
     }
 private:
     struct Voice {const Sound* sound=nullptr;float gain=0;int64_t start=0;uint64_t serial=0;};
-    int64_t eventSample(const Cue& c) const noexcept {return static_cast<int64_t>(std::llround(c.timeSeconds*rate));}
-    std::vector<Cue> cues;std::array<Voice,4> voices{};size_t next=0;double rate=44100;
+    int64_t eventSample(const Cue& c) const noexcept {return static_cast<int64_t>(std::llround(c.timeSeconds*timeScale*rate));}
+    std::vector<Cue> cues;std::array<Voice,4> voices{};size_t next=0;double rate=44100;double timeScale=1;
     int64_t expectedPosition=0;uint64_t serial=0;bool initialized=false;
 };
 }

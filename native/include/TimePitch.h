@@ -171,25 +171,34 @@ inline int frameSizeFor(double sampleRate, bool complex) {
 }
 }  // namespace detail
 
+// One channel. `finalLength` = round(input.size() * timeFactor). Returns false on invalid options or cancellation.
+inline bool processChannel(const std::vector<float>& channel, double sampleRate, const Options& options,
+                           std::vector<float>& result, const std::atomic<bool>* cancel = nullptr) {
+    result.clear();
+    if (!valid(options) || !std::isfinite(sampleRate) || sampleRate < 8000 || sampleRate > 384000) return false;
+    if (isIdentity(options)) { result = channel; return true; }
+    const int64_t finalLength = static_cast<int64_t>(std::llround(static_cast<double>(channel.size()) * options.timeFactor));
+    const double stretchFactor = options.timeFactor * options.pitchFactor;
+    const bool needStretch = std::fabs(stretchFactor - 1.0) > 1e-12;
+    std::vector<float> stretched;
+    if (needStretch && !detail::stretch(channel, stretchFactor, detail::frameSizeFor(sampleRate, options.complex), stretched, cancel)) return false;
+    const std::vector<float>& source = needStretch ? stretched : channel;
+    if (options.pitchFactor == 1.0) result = source;
+    else if (!detail::resample(source, options.pitchFactor, finalLength, result, cancel)) { result.clear(); return false; }
+    result.resize(static_cast<size_t>(finalLength), 0.f);
+    return true;
+}
+
 // Processes every channel independently (stereo phase relations are not locked between channels).
 // Returns false on invalid options or cancellation; `output` is then left empty.
 inline bool process(const std::vector<std::vector<float>>& input, double sampleRate, const Options& options,
                     std::vector<std::vector<float>>& output, const std::atomic<bool>* cancel = nullptr) {
     output.clear();
-    if (!valid(options) || !std::isfinite(sampleRate) || sampleRate < 8000 || sampleRate > 384000 || input.empty()) return false;
+    if (input.empty()) return false;
     for (const auto& channel : input) if (channel.size() != input.front().size()) return false;
-    if (isIdentity(options)) { output = input; return true; }
-    const int64_t finalLength = static_cast<int64_t>(std::llround(static_cast<double>(input.front().size()) * options.timeFactor));
-    const double stretchFactor = options.timeFactor * options.pitchFactor;
-    const int frame = detail::frameSizeFor(sampleRate, options.complex);
     for (const auto& channel : input) {
-        std::vector<float> stretched, result;
-        const bool needStretch = std::fabs(stretchFactor - 1.0) > 1e-12;
-        if (needStretch) { if (!detail::stretch(channel, stretchFactor, frame, stretched, cancel)) { output.clear(); return false; } }
-        const std::vector<float>& source = needStretch ? stretched : channel;
-        if (options.pitchFactor == 1.0) result = source;
-        else if (!detail::resample(source, options.pitchFactor, finalLength, result, cancel)) { output.clear(); return false; }
-        result.resize(static_cast<size_t>(finalLength), 0.f);
+        std::vector<float> result;
+        if (!processChannel(channel, sampleRate, options, result, cancel)) { output.clear(); return false; }
         output.push_back(std::move(result));
     }
     return true;

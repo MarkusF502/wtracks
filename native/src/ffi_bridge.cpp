@@ -1,3 +1,4 @@
+#include "../include/TimePitchFile.h"
 #include "../include/ffi_bridge.h"
 #include "../include/AudioEngine.h"
 #include "../include/WaveformExtractor.h"
@@ -130,6 +131,31 @@ int wtracks_get_channel_count()
 {
     return engine ? engine->getChannelCount() : 0;
 }
+
+bool wtracks_set_time_scale(double scale)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return engine ? engine->setTimeScale(scale) : false;
+}
+
+double wtracks_get_time_scale() { return engine ? engine->getTimeScale() : 1.0; }
+
+bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, double timeFactor, double pitchFactor, bool complexAlgorithm, int64_t token)
+{
+    if (!inputPath || !outputPath) return false;
+    wtracks::TimePitchResult result;
+    try {
+        result = wtracks::processTimePitchFile(juce::File(juce::String::fromUTF8(inputPath)), juce::File(juce::String::fromUTF8(outputPath)),
+                                               {timeFactor, pitchFactor, complexAlgorithm}, token);
+    } catch (...) { result.error = "Time/pitch processing failed"; }
+    if (!result.ok) {
+        const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+        if (engine) engine->setLastError(wtracks::EngineErrorCode::Unknown, result.error);
+    }
+    return result.ok;
+}
+
+void wtracks_cancel_time_pitch(int64_t token) { wtracks::cancelTimePitch(token); }
 
 bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
 {

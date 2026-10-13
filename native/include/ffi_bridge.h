@@ -59,6 +59,14 @@ WTRACKS_API int wtracks_get_channel_count();
 WTRACKS_API bool wtracks_set_channel_route(int channelIndex, int outputBase, bool mono);
 WTRACKS_API void wtracks_set_master_volume(float volume);
 
+// Processed (time-stretched) stems: positions, loops, click and guides stay in song time.
+WTRACKS_API bool wtracks_set_time_scale(double scale);
+WTRACKS_API double wtracks_get_time_scale();
+// Offline render of one file (see TimePitchFile.h). Independent of the engine; call from a worker isolate.
+// token identifies the call for wtracks_cancel_time_pitch. Failure reasons are in wtracks_get_last_error.
+WTRACKS_API bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, double timeFactor, double pitchFactor, bool complexAlgorithm, int64_t token);
+WTRACKS_API void wtracks_cancel_time_pitch(int64_t token);
+
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
 WTRACKS_API void wtracks_set_guides_enabled(bool enabled);

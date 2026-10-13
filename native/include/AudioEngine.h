@@ -72,6 +72,11 @@ public:
     bool setChannelRoute(int channelIndex, int outputBase, bool mono);
     void setMasterVolume(float volume);
     int getChannelCount() const;
+    // The loaded files are a time-stretched rendering of the song: processed length = song length * scale.
+    // Every seconds-based API (position, length, seek, loops, click, guides) keeps using song time.
+    // Clears loops; call right after loadTrack (loadTrack resets the scale to 1).
+    bool setTimeScale(double scale);
+    double getTimeScale() const;
 
     void setClickEnabled(bool enabled);
     void setClickBpm(double bpm);
@@ -124,6 +129,10 @@ private:
     int preparedBlockSize = 0;
     double preparedSampleRate = 44100.0;
 
+    double timeScale = 1.0;
+    double userClickBpm = 120.0, userClickOffset = 0.0;
+    void applyClickScale();
+    void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
     GainRamp masterRamp;
     GuideTimeline guideTimeline;

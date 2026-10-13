@@ -12,6 +12,7 @@ add_subdirectory(JUCE)
 add_library(wtracks_engine SHARED
     src/AudioEngine.cpp
     src/WaveformExtractor.cpp
+    src/TimePitchFile.cpp
     src/ffi_bridge.cpp
 )
 
@@ -52,10 +53,12 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
     add_executable(wtracks_engine_tests
         src/AudioEngine.cpp
         src/WaveformExtractor.cpp
+        src/TimePitchFile.cpp
         tests/GuideTimelineTests.cpp
         tests/GuideEngineTests.cpp
         tests/MixerTests.cpp
         tests/TimePitchTests.cpp
+        tests/TimeScaleTests.cpp
         tests/LoopTests.cpp
         tests/ReadAheadTests.cpp
         tests/ClickTimelineTests.cpp

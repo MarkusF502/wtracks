@@ -54,7 +54,7 @@ void AudioEngine::shutdown()
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{};
+    guideTimeline=GuideTimeline{}; timeScale=1.0; applyClickScale();
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -143,7 +143,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         channels = std::move(newChannels);
         loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
-        clickTimeline.reset(); std::swap(guideTimeline,staleGuides);
+        timeScale=1.0; applyClickScale(); std::swap(guideTimeline,staleGuides);
     }
 
     DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
@@ -156,7 +156,7 @@ void AudioEngine::unloadCurrentTrack()
     stop();
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
-    guideTimeline=GuideTimeline{};
+    guideTimeline=GuideTimeline{}; timeScale=1.0; applyClickScale();
 }
 
 juce::String AudioEngine::getLastError() const
@@ -209,7 +209,7 @@ void AudioEngine::seekToSeconds(double seconds)
     const bool resume=playing.exchange(false);
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
-        seconds = channels.empty() ? 0.0 : juce::jmin(seconds, channels.front().readerSource->getTotalLength() / channels.front().fileSampleRate);
+        seconds = channels.empty() ? 0.0 : juce::jmin(seconds * timeScale, channels.front().readerSource->getTotalLength() / channels.front().fileSampleRate);
         if (loopEnabled && activeLoop && (seconds < activeLoop->start || seconds >= activeLoop->end)) seconds=activeLoop->start;
         currentSamplePosition = static_cast<int64_t>(std::llround(seconds * currentSampleRate));
         for (auto& channel : channels) if (channel.bufferedSource) {
@@ -224,7 +224,7 @@ void AudioEngine::seekToSeconds(double seconds)
 double AudioEngine::getCurrentPositionSeconds() const
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    return static_cast<double>(currentSamplePosition.load()) / currentSampleRate;
+    return static_cast<double>(currentSamplePosition.load()) / (currentSampleRate * timeScale);
 }
 
 double AudioEngine::getTotalLengthSeconds() const
@@ -235,7 +235,7 @@ double AudioEngine::getTotalLengthSeconds() const
         return 0.0;
 
     auto* reader = channels[0].readerSource->getAudioFormatReader();
-    return reader != nullptr ? reader->lengthInSamples / channels[0].fileSampleRate : 0.0;
+    return reader != nullptr ? reader->lengthInSamples / channels[0].fileSampleRate / timeScale : 0.0;
 }
 
 bool AudioEngine::isPlaying() const
@@ -275,6 +275,15 @@ std::shared_ptr<AudioEngine::LoopCache> AudioEngine::prepareLoop(double start, d
     return result;
 }
 
+void AudioEngine::loopToFileTime(double& start, double& end)
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    start*=timeScale; end*=timeScale;
+    if (channels.empty()) return;
+    const double total=channels.front().readerSource->getTotalLength()/channels.front().fileSampleRate;
+    if (end > total && end-total < 1e-6) end=total; // song-end round trip through the scale
+}
+
 bool AudioEngine::setLoop(double start, double end, bool enabled)
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
@@ -287,6 +296,7 @@ bool AudioEngine::setLoop(double start, double end, bool enabled)
         if (prefillChannels()) playing=resume;
         return true;
     }
+    loopToFileTime(start,end);
     auto bank=prepareLoop(start,end); if (!bank) return false;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true;
@@ -300,6 +310,7 @@ bool AudioEngine::enqueueLoop(double start, double end)
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     { const juce::SpinLock::ScopedLockType lock(channelsLock);
       if (!loopEnabled || !activeLoop) { setLastError(EngineErrorCode::FormatMismatch,"Enable a loop before enqueueing"); return false; } }
+    loopToFileTime(start,end);
     auto bank=prepareLoop(start,end); if (!bank) return false;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     queuedLoop=std::move(bank); queuedLoopEnabled=true; setLastError(EngineErrorCode::None,""); return true;
@@ -315,10 +326,10 @@ void AudioEngine::getLoopState(double* out6) const
 {
     if (!out6) return;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    out6[0]=loopEnabled ? 1 : 0; out6[1]=loopEnabled && activeLoop ? activeLoop->start : 0;
-    out6[2]=loopEnabled && activeLoop ? activeLoop->end : 0; out6[3]=queuedLoopEnabled ? 1 : 0;
-    out6[4]=queuedLoopEnabled && queuedLoop ? queuedLoop->start : 0;
-    out6[5]=queuedLoopEnabled && queuedLoop ? queuedLoop->end : 0;
+    out6[0]=loopEnabled ? 1 : 0; out6[1]=loopEnabled && activeLoop ? activeLoop->start/timeScale : 0;
+    out6[2]=loopEnabled && activeLoop ? activeLoop->end/timeScale : 0; out6[3]=queuedLoopEnabled ? 1 : 0;
+    out6[4]=queuedLoopEnabled && queuedLoop ? queuedLoop->start/timeScale : 0;
+    out6[5]=queuedLoopEnabled && queuedLoop ? queuedLoop->end/timeScale : 0;
 }
 void AudioEngine::normalizeLoopPosition()
 {
@@ -339,10 +350,10 @@ void AudioEngine::normalizeLoopPosition()
 }
 bool AudioEngine::getLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled; }
 bool AudioEngine::getQueuedLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled; }
-double AudioEngine::getLoopStart() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled && activeLoop ? activeLoop->start : 0; }
-double AudioEngine::getLoopEnd() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled && activeLoop ? activeLoop->end : 0; }
-double AudioEngine::getQueuedLoopStart() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled && queuedLoop ? queuedLoop->start : 0; }
-double AudioEngine::getQueuedLoopEnd() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled && queuedLoop ? queuedLoop->end : 0; }
+double AudioEngine::getLoopStart() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled && activeLoop ? activeLoop->start/timeScale : 0; }
+double AudioEngine::getLoopEnd() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled && activeLoop ? activeLoop->end/timeScale : 0; }
+double AudioEngine::getQueuedLoopStart() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled && queuedLoop ? queuedLoop->start/timeScale : 0; }
+double AudioEngine::getQueuedLoopEnd() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled && queuedLoop ? queuedLoop->end/timeScale : 0; }
 
 bool AudioEngine::channelsReady(int outputSamples, uint32_t timeoutMs)
 {
@@ -403,6 +414,18 @@ void AudioEngine::setMasterVolume(float volume)
     masterVolume = juce::jlimit(0.0f, 2.0f, volume);
 }
 
+bool AudioEngine::setTimeScale(double scale)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0) { setLastError(EngineErrorCode::FormatMismatch,"Invalid time scale"); return false; }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
+    applyClickScale(); guideTimeline.setTimeScale(scale);
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
+double AudioEngine::getTimeScale() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return timeScale; }
+
 int AudioEngine::getChannelCount() const
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
@@ -422,9 +445,10 @@ bool AudioEngine::configureClick(double bpm, int numerator, int denominator, int
         setLastError(EngineErrorCode::FormatMismatch, "Invalid click configuration"); return false;
     }
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    clickTimeline.bpm=bpm; clickTimeline.numerator=numerator; clickTimeline.denominator=denominator;
-    clickTimeline.bpmUnit=unit; clickTimeline.offset=offset; clickTimeline.gains=levels;
-    clickTimeline.reset();
+    userClickBpm=bpm; userClickOffset=offset;
+    clickTimeline.numerator=numerator; clickTimeline.denominator=denominator;
+    clickTimeline.bpmUnit=unit; clickTimeline.gains=levels;
+    applyClickScale();
     return true;
 }
 
@@ -432,7 +456,7 @@ void AudioEngine::setClickBpm(double bpm)
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (!std::isfinite(bpm) || bpm < 1 || bpm > 1000) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click BPM"); return; }
-    clickTimeline.bpm=bpm; clickTimeline.reset();
+    userClickBpm=bpm; applyClickScale();
 }
 void AudioEngine::setClickTimeSignature(int numerator, int denominator)
 {
@@ -444,8 +468,14 @@ void AudioEngine::setClickOffsetSeconds(double offsetSeconds)
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (!std::isfinite(offsetSeconds) || offsetSeconds < 0 || offsetSeconds > 86400) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click offset"); return; }
-    clickTimeline.offset=offsetSeconds; clickTimeline.reset();
+    userClickOffset=offsetSeconds; applyClickScale();
 }
+void AudioEngine::applyClickScale()
+{
+    // Caller holds channelsLock. Beats are laid out on the processed timeline.
+    clickTimeline.bpm=userClickBpm/timeScale; clickTimeline.offset=userClickOffset*timeScale; clickTimeline.reset();
+}
+
 void AudioEngine::setClickGain(float gain)
 {
     if (!std::isfinite(gain) || gain < 0 || gain > 2) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click gain"); return; }
@@ -531,7 +561,7 @@ bool AudioEngine::configureGuides(const double* times, const char** paths, const
         }
         cues.push_back({times[index],gains[index],found->second});
     }
-    GuideTimeline prepared;
+    GuideTimeline prepared; prepared.setTimeScale(timeScale);
     if (!prepared.configure(std::move(cues))) { setLastError(EngineErrorCode::FormatMismatch,"Invalid guide PCM"); return false; }
     {   // Swap under the lock; the previous PCM is freed after the audio thread is released.
         const juce::SpinLock::ScopedLockType lock(channelsLock);
