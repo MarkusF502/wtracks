@@ -14,6 +14,7 @@ public:
     }
     static std::vector<int> clickVoices(ClickTimeline& click, double rate, int64_t to, std::vector<int64_t>& at) {
         std::vector<int> voices; juce::AudioBuffer<float> out(1, 64);
+        for (auto& buffer : click.fallback) { buffer.setSize(1, 2000); buffer.clear(); buffer.setSample(0, 0, 1.0f); }
         for (int64_t p = 0; p < to; p += 64) {
             const int n = static_cast<int>(std::min<int64_t>(64, to - p)); out.clear();
             auto before = click.starts;
@@ -71,7 +72,7 @@ public:
             const int64_t expectedBeats[] = {12000, 36000, 52800, 52800 + 48000, 52800 + 96000, 52800 + 144000};
             for (size_t i = 0; i < beats.size(); ++i) expectEquals<int64_t>(beats[i], expectedBeats[i]);
             expectEquals<int>(static_cast<int>(beats.size()), 5);
-            expectEquals(voices[2], 0);  // the segment's first beat is an accent
+            for (size_t i = 0; i < voices.size(); ++i) if (at[i] == 52800) expectEquals(voices[i], 0);  // the segment's first beat is an accent
         }
 
         auto dir = juce::File::getSpecialLocation(juce::File::tempDirectory).getNonexistentChildFile("wtracks_tempo", "", false); dir.createDirectory();
@@ -91,10 +92,10 @@ public:
             auto* clickAudible = &engine; (void)clickAudible;
             juce::AudioBuffer<float> out(2, 256); engine.setClickEnabled(true); engine.play();
             std::vector<int> beatSamples;
-            for (int block = 0; block < 48000 * 3 / 256; ++block) { juce::AudioSourceChannelInfo info(&out, 0, 256); engine.getNextAudioBlock(info);
+            for (int block = 0; block < 48000 * 4 / 256; ++block) { juce::AudioSourceChannelInfo info(&out, 0, 256); engine.getNextAudioBlock(info);
                 for (int i = 0; i < 256; ++i) if (std::fabs(out.getSample(0, i)) > 0.2f && (beatSamples.empty() || block * 256 + i - beatSamples.back() > 2400)) beatSamples.push_back(block * 256 + i); }
-            expect(beatSamples.size() >= 5, "beats heard " + juce::String(static_cast<int>(beatSamples.size())));
-            if (beatSamples.size() >= 5) { expect(std::abs(beatSamples[1] - beatSamples[0] - 24000) < 50); expect(std::abs(beatSamples[3] - beatSamples[2] - 48000) < 50, "60 BPM spacing after 1 s"); }
+            expect(beatSamples.size() >= 4, "beats heard " + juce::String(static_cast<int>(beatSamples.size())));
+            if (beatSamples.size() >= 4) { expect(std::abs(beatSamples[1] - beatSamples[0] - 24000) < 50); expect(std::abs(beatSamples[3] - beatSamples[2] - 48000) < 50, "60 BPM spacing after 1 s"); expect(beatSamples.size() >= 5, "3 s beat at 60 BPM"); }
             // Offset past the first change drops the now-invalid list instead of playing a broken grid.
             engine.setClickOffsetSeconds(2.0); engine.stop(); engine.play();
             engine.setClickOffsetSeconds(0.0);

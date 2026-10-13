@@ -44,16 +44,19 @@ public:
             for (int i : {0, 1, 3, 4, 6, 7, 10}) expect(!G::kRates[static_cast<size_t>(i)].drop);
             expectEquals<int64_t>(G::framesPerDay(0), 24 * 86400); expectEquals<int64_t>(G::framesPerDay(5), 2589408);  // 24 h of 29.97 DF
             expectEquals<int64_t>(G::framesPerDay(9), 5178816);
-            auto f = G::fieldsFor(5, 0); expect(f.h == 0 && f.m == 0 && f.s == 0 && f.f == 0 && f.drop);
-            f = G::fieldsFor(5, 1799); expect(f.m == 0 && f.s == 59 && f.f == 29);
-            f = G::fieldsFor(5, 1800); expect(f.m == 1 && f.s == 0 && f.f == 2);  // frames 00 and 01 are skipped at minute 1
-            f = G::fieldsFor(5, 17981); expect(f.m == 9 && f.s == 59 && f.f == 29);
-            f = G::fieldsFor(5, 17982); expect(f.m == 10 && f.s == 0 && f.f == 0);  // minute 10 keeps its frames
-            f = G::fieldsFor(5, G::framesPerDay(5) - 1); expect(f.h == 23 && f.m == 59 && f.s == 59 && f.f == 29);
-            f = G::fieldsFor(5, G::framesPerDay(5)); expect(f.h == 0 && f.m == 0 && f.s == 0 && f.f == 0);
-            f = G::fieldsFor(9, 3600); expect(f.m == 1 && f.s == 0 && f.f == 4);  // 60-frame drop family skips four
-            f = G::fieldsFor(3, 30 * 3600 + 29); expect(f.h == 1 && f.f == 29 && !f.drop);
-            f = G::fieldsFor(10, 50 * 61); expect(f.m == 1 && f.s == 1 && f.f == 0);
+            auto f = G::fieldsFor(5, 0); expect(f.hours == 0 && f.minutes == 0 && f.seconds == 0 && f.frames == 0 && f.drop);
+            f = G::fieldsFor(5, 1799); expect(f.minutes == 0 && f.seconds == 59 && f.frames == 29);
+            f = G::fieldsFor(5, 1800); expect(f.minutes == 1 && f.seconds == 0 && f.frames == 2);  // frames 00 and 01 are skipped at minute 1
+            f = G::fieldsFor(5, 17981); expect(f.minutes == 9 && f.seconds == 59 && f.frames == 29);
+            f = G::fieldsFor(5, 17982); expect(f.minutes == 10 && f.seconds == 0 && f.frames == 0);  // minute 10 keeps its frames
+            f = G::fieldsFor(5, G::framesPerDay(5) - 1); expect(f.hours == 23 && f.minutes == 59 && f.seconds == 59 && f.frames == 29);
+            f = G::fieldsFor(5, G::framesPerDay(5)); expect(f.hours == 0 && f.minutes == 0 && f.seconds == 0 && f.frames == 0);
+            f = G::fieldsFor(9, 3600); expect(f.minutes == 1 && f.seconds == 0 && f.frames == 2);  // 59.94 drop: labels count at 30, so two labels (four words) are skipped
+            f = G::fieldsFor(7, 61); expect(f.seconds == 1 && f.frames == 0);  // 60 fps pairs share a label
+            expect(G::wordFor(7, 60)[11] == 0 && G::wordFor(7, 61)[11] == 1 && G::wordFor(3, 61)[11] == 0);
+            expectEquals<int>(G::labelRate(7), 30); expectEquals<int>(G::labelRate(10), 25); expectEquals<int>(G::labelRate(4), 30);
+            f = G::fieldsFor(3, 30 * 3600 + 29); expect(f.hours == 1 && f.frames == 29 && !f.drop);
+            f = G::fieldsFor(10, 50 * 61); expect(f.minutes == 1 && f.seconds == 1 && f.frames == 0);
         }
 
         beginTest("The frame word: BCD fields, sync word and even zero count");
@@ -64,7 +67,7 @@ public:
                     expect(zeros % 2 == 0, "even zeros at rate " + juce::String(index));
                     uint16_t sync = 0; for (int b = 0; b < 16; ++b) sync |= static_cast<uint16_t>(bits[static_cast<size_t>(64 + b)] << b);
                     expectEquals<int>(sync, G::kSyncWord);
-                    expect(!bits[11] && !bits[43] && !bits[58], "unused flag bits stay clear");
+                    expect(bits[11] == ((G::halfRate(index) && frame % 2) ? 1 : 0) && !bits[43] && !bits[58], "unused flag bits stay clear");
                 }
             const auto word = G::wordFor(3, 3600 * 30 * 2 + 30 * 61 + 7);  // 02:01:01:07
             auto field = [&](int first, int width) { int v = 0; for (int b = 0; b < width; ++b) v |= word[static_cast<size_t>(first + b)] << b; return v; };
@@ -95,7 +98,7 @@ public:
                 auto key = [&](const Decoded& d) { int64_t v = ((d.h * 60 + d.m) * 60 + d.s) * G::kRates[static_cast<size_t>(index)].nominal + d.f; return v; };
                 const auto delta = key(current) - key(previous);
                 const bool rollover = current.f == 0 || (G::kRates[static_cast<size_t>(index)].drop && current.f <= 4);
-                expect(delta == 1 || rollover, "consecutive frames at rate " + juce::String(index));
+                expect(delta == 1 || rollover || (G::halfRate(index) && delta == 0), "consecutive frames at rate " + juce::String(index));
                 expectWithinAbsoluteError(static_cast<double>(current.startSample - previous.startSample), rate / fps, 1.5);
             }
         }
@@ -109,7 +112,7 @@ public:
                 const auto slot = static_cast<int64_t>(std::llround(static_cast<double>(d.startSample) / (rate / static_cast<double>(G::framesPerSecond(index)))));
                 const auto want = G::fieldsFor(index, start + slot);
                 expect(d.m == want.minutes && d.s == want.seconds && d.f == want.frames, "drop label rate " + juce::String(index));
-                crossed = crossed || (d.s == 0 && d.f == (index == 9 ? 4 : (d.m % 10 == 0 ? 0 : 2)));
+                crossed = crossed || (d.s == 0 && d.f == (d.m % 10 == 0 ? 0 : 2));
             }
             expect(crossed, "minute boundary reached at rate " + juce::String(index));
         }

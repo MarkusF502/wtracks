@@ -10,8 +10,10 @@ namespace wtracks {
 // 0xBFFC sync word, bipolar +-1 output, a transition at every bit boundary plus one mid-bit for a 1, and fractional
 // samples-per-bit accumulation.
 // Differences we chose: every sample is derived from the absolute position (so seeks and loops are exact and no state
-// has to be carried), the biphase-mark correction bit keeps the frame start polarity constant, and 60-frame drop-frame
-// counts four frames per minute (the binary body sets two; unverified, see the contract's unknowns).
+// has to be carried) and the biphase-mark correction bit keeps the frame start polarity constant.
+// 50/60 fps (indices 6-10): a word still goes out every 1/50 or 1/60 s, but the label counts at half the rate (25/30), so
+// two consecutive words carry the same label and bit 11 (color-frame flag, otherwise unused) marks the second one. Drop-frame
+// at 59.94/60 therefore removes two labels (four words) per minute, which matches the "sets 2" the binary shows at 60 fps.
 // Configuration changes and render() must be externally synchronized.
 class TimecodeGenerator {
 public:
@@ -35,28 +37,33 @@ public:
         return index >= 0 && index < kRateCount && start >= 0 && start < framesPerDay(index) && std::isfinite(onset) && onset >= 0
             && onset <= 86400 && std::isfinite(level) && level >= 0 && level <= 1;
     }
-    static int dropFramesPerMinute(int index) noexcept { return kRates[static_cast<size_t>(index)].drop ? (kRates[static_cast<size_t>(index)].nominal >= 50 ? 4 : 2) : 0; }
-    static int64_t framesPerDay(int index) noexcept {
-        const auto& rate = kRates[static_cast<size_t>(index)];
-        if (!rate.drop) return static_cast<int64_t>(rate.nominal) * 86400;
-        const int d = dropFramesPerMinute(index);
-        return (static_cast<int64_t>(rate.nominal) * 600 - 9 * d) * 144;
+    // High rates (50/60) label at half rate; `startFrame` and the counts below are always in words (transmitted frames).
+    static bool halfRate(int index) noexcept { return kRates[static_cast<size_t>(index)].nominal >= 50; }
+    static int labelRate(int index) noexcept { return kRates[static_cast<size_t>(index)].nominal / (halfRate(index) ? 2 : 1); }
+    static int dropFramesPerMinute(int index) noexcept { return kRates[static_cast<size_t>(index)].drop ? 2 : 0; }
+    static int64_t labelsPerDay(int index) noexcept {
+        const int64_t rate = labelRate(index);
+        if (!kRates[static_cast<size_t>(index)].drop) return rate * 86400;
+        return (rate * 600 - 9 * dropFramesPerMinute(index)) * 144;
     }
+    static int64_t framesPerDay(int index) noexcept { return labelsPerDay(index) * (halfRate(index) ? 2 : 1); }
     static long double framesPerSecond(int index) noexcept {
         const auto& rate = kRates[static_cast<size_t>(index)]; return static_cast<long double>(rate.numerator) / rate.denominator;
     }
 
-    // Frame count (0-based, modulo 24 h) to the fields written into the word.
+    // Word count (0-based, modulo 24 h) to the label written into the word.
     static Fields fieldsFor(int index, int64_t count) noexcept {
         const auto& rate = kRates[static_cast<size_t>(index)];
         count %= framesPerDay(index);
+        if (halfRate(index)) count /= 2;
+        const int nominal = labelRate(index);
         if (rate.drop) {
-            const int64_t d = dropFramesPerMinute(index), per10 = rate.nominal * 600LL - 9 * d, perMinute = rate.nominal * 60LL - d;
+            const int64_t d = dropFramesPerMinute(index), per10 = nominal * 600LL - 9 * d, perMinute = nominal * 60LL - d;
             const int64_t tens = count / per10, rest = count % per10;
             count += 9 * d * tens + (rest > d ? d * ((rest - d) / perMinute) : 0);
         }
         Fields f; f.drop = rate.drop;
-        f.frames = static_cast<int>(count % rate.nominal); count /= rate.nominal;
+        f.frames = static_cast<int>(count % nominal); count /= nominal;
         f.seconds = static_cast<int>(count % 60); count /= 60;
         f.minutes = static_cast<int>(count % 60); f.hours = static_cast<int>((count / 60) % 24);
         return f;
@@ -68,6 +75,7 @@ public:
         std::array<uint8_t, kBitsPerFrame> bits {};
         auto put = [&](int first, int width, int value) { for (int b = 0; b < width; ++b) bits[static_cast<size_t>(first + b)] = (value >> b) & 1; };
         put(0, 4, f.frames % 10); put(8, 2, f.frames / 10); bits[10] = f.drop ? 1 : 0;
+        bits[11] = halfRate(index) && (count % 2) ? 1 : 0;  // second word of a 50/60 fps pair
         put(16, 4, f.seconds % 10); put(24, 3, f.seconds / 10);
         put(32, 4, f.minutes % 10); put(40, 3, f.minutes / 10);
         put(48, 4, f.hours % 10); put(56, 2, f.hours / 10);

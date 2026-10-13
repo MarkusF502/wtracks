@@ -23,17 +23,21 @@ void main() {
       expect(TimecodeSettings.format(5, 1799), '00:00:59;29');
       expect(TimecodeSettings.format(5, 1800), '00:01:00;02');
       expect(TimecodeSettings.format(5, 17982), '00:10:00;00');
-      expect(TimecodeSettings.format(9, 3600), '00:01:00;04');
+      expect(TimecodeSettings.format(9, 3600), '00:01:00;02'); // labels count at 30: two labels (four words) skipped
+      expect(TimecodeSettings.format(7, 61), '00:00:01:00');
       for (final rate in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
         for (final frames in [0, 1, 1799, 1800, 17981, 17982, 100000, 1234567]) {
           final text = TimecodeSettings.format(rate, frames);
-          expect(TimecodeSettings.parse(rate, text), frames, reason: 'rate $rate frames $frames ($text)');
+          final half = TimecodeRate.all[rate].halfRate;
+          expect(TimecodeSettings.parse(rate, text), half ? frames - frames % 2 : frames, reason: 'rate $rate frames $frames ($text)');
         }
       }
       expect(TimecodeSettings.parse(5, '00:01:00:00'), isNull); // numbers skipped at minute 1
       expect(TimecodeSettings.parse(5, '00:01:00:01'), isNull);
       expect(TimecodeSettings.parse(5, '00:10:00:00'), 17982);
-      expect(TimecodeSettings.parse(9, '00:01:00:03'), isNull);
+      expect(TimecodeSettings.parse(9, '00:01:00:01'), isNull);
+      expect(TimecodeSettings.parse(7, '00:00:00:30'), isNull);
+      expect(TimecodeSettings.parse(7, '00:00:01:00'), 60);
       expect(TimecodeSettings.parse(3, '00:00:00:30'), isNull);
       expect(TimecodeSettings.parse(1, '24:00:00:00'), isNull);
       expect(TimecodeSettings.parse(1, 'abc'), isNull);

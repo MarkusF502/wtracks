@@ -364,6 +364,11 @@ void AudioEngine::normalizeLoopPosition()
     if (position >= end && queuedLoopEnabled && queuedLoop) {
         // Retain the previous cache until a control-thread queue operation destroys it.
         activeLoop.swap(queuedLoop); queuedLoopEnabled=false; loopPasses=0;
+        if (activeLoop->repeats > 0)  // park the streams at the new loop end; read-ahead refills during its passes
+            for (auto& channel : channels) if (channel.bufferedSource) {
+                channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(activeLoop->end*channel.fileSampleRate)));
+                channel.resampler->flushBuffers();
+            }
     } else if (position >= end && activeLoop->repeats > 0 && ++loopPasses >= activeLoop->repeats) {
         // Last pass done: continue streaming right after the loop end (the streams were parked there when the loop was set).
         loopEnabled=false; currentSamplePosition=end; return;

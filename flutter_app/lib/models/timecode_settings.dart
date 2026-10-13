@@ -8,8 +8,12 @@ class TimecodeRate {
   final bool drop;
   const TimecodeRate(this.label, this.nominal, this.drop);
 
-  /// Quadros de drop-frame removidos por minuto (exceto de dez em dez).
-  int get dropPerMinute => !drop ? 0 : (nominal >= 50 ? 4 : 2);
+  /// 50/60 fps: a palavra sai a cada 1/50 ou 1/60 s, mas o rótulo conta à metade da taxa (25/30).
+  bool get halfRate => nominal >= 50;
+  int get labelRate => halfRate ? nominal ~/ 2 : nominal;
+
+  /// Rótulos de drop-frame removidos por minuto (exceto de dez em dez).
+  int get dropPerMinute => drop ? 2 : 0;
 
   static const all = [
     TimecodeRate('24', 24, false),
@@ -47,9 +51,11 @@ class TimecodeSettings {
   });
 
   TimecodeRate get rate => TimecodeRate.all[rateIndex.clamp(0, TimecodeRate.all.length - 1)];
+  /// Palavras (quadros transmitidos) por dia.
   static int framesPerDay(int rateIndex) {
     final rate = TimecodeRate.all[rateIndex];
-    return rate.drop ? (rate.nominal * 600 - 9 * rate.dropPerMinute) * 144 : rate.nominal * 86400;
+    final labels = rate.drop ? (rate.labelRate * 600 - 9 * rate.dropPerMinute) * 144 : rate.labelRate * 86400;
+    return labels * (rate.halfRate ? 2 : 1);
   }
 
   bool get isValid =>
@@ -65,17 +71,18 @@ class TimecodeSettings {
       gain >= 0 &&
       gain <= 1;
 
-  /// "hh:mm:ss:ff" para a contagem de quadros (com a numeração de drop-frame).
+  /// "hh:mm:ss:ff" para a contagem de palavras (com a numeração de drop-frame; 50/60 fps rotulam à metade).
   static String format(int rateIndex, int frames) {
     final rate = TimecodeRate.all[rateIndex];
     var n = frames % framesPerDay(rateIndex);
+    if (rate.halfRate) n ~/= 2;
     if (rate.drop) {
-      final d = rate.dropPerMinute, per10 = rate.nominal * 600 - 9 * d, perMinute = rate.nominal * 60 - d;
+      final d = rate.dropPerMinute, per10 = rate.labelRate * 600 - 9 * d, perMinute = rate.labelRate * 60 - d;
       final tens = n ~/ per10, rest = n % per10;
       n += 9 * d * tens + (rest > d ? d * ((rest - d) ~/ perMinute) : 0);
     }
-    final f = n % rate.nominal;
-    n ~/= rate.nominal;
+    final f = n % rate.labelRate;
+    n ~/= rate.labelRate;
     final s = n % 60;
     n ~/= 60;
     final m = n % 60, h = (n ~/ 60) % 24;
@@ -89,11 +96,12 @@ class TimecodeSettings {
     if (match == null) return null;
     final h = int.parse(match[1]!), m = int.parse(match[2]!), s = int.parse(match[3]!), f = int.parse(match[4]!);
     final rate = TimecodeRate.all[rateIndex];
-    if (h > 23 || m > 59 || s > 59 || f >= rate.nominal) return null;
+    if (h > 23 || m > 59 || s > 59 || f >= rate.labelRate) return null;
     if (rate.drop && s == 0 && f < rate.dropPerMinute && m % 10 != 0) return null; // numeração pulada
     final totalMinutes = 60 * h + m;
-    final nominalFrames = ((totalMinutes * 60) + s) * rate.nominal + f;
-    return rate.drop ? nominalFrames - rate.dropPerMinute * (totalMinutes - totalMinutes ~/ 10) : nominalFrames;
+    final labelFrames = ((totalMinutes * 60) + s) * rate.labelRate + f;
+    final counted = rate.drop ? labelFrames - rate.dropPerMinute * (totalMinutes - totalMinutes ~/ 10) : labelFrames;
+    return counted * (rate.halfRate ? 2 : 1);
   }
 
   TimecodeSettings copyWith({bool? enabled, int? rateIndex, int? startFrame, double? onsetSeconds, int? outputChannel, double? gain}) =>

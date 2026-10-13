@@ -60,9 +60,10 @@ public:
         {
             AudioEngine engine; engine.prepareToPlay(256, rate); expect(engine.loadTrack("counted", {file}));
             expect(engine.setLoop(1000 / rate, 1137 / rate, true)); expect(engine.enqueueLoop(2000 / rate, 2050 / rate, 2));
-            engine.play(); const auto out = render(engine, 137 + 50 * 2, 256);
+            engine.play(); const auto out = render(engine, 137 + 50 * 2 + 80, 256);
             for (int i = 137; i < 137 + 100; ++i) expectWithinAbsoluteError(out[static_cast<size_t>(i)], sample(2000 + (i - 137) % 50), 1e-5f);
-            double state[6]; engine.getLoopState(state); expectEquals(state[0], 1.0); expectWithinAbsoluteError(state[1], 2000 / rate, 1e-9);
+            for (int i = 237; i < 317; ++i) expectWithinAbsoluteError(out[static_cast<size_t>(i)], sample(2050 + (i - 237)), 1e-5f);  // the queued loop finished its two passes
+            double state[6]; engine.getLoopState(state); expectEquals(state[0], 0.0);
         }
         dir.deleteRecursively();
     }
