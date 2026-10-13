@@ -97,9 +97,7 @@ void main() {
       String c(int n) => 'guidecue-count-en-female-$n';
       expect(plan.cues, [
         DynamicGuideCue(cueType: GuideCueType.section, sectionId: 'c', cueSequenceTimecode: 8, songMapElementStartTimecode: 10,
-            cueFilePath: 'guidecue-section-en-female-Chorus', replacementCountCueFilePath: c(1)),
-        DynamicGuideCue(cueType: GuideCueType.count, sectionId: 'c', cueSequenceTimecode: 8.5, songMapElementStartTimecode: 10,
-            replacementCountCueFilePath: c(2)),
+            cueFilePath: 'guidecue-section-en-female-Chorus'),
         DynamicGuideCue(cueType: GuideCueType.count, sectionId: 'c', cueSequenceTimecode: 9, songMapElementStartTimecode: 10, cueFilePath: c(3)),
         DynamicGuideCue(cueType: GuideCueType.count, sectionId: 'c', cueSequenceTimecode: 9.5, songMapElementStartTimecode: 10, cueFilePath: c(4)),
       ]);
@@ -142,7 +140,6 @@ void main() {
           tempoChanges: const [TempoChange(id: 't', startSeconds: 5, bpm: 60, numerator: 3)], settings: en, catalog: catalog);
       expect(waltz.cues.map((c) => (c.cueSequenceTimecode, c.cueFilePath)), [
         (7.0, 'guidecue-section-en-female-Chorus'),
-        (8.0, null),
         (9.0, 'guidecue-count-en-female-3'),
       ]);
       // A change exactly at the section start does not move the bar before it.
@@ -169,10 +166,13 @@ void main() {
           replacementCountCueFilePath: 'c2');
       const off = DynamicGuideCue(cueType: GuideCueType.count, sectionId: 's', cueSequenceTimecode: 1, songMapElementStartTimecode: 10,
           cueFilePath: 'c3', cueEnabled: false);
-      expect(buildGuideSchedule([manual], [a, b, off]), const [
-        ScheduledGuide(timeSeconds: 7, replacement: 'c2', targetSeconds: 10),
+      const name = DynamicGuideCue(cueType: GuideCueType.section, sectionId: 's', cueSequenceTimecode: 6,
+          songMapElementStartTimecode: 10, cueFilePath: 'n');
+      expect(buildGuideSchedule([manual], [a, b, off, name]), const [
+        ScheduledGuide(timeSeconds: 6, resource: 'n', targetSeconds: 10), // only names depend on reaching the section
+        ScheduledGuide(timeSeconds: 7, replacement: 'c2'),
         ScheduledGuide(timeSeconds: 8, resource: 'r', gain: 0.5),
-        ScheduledGuide(timeSeconds: 8, resource: 'c1', targetSeconds: 10),
+        ScheduledGuide(timeSeconds: 8, resource: 'c1'),
       ]);
       expect(prerollCounts(catalog, en).whereType<String>().length, 7);
       expect(prerollCounts(catalog, en).length, 16);
@@ -215,12 +215,11 @@ void main() {
       final track = sampleTrack(id: 's').copyWith(clickSettings: _click, sections: [_section('c', 'Chorus', 10, 20, count: true)]);
       expect(await n.load(track), true);
       expect(engine.configuredSchedule.map((g) => (g.timeSeconds, g.resource, g.replacement, g.targetSeconds)), [
-        (8.0, 'guidecue-section-en-female-Chorus', 'guidecue-count-en-female-1', 10.0),
-        (8.5, null, 'guidecue-count-en-female-2', 10.0),
-        (9.0, 'guidecue-count-en-female-3', null, 10.0),
-        (9.5, 'guidecue-count-en-female-4', null, 10.0),
+        (8.0, 'guidecue-section-en-female-Chorus', null, 10.0),
+        (9.0, 'guidecue-count-en-female-3', null, -1.0),
+        (9.5, 'guidecue-count-en-female-4', null, -1.0),
       ]);
-      expect(engine.configuredSchedulePaths['guidecue-count-en-female-2'], '/g/guidecue-count-en-female-2.wav');
+      expect(engine.configuredSchedulePaths['guidecue-count-en-female-3'], '/g/guidecue-count-en-female-3.wav');
       expect(engine.prerollEnabled, false);
 
       expect(n.updateSections('s', [_section('c', 'Chorus', 12, 20)]), true);

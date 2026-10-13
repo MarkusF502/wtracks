@@ -181,8 +181,9 @@ class DynamicGuidePlan {
 /// - nome da seção (se `playGuideCue` e houver áudio) no 1º tempo; ele ocupa a primeira metade do compasso
 ///   (arredondada para cima) e a contagem (se `playCountIn` ou "Contar ao entrar em cada seção") fala os tempos
 ///   restantes ("Refrão... 3, 4"); sem nome, a contagem fala todos os tempos;
-/// - com o laço ativo voltando antes da seção anunciada, o motor troca o nome pela contagem do mesmo tempo
-///   (replacementCountCueFilePath) e os tempos cobertos pelo nome também contam; sem contagem pedida, fica em silêncio.
+/// - com o laço ativo voltando antes da seção anunciada, o nome fica em silêncio e a contagem continua (evidência:
+///   GuideDSPKernel::process, GuideAUFramework 0x6140 — cues de tipo 0 só tocam com um próximo elemento na fila; a
+///   seção de tipo 7 e o arquivo de substituição não têm equivalente identificado nas nossas seções).
 DynamicGuidePlan generateDynamicGuides({
   required List<SongSection> sections,
   required ClickSettings click,
@@ -214,12 +215,10 @@ DynamicGuidePlan generateDynamicGuides({
       final count = wantCount ? catalog.count(voice, k + 1) : null;
       if (k == 0 && name != null) {
         cues.add(DynamicGuideCue(cueType: GuideCueType.section, sectionId: section.id, cueSequenceTimecode: at,
-            songMapElementStartTimecode: start, cueFilePath: name, replacementCountCueFilePath: count));
-      } else if (count != null) {
-        final covered = k < nameBeats;
+            songMapElementStartTimecode: start, cueFilePath: name));
+      } else if (count != null && k >= nameBeats) {
         cues.add(DynamicGuideCue(cueType: GuideCueType.count, sectionId: section.id, cueSequenceTimecode: at,
-            songMapElementStartTimecode: start, cueFilePath: covered ? null : count,
-            replacementCountCueFilePath: covered ? count : null));
+            songMapElementStartTimecode: start, cueFilePath: count));
       }
     }
   }
@@ -253,7 +252,9 @@ List<ScheduledGuide> buildGuideSchedule(List<GuideCue> manual, List<DynamicGuide
     for (final cue in dynamic)
       if (cue.cueEnabled && (cue.cueFilePath != null || cue.replacementCountCueFilePath != null))
         ScheduledGuide(timeSeconds: cue.cueSequenceTimecode, resource: cue.cueFilePath,
-            replacement: cue.replacementCountCueFilePath, targetSeconds: cue.songMapElementStartTimecode),
+            replacement: cue.replacementCountCueFilePath,
+            // Only section-name cues depend on reaching the announced section; counts always play.
+            targetSeconds: cue.cueType == GuideCueType.section ? cue.songMapElementStartTimecode : -1),
   ];
   return List.unmodifiable(_stableByTime(entries));
 }
