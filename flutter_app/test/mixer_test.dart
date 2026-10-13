@@ -94,7 +94,7 @@ void main() {
         await tester.tap(find.text('R').first);
         await tester.pump(const Duration(milliseconds: 100));
         expect(engine.routes[0], ChannelRoute.stereo);
-        await tester.drag(find.byKey(const Key('master-volume')), const Offset(-60, 0));
+        await tester.drag(find.byKey(const Key('master-volume')), const Offset(0, 40));
         await tester.pump(const Duration(milliseconds: 100));
         expect(engine.masterVolume, lessThan(1));
         expect(c.read(currentTrackProvider)!.masterVolume, engine.masterVolume);
