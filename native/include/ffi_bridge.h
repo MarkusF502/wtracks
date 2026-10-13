@@ -119,6 +119,14 @@ WTRACKS_API double wtracks_get_fade_gain();
 WTRACKS_API uint32_t wtracks_poll_transport_events();
 // Peaks since the previous call (then reset): post-fader per channel, per output after the master. Returns channels.
 WTRACKS_API int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity);
+// Buses (<= 16): channel -> bus -> output. bus -1 = none.
+WTRACKS_API bool wtracks_configure_buses(int count);
+WTRACKS_API bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono);
+WTRACKS_API void wtracks_set_bus_solo_muted(int index, bool muted);
+WTRACKS_API bool wtracks_set_channel_bus(int channelIndex, int bus);
+WTRACKS_API void wtracks_set_stereo_split(bool enabled);
+WTRACKS_API int wtracks_get_bus_state(float* volumes, uint8_t* mutes, int capacity);
+WTRACKS_API int wtracks_take_bus_meters(float* peaks, int capacity);
 
 // Click track
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.

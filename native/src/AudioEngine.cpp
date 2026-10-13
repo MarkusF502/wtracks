@@ -85,6 +85,7 @@ void AudioEngine::shutdown()
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
     mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
     fadeOut.cancel(); endFadeSeconds=0;
+    busCount=0; buses={};
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -177,7 +178,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
         std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0); resetAutomationBases();
-        fadeOut.cancel(); endFadeSeconds=0; transportEvents=0;
+        fadeOut.cancel(); endFadeSeconds=0; transportEvents=0; busCount=0; buses={};
         for (auto& meter : channelMeters) meter.take();
     }
 
@@ -196,6 +197,7 @@ void AudioEngine::unloadCurrentTrack()
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
     mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
     fadeOut.cancel(); endFadeSeconds=0;
+    busCount=0; buses={};
 }
 
 juce::String AudioEngine::getLastError() const
@@ -580,6 +582,70 @@ void AudioEngine::resetAutomationBases()
         mixerAutomation.setBase(MixerAutomation::mute(static_cast<int>(index)),channels[index].muted ? 1.0f : 0.0f);
     }
     mixerAutomation.setBase(MixerAutomation::kMaster,masterVolume);
+    for (int b=0;b<kMaxBuses;++b) {
+        mixerAutomation.setBase(MixerAutomation::busVolume(b),buses[static_cast<size_t>(b)].volume);
+        mixerAutomation.setBase(MixerAutomation::busMute(b),buses[static_cast<size_t>(b)].muted ? 1.0f : 0.0f);
+    }
+}
+
+bool AudioEngine::configureBuses(int count)
+{
+    if (count < 0 || count > kMaxBuses) { setLastError(EngineErrorCode::FormatMismatch,"Invalid bus count"); return false; }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    for (int b=count;b<kMaxBuses;++b) buses[static_cast<size_t>(b)]=Bus{};
+    for (auto& channel : channels) if (channel.bus >= count) channel.bus=-1;
+    busCount=count; resetAutomationBases(); return true;
+}
+
+bool AudioEngine::setBus(int index, float volume, bool muted, int outputBase, bool mono)
+{
+    if (!std::isfinite(volume) || volume < 0 || volume > 1 || outputBase < 0 || outputBase > 63) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid bus settings"); return false;
+    }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (index < 0 || index >= busCount) { setLastError(EngineErrorCode::FormatMismatch,"Invalid bus index"); return false; }
+    auto& bus=buses[static_cast<size_t>(index)];
+    bus.volume=volume; bus.muted=muted; bus.route={outputBase,mono};
+    mixerAutomation.setBase(MixerAutomation::busVolume(index),volume);
+    mixerAutomation.setBase(MixerAutomation::busMute(index),muted ? 1.0f : 0.0f);
+    return true;
+}
+
+void AudioEngine::setBusSoloMuted(int index, bool muted)
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (index >= 0 && index < busCount) buses[static_cast<size_t>(index)].soloMuted=muted;
+}
+
+bool AudioEngine::setChannelBus(int channelIndex, int bus)
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()) || bus < -1 || bus >= busCount) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid channel bus"); return false;
+    }
+    channels[static_cast<size_t>(channelIndex)].bus=bus; return true;
+}
+
+void AudioEngine::setStereoSplit(bool enabled) { stereoSplit=enabled; }
+
+int AudioEngine::getBusState(float* volumes, uint8_t* mutes, int capacity) const
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    const bool automating=automationEnabled.load();
+    const int64_t position=currentSamplePosition.load();
+    for (int b=0;b<busCount && b<capacity;++b) {
+        const auto& bus=buses[static_cast<size_t>(b)];
+        if (volumes) volumes[b]=automating ? mixerAutomation.value(MixerAutomation::busVolume(b),position,currentSampleRate) : bus.volume;
+        if (mutes) mutes[b]=(automating ? mixerAutomation.value(MixerAutomation::busMute(b),position,currentSampleRate) >= 0.5f : bus.muted) ? 1 : 0;
+    }
+    return busCount;
+}
+
+int AudioEngine::takeBusMeters(float* peaks, int capacity)
+{
+    for (int b=0;b<kMaxBuses;++b) { const float peak=busMeters[static_cast<size_t>(b)].take(); if (peaks && b < capacity) peaks[b]=peak; }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    return busCount;
 }
 
 bool AudioEngine::configureMixerAutomation(const double* starts, const double* ends, const int* params, const float* values, int count)
@@ -994,6 +1060,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 
         scratchBuffer.setSize(2, samplesPerBlockExpected);
         guideScratch.setSize(1,samplesPerBlockExpected);
+        busScratch.setSize(2*kMaxBuses,samplesPerBlockExpected);
         fadeGains.assign(static_cast<size_t>(samplesPerBlockExpected),1.0f); fadeOut.cancel();
         timecodeScratch.setSize(1,samplesPerBlockExpected);
 
@@ -1042,7 +1109,8 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     while (written < info.numSamples) {
         if (preroll.active()) {  // count-in: the playhead (and stems, MIDI, timecode) wait at the section start
             const int count=static_cast<int>(juce::jmin<int64_t>(preroll.remaining(),juce::jmin(preparedBlockSize,info.numSamples-written)));
-            preroll.render(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,
+            preroll.render(info.buffer->getArrayOfWritePointers(),
+                           stereoSplit.load() && info.buffer->getNumChannels() >= 2 ? 1 : info.buffer->getNumChannels(),info.startSample+written,count,
                            clickTimeline,currentSampleRate,clickEnabled.load(),guidesEnabled.load());
             masterRamp.set(masterAutomated ? mixerAutomation.value(MixerAutomation::kMaster,currentSamplePosition.load(),currentSampleRate) : masterVolume,rampFrames);
             applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp);
@@ -1085,6 +1153,9 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         const bool fading=fadeOut.active();
         if (fading)
             for (int i=0;i<count;++i) fadeGains[static_cast<size_t>(i)]=fadeOut.gain(i);
+        const int outputs=info.buffer->getNumChannels();
+        const bool split=stereoSplit.load() && outputs >= 2;  // click/guides left, every track and bus mono right
+        if (busCount > 0) for (int c=0;c<2*busCount;++c) juce::FloatVectorOperations::clear(busScratch.getWritePointer(c),count);
         for (size_t index=0;index<channels.size();++index) {
             auto& channel=channels[index]; scratchBuffer.clear();
             if (loopEnabled && activeLoop) {
@@ -1100,9 +1171,15 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             const bool automated=automating && index < static_cast<size_t>(MixerAutomation::kChannels)
                 && (mixerAutomation.has(volumeParam) || mixerAutomation.has(muteParam));
             const bool fades=fading && !channel.excludedFromFade;
+            // Destination: the channel's bus (stereo pair in the bus scratch) or the device outputs.
+            const bool bussed=channel.bus >= 0 && channel.bus < busCount;
+            float* const* destination=bussed ? busScratch.getArrayOfWritePointers() : info.buffer->getArrayOfWritePointers();
+            const int destinationCount=bussed ? 2*busCount : outputs;
+            const int destinationStart=bussed ? 0 : info.startSample+written;
+            const ChannelRoute route=bussed ? ChannelRoute{2*channel.bus,false} : (split ? ChannelRoute{1,true} : channel.route);
             if (automated || fades) {
-                const float peak=mixStemTargets(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
-                               info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp,rampFrames,[&](int i) {
+                const float peak=mixStemTargets(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),destination,
+                               destinationCount,destinationStart,count,route,channel.ramp,rampFrames,[&](int i) {
                     const int64_t sample=position+i;
                     float target;
                     if (!automated) target=(channel.muted || channel.soloMuted) ? 0.0f : channel.volume;
@@ -1115,9 +1192,22 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             }
             channel.ramp.set((channel.muted || channel.soloMuted) ? 0.0f : channel.volume,rampFrames);
             if (channel.ramp.silent()) continue;
-            const float peak=mixStem(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
-                    info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp);
+            const float peak=mixStem(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),destination,
+                    destinationCount,destinationStart,count,route,channel.ramp);
             if (index < channelMeters.size()) channelMeters[index].raise(peak);
+        }
+        for (int b=0;b<busCount;++b) {  // BusChannel stage: gain/mute ramp and output routing
+            auto& bus=buses[static_cast<size_t>(b)];
+            const int volumeParam=MixerAutomation::busVolume(b), muteParam=MixerAutomation::busMute(b);
+            const bool automated=automating && (mixerAutomation.has(volumeParam) || mixerAutomation.has(muteParam));
+            const float peak=mixStemTargets(busScratch.getReadPointer(2*b),busScratch.getReadPointer(2*b+1),info.buffer->getArrayOfWritePointers(),
+                    outputs,info.startSample+written,count,split ? ChannelRoute{1,true} : bus.route,bus.ramp,rampFrames,[&](int i) {
+                if (bus.soloMuted) return 0.0f;
+                if (!automated) return bus.muted ? 0.0f : bus.volume;
+                const int64_t sample=position+i;
+                return mixerAutomation.value(muteParam,sample,currentSampleRate) >= 0.5f ? 0.0f : mixerAutomation.value(volumeParam,sample,currentSampleRate);
+            });
+            busMeters[static_cast<size_t>(b)].raise(peak);
         }
         // Click, guides and count-in tails share one mono bus that fades with the song and feeds every output.
         guideScratch.clear();
@@ -1126,7 +1216,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         float* internal[1]={guideScratch.getWritePointer(0)};
         preroll.render(internal,1,0,count,clickTimeline,currentSampleRate,clickEnabled.load(),guidesEnabled.load());
         if (fading) juce::FloatVectorOperations::multiply(internal[0],fadeGains.data(),count);
-        for(int output=0;output<info.buffer->getNumChannels();++output)
+        for(int output=0;output<(split ? 1 : outputs);++output)
             info.buffer->addFrom(output,info.startSample+written,guideScratch,0,0,count);
         if (midiRouter.isOpen()) {
             if (midiClockEnabled.load()) {

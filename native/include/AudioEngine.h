@@ -39,8 +39,18 @@ struct Channel
     bool muted = false;
     bool soloMuted = false;  // silenced by another channel's solo; independent of the (automatable) mute
     bool excludedFromFade = false;
+    int bus = -1;  // index into the song's buses, -1 = straight to its own route
     GainRamp ramp;
     ChannelRoute route;
+};
+
+// Song bus (Playback SongBus{volume, muted} + BusChannelAU: ramped gain, mute gate, output base, mono/stereo).
+struct Bus
+{
+    float volume = 1.0f;
+    bool muted = false, soloMuted = false;
+    ChannelRoute route;
+    GainRamp ramp;
 };
 
 class AudioEngine : public juce::AudioSource
@@ -86,6 +96,19 @@ public:
     bool setChannelRoute(int channelIndex, int outputBase, bool mono);
     void setMasterVolume(float volume);
     void setChannelSoloMuted(int channelIndex, bool muted);
+    // Buses: tracks assigned to a bus are summed in stereo, the bus applies its gain/mute ramp (automatable: params
+    // 129+b volume, 145+b mute) and routes to its output like a channel. Up to 16; the song's buses are dropped with it.
+    static constexpr int kMaxBuses = MixerAutomation::kBuses;
+    bool configureBuses(int count);
+    bool setBus(int index, float volume, bool muted, int outputBase, bool mono);
+    void setBusSoloMuted(int index, bool muted);
+    bool setChannelBus(int channelIndex, int bus);
+    // "Send Click & Guide to left and tracks to right (Stereo output only)": with two or more outputs, click/guides go to
+    // output 1 only and every track and bus is summed in mono to output 2 (our reading of the option).
+    void setStereoSplit(bool enabled);
+    // Effective bus state at the playhead (automation when enabled); returns the bus count.
+    int getBusState(float* volumes, uint8_t* mutes, int capacity) const;
+    int takeBusMeters(float* peaks, int capacity);
     // Fade out (see FadeOut in MixerStage.h). startFadeOut needs playback running (0.05..60 s); it ends in a pause and a
     // FadeFinished event. Seek, pause, stop, play and new songs cancel it. During a pre-roll count-in it pauses at once.
     bool startFadeOut(double seconds);
@@ -214,6 +237,11 @@ private:
     std::vector<float> fadeGains;
     std::array<PeakMeter, 64> channelMeters;
     std::array<PeakMeter, 8> outputMeters;
+    std::array<Bus, MixerAutomation::kBuses> buses;
+    int busCount = 0;
+    juce::AudioBuffer<float> busScratch;
+    std::array<PeakMeter, MixerAutomation::kBuses> busMeters;
+    std::atomic<bool> stereoSplit { false };
     void meterOutputs(const juce::AudioBuffer<float>& buffer, int start, int count) noexcept;
     std::atomic<bool> automationEnabled { true };
     void resetAutomationBases();

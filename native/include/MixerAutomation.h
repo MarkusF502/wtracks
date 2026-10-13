@@ -20,13 +20,16 @@ namespace wtracks {
 // Control-thread configure/setBase and render must be externally synchronized (AudioEngine's channelsLock).
 class MixerAutomation {
 public:
-    static constexpr int kChannels = 64;
-    static constexpr int kMaster = 2 * kChannels;  // params: [0,64) channel volume, [64,128) channel mute, 128 master
-    static constexpr int kParams = kMaster + 1;
+    static constexpr int kChannels = 64, kBuses = 16;
+    // params: [0,64) channel volume, [64,128) channel mute, 128 master, [129,145) bus volume, [145,161) bus mute
+    static constexpr int kMaster = 2 * kChannels;
+    static constexpr int kParams = kMaster + 1 + 2 * kBuses;
     static constexpr size_t kMaxPoints = 16384;
     static int volume(int channel) noexcept { return channel; }
     static int mute(int channel) noexcept { return kChannels + channel; }
-    static bool isMute(int param) noexcept { return param >= kChannels && param < kMaster; }
+    static int busVolume(int bus) noexcept { return kMaster + 1 + bus; }
+    static int busMute(int bus) noexcept { return kMaster + 1 + kBuses + bus; }
+    static bool isMute(int param) noexcept { return (param >= kChannels && param < kMaster) || param >= busMute(0); }
 
     struct Point { double start = 0, end = 0; int param = 0; float value = 0; };
 

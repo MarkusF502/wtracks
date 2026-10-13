@@ -275,6 +275,13 @@ int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, i
 {
     return engine ? engine->takeMeters(channelPeaks,capacity,outputPeaks,outputCapacity) : 0;
 }
+bool wtracks_configure_buses(int count) { return engine ? engine->configureBuses(count) : false; }
+bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono) { return engine ? engine->setBus(index,volume,muted,outputBase,mono) : false; }
+void wtracks_set_bus_solo_muted(int index, bool muted) { if (engine) engine->setBusSoloMuted(index,muted); }
+bool wtracks_set_channel_bus(int channelIndex, int bus) { return engine ? engine->setChannelBus(channelIndex,bus) : false; }
+void wtracks_set_stereo_split(bool enabled) { if (engine) engine->setStereoSplit(enabled); }
+int wtracks_get_bus_state(float* volumes, uint8_t* mutes, int capacity) { return engine ? engine->getBusState(volumes,mutes,capacity) : 0; }
+int wtracks_take_bus_meters(float* peaks, int capacity) { return engine ? engine->takeBusMeters(peaks,capacity) : 0; }
 
 bool wtracks_set_loop(double start, double end, bool enabled)
 {
