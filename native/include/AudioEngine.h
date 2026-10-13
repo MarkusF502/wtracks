@@ -59,8 +59,9 @@ public:
     double getTotalLengthSeconds() const;
     bool isPlaying() const;
     uint64_t getUnderrunCount() const;
-    bool setLoop(double startSeconds, double endSeconds, bool enabled);
-    bool enqueueLoop(double startSeconds, double endSeconds);
+    // repeats: number of passes before playback continues past the loop end (0 = loop until disabled).
+    bool setLoop(double startSeconds, double endSeconds, bool enabled, int repeats = 0);
+    bool enqueueLoop(double startSeconds, double endSeconds, int repeats = 0);
     void clearQueuedLoop();
     bool getLoopEnabled() const;
     void getLoopState(double* out6) const;
@@ -133,6 +134,7 @@ private:
 
     struct LoopCache {
         double start=0, end=0;
+        int repeats=0;
         std::vector<juce::AudioBuffer<float>> stems;
         std::vector<int64_t> firstFrames;
     };
@@ -140,6 +142,8 @@ private:
     bool loopEnabled=false, queuedLoopEnabled=false;
     void normalizeLoopPosition();
     std::shared_ptr<LoopCache> prepareLoop(double startSeconds, double endSeconds);
+    int loopPasses=0;
+    void parkStreamsAt(double seconds);
     std::vector<Channel> channels;
     mutable juce::SpinLock channelsLock;
 

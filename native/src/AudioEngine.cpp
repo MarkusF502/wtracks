@@ -217,9 +217,12 @@ void AudioEngine::seekToSeconds(double seconds)
         if (loopEnabled && activeLoop && (seconds < activeLoop->start || seconds >= activeLoop->end)) seconds=activeLoop->start;
         currentSamplePosition = static_cast<int64_t>(std::llround(seconds * currentSampleRate));
         for (auto& channel : channels) if (channel.bufferedSource) {
-            channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(seconds*channel.fileSampleRate)));
+            // A counted loop plays from its cache; the streams wait at the loop end for the continuation.
+            const double streamSeconds = (loopEnabled && activeLoop && activeLoop->repeats > 0) ? activeLoop->end : seconds;
+            channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(streamSeconds*channel.fileSampleRate)));
             channel.resampler->flushBuffers();
         }
+        loopPasses=0;
         clickTimeline.reset(); guideTimeline.reset();
     }
     if (prefillChannels()) playing=resume;
@@ -288,7 +291,7 @@ void AudioEngine::loopToFileTime(double& start, double& end)
     if (end > total && end-total < 1e-6) end=total; // song-end round trip through the scale
 }
 
-bool AudioEngine::setLoop(double start, double end, bool enabled)
+bool AudioEngine::setLoop(double start, double end, bool enabled, int repeats)
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     if (!enabled) {
@@ -301,21 +304,26 @@ bool AudioEngine::setLoop(double start, double end, bool enabled)
         return true;
     }
     loopToFileTime(start,end);
+    if (repeats < 0 || repeats > 1000) { setLastError(EngineErrorCode::FormatMismatch,"Invalid loop repeat count"); return false; }
     auto bank=prepareLoop(start,end); if (!bank) return false;
+    bank->repeats=repeats;
+    if (repeats > 0) parkStreamsAt(bank->end);  // the continuation after the last pass reads ahead while the cache plays
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true;
+    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true; loopPasses=0;
     const double seconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
     if (seconds < start || seconds >= end) currentSamplePosition=static_cast<int64_t>(std::llround(start*currentSampleRate));
     clickTimeline.reset(); guideTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
 }
 
-bool AudioEngine::enqueueLoop(double start, double end)
+bool AudioEngine::enqueueLoop(double start, double end, int repeats)
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     { const juce::SpinLock::ScopedLockType lock(channelsLock);
       if (!loopEnabled || !activeLoop) { setLastError(EngineErrorCode::FormatMismatch,"Enable a loop before enqueueing"); return false; } }
     loopToFileTime(start,end);
+    if (repeats < 0 || repeats > 1000) { setLastError(EngineErrorCode::FormatMismatch,"Invalid loop repeat count"); return false; }
     auto bank=prepareLoop(start,end); if (!bank) return false;
+    bank->repeats=repeats;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     queuedLoop=std::move(bank); queuedLoopEnabled=true; setLastError(EngineErrorCode::None,""); return true;
 }
@@ -335,6 +343,16 @@ void AudioEngine::getLoopState(double* out6) const
     out6[4]=queuedLoopEnabled && queuedLoop ? queuedLoop->start/timeScale : 0;
     out6[5]=queuedLoopEnabled && queuedLoop ? queuedLoop->end/timeScale : 0;
 }
+void AudioEngine::parkStreamsAt(double seconds)
+{
+    // Control thread, loop mode: the streams are idle, so point them at the loop end and let read-ahead fill.
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    for (auto& channel : channels) if (channel.bufferedSource) {
+        channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(seconds*channel.fileSampleRate)));
+        channel.resampler->flushBuffers();
+    }
+}
+
 void AudioEngine::normalizeLoopPosition()
 {
     if (!loopEnabled || !activeLoop) return;
@@ -345,7 +363,10 @@ void AudioEngine::normalizeLoopPosition()
     const int64_t overflow=position >= end ? position-end : 0;
     if (position >= end && queuedLoopEnabled && queuedLoop) {
         // Retain the previous cache until a control-thread queue operation destroys it.
-        activeLoop.swap(queuedLoop); queuedLoopEnabled=false;
+        activeLoop.swap(queuedLoop); queuedLoopEnabled=false; loopPasses=0;
+    } else if (position >= end && activeLoop->repeats > 0 && ++loopPasses >= activeLoop->repeats) {
+        // Last pass done: continue streaming right after the loop end (the streams were parked there when the loop was set).
+        loopEnabled=false; currentSamplePosition=end; return;
     }
     const auto nextStart=static_cast<int64_t>(std::llround(activeLoop->start*currentSampleRate));
     const auto nextEnd=static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate));
@@ -740,7 +761,8 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
         for (auto& channel : channels)
             if (channel.resampler != nullptr)
             {
-                channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(positionSeconds*channel.fileSampleRate)));
+                const double streamSeconds = (loopEnabled && activeLoop && activeLoop->repeats > 0) ? activeLoop->end : positionSeconds;
+                channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(streamSeconds*channel.fileSampleRate)));
                 channel.resampler->setResamplingRatio(channel.fileSampleRate / sampleRate);
                 channel.resampler->prepareToPlay(samplesPerBlockExpected, sampleRate);
                 channel.resampler->flushBuffers();

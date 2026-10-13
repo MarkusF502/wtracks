@@ -32,6 +32,9 @@ WTRACKS_API uint64_t wtracks_get_underrun_count();
 // Prepared loop banks; invalid/oversize requests preserve the previous state.
 WTRACKS_API bool wtracks_set_loop(double startSeconds, double endSeconds, bool enabled);
 WTRACKS_API bool wtracks_enqueue_loop(double startSeconds, double endSeconds);
+// Counted loops: `repeats` passes (1..1000) before playback continues after the loop end; 0 loops until disabled.
+WTRACKS_API bool wtracks_set_loop_repeats(double startSeconds, double endSeconds, bool enabled, int repeats);
+WTRACKS_API bool wtracks_enqueue_loop_repeats(double startSeconds, double endSeconds, int repeats);
 WTRACKS_API void wtracks_clear_queued_loop();
 WTRACKS_API bool wtracks_get_loop_enabled();
 // Atomic snapshot: enabled,start,end,queued,queuedStart,queuedEnd. Caller owns six doubles.

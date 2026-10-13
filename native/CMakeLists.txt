@@ -62,6 +62,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         tests/MidiTests.cpp
         tests/TimecodeTests.cpp
         tests/TempoMapTests.cpp
+        tests/CountedLoopTests.cpp
         tests/LoopTests.cpp
         tests/ReadAheadTests.cpp
         tests/ClickTimelineTests.cpp

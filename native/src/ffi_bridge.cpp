@@ -229,6 +229,22 @@ bool wtracks_set_loop(double start, double end, bool enabled)
     try { return engine->setLoop(start,end,enabled); }
     catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Loop preparation failed"); return false; }
 }
+bool wtracks_set_loop_repeats(double start, double end, bool enabled, int repeats)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->setLoop(start, end, enabled, repeats); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Loop preparation failed"); return false; }
+}
+
+bool wtracks_enqueue_loop_repeats(double start, double end, int repeats)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->enqueueLoop(start, end, repeats); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Loop preparation failed"); return false; }
+}
+
 bool wtracks_enqueue_loop(double start, double end)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
