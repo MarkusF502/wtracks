@@ -265,6 +265,12 @@ int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* m
 }
 
 void wtracks_set_channel_solo_muted(int channelIndex, bool muted) { if (engine) engine->setChannelSoloMuted(channelIndex,muted); }
+bool wtracks_start_fade_out(double seconds) { return engine ? engine->startFadeOut(seconds) : false; }
+void wtracks_cancel_fade_out() { if (engine) engine->cancelFadeOut(); }
+bool wtracks_set_end_fade(double seconds) { return engine ? engine->setEndFade(seconds) : false; }
+void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded) { if (engine) engine->setChannelExcludedFromFade(channelIndex,excluded); }
+double wtracks_get_fade_gain() { return engine ? engine->getFadeGain() : -1.0; }
+uint32_t wtracks_poll_transport_events() { return engine ? engine->pollTransportEvents() : 0; }
 
 bool wtracks_set_loop(double start, double end, bool enabled)
 {

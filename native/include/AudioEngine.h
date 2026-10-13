@@ -38,6 +38,7 @@ struct Channel
     float volume = 1.0f;
     bool muted = false;
     bool soloMuted = false;  // silenced by another channel's solo; independent of the (automatable) mute
+    bool excludedFromFade = false;
     GainRamp ramp;
     ChannelRoute route;
 };
@@ -85,6 +86,18 @@ public:
     bool setChannelRoute(int channelIndex, int outputBase, bool mono);
     void setMasterVolume(float volume);
     void setChannelSoloMuted(int channelIndex, bool muted);
+    // Fade out (see FadeOut in MixerStage.h). startFadeOut needs playback running (0.05..60 s); it ends in a pause and a
+    // FadeFinished event. Seek, pause, stop, play and new songs cancel it. During a pre-roll count-in it pauses at once.
+    bool startFadeOut(double seconds);
+    void cancelFadeOut();
+    // Fade over the last `seconds` of the song (playhead based); 0 disables.
+    bool setEndFade(double seconds);
+    void setChannelExcludedFromFade(int channelIndex, bool excluded);
+    // Current manual fade gain (1..0) or -1 when no fade runs.
+    double getFadeGain() const;
+    enum TransportEvent : uint32_t { EndReached = 1, FadeFinished = 2 };
+    // Events raised by the audio thread since the last poll (bitmask of TransportEvent).
+    uint32_t pollTransportEvents();
     // Mixer automation (own design, see MixerAutomation.h). Params: channel volume c, channel mute 64+c, master 128.
     // Replaces the previous points; invalid input changes nothing. Points for channels the song lacks are ignored.
     bool configureMixerAutomation(const double* starts, const double* ends, const int* params, const float* values, int count);
@@ -189,6 +202,10 @@ private:
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
     MixerAutomation mixerAutomation;
+    FadeOut fadeOut;
+    double endFadeSeconds = 0;
+    std::atomic<uint32_t> transportEvents { 0 };
+    std::vector<float> fadeGains;
     std::atomic<bool> automationEnabled { true };
     void resetAutomationBases();
     GainRamp masterRamp;

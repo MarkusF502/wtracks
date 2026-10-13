@@ -109,6 +109,14 @@ WTRACKS_API void wtracks_set_automation_enabled(bool enabled);
 // Effective mixer state at the playhead; returns the channel count, fills up to `capacity` entries.
 WTRACKS_API int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master);
 WTRACKS_API void wtracks_set_channel_solo_muted(int channelIndex, bool muted);
+// Fade out: manual (ends in a pause) and over the last seconds of the song; -1 gain = no manual fade running.
+WTRACKS_API bool wtracks_start_fade_out(double seconds);
+WTRACKS_API void wtracks_cancel_fade_out();
+WTRACKS_API bool wtracks_set_end_fade(double seconds);
+WTRACKS_API void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded);
+WTRACKS_API double wtracks_get_fade_gain();
+// Bitmask since the last call: 1 = end of song reached, 2 = fade out finished.
+WTRACKS_API uint32_t wtracks_poll_transport_events();
 
 // Click track
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.
