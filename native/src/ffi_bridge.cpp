@@ -132,6 +132,17 @@ bool wtracks_load_click_sound(int voice, const char* path)
     try { return engine->loadClickSound(voice, path ? juce::String::fromUTF8(path) : juce::String()); }
     catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Click sound loading failed"); return false; }
 }
+bool wtracks_load_click_bank(const char** paths, int voiceCount)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    if (!paths || voiceCount != 4) { engine->setLastError(wtracks::EngineErrorCode::FormatMismatch,"Click bank requires four voices"); return false; }
+    try {
+        std::array<juce::String,4> names;
+        for (int voice=0;voice<4;++voice) names[voice]=paths[voice] ? juce::String::fromUTF8(paths[voice]) : juce::String();
+        return engine->loadClickBank(names);
+    } catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Click bank loading failed"); return false; }
+}
 void wtracks_set_click_gain(float gain) { if (engine) engine->setClickGain(gain); }
 
 void wtracks_set_click_enabled(bool enabled)

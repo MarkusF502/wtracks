@@ -58,6 +58,7 @@ public:
 
     bool configureClick(double bpm, int numerator, int denominator, int bpmUnit, double offset, double accent, double quarter, double eighth, double sixteenth);
     bool loadClickSound(int voice, const juce::String& path);
+    bool loadClickBank(const std::array<juce::String,4>& paths);
     void setClickGain(float gain);
 
     // Tratamento de Erros Blindado
@@ -96,6 +97,7 @@ private:
     EngineErrorCode lastErrorCode = EngineErrorCode::None;
     mutable juce::SpinLock errorLock;
 
+    bool decodeClickSound(const juce::String& path, juce::AudioBuffer<float>& decoded, double& rate);
     void generateClickBuffers(double sampleRate);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngine)

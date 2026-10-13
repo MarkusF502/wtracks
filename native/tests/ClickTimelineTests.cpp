@@ -73,6 +73,27 @@ public:
         expectWithinAbsoluteError(out.getSample(0,0),0.75f,0.00001f);
         engine.stop(); expect(engine.loadClickSound(0,"")); engine.play(); out.clear(); engine.getNextAudioBlock(audio);
         expectEquals(out.getSample(0,0),0.0f); expect(out.getSample(0,1)>0);
+        beginTest("Atomic four-voice bank retains every previous voice if one decode fails");
+        std::array<juce::String,4> bank;
+        for (int voice=0;voice<4;++voice) bank[voice]=writeWav("voice"+juce::String(voice)+".wav",0.1f*(voice+1),16).getFullPathName();
+        expect(engine.loadClickBank(bank)); expect(engine.configureClick(120,4,4,4,0,1,1,1,1));
+        const std::array<double,4> times {{0,0.5,0.25,0.125}};
+        auto assertBank=[&]() {
+            for (int voice=0;voice<4;++voice) {
+                engine.seekToSeconds(times[voice]); engine.play(); out.clear(); engine.getNextAudioBlock(audio);
+                expectWithinAbsoluteError(out.getSample(0,0),0.1f*(voice+1),0.00001f);
+            }
+        };
+        assertBank(); auto broken=bank; broken[0]=pulse.getFullPathName(); broken[3]="/tmp/missing-bank-voice.wav";
+        expect(!engine.loadClickBank(broken)); assertBank();
+        beginTest("Device sample-rate migration preserves timeline seconds and click phase");
+        engine.pause(); engine.prepareToPlay(64,44100); engine.seekToSeconds(0.5);
+        engine.prepareToPlay(64,48000); expectWithinAbsoluteError(engine.getCurrentPositionSeconds(),0.5,1.0/48000);
+        engine.play(); out.clear(); engine.getNextAudioBlock(audio);
+        expectWithinAbsoluteError(out.getSample(0,0),0.2f,0.00001f);
+        expect(engine.loadClickBank({{"","","",""}}));
+        engine.stop(); engine.play(); out.clear(); engine.getNextAudioBlock(audio);
+        expectEquals(out.getSample(0,0),0.0f); expect(out.getSample(0,1)>0);
         engine.unloadCurrentTrack(); out.clear(); engine.getNextAudioBlock(audio); expectEquals(out.getMagnitude(0,64),0.0f);
         directory.deleteRecursively();
         beginTest("Sampled voices resample and gain without per-block preparation");

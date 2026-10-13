@@ -203,6 +203,7 @@ void AudioEngine::seekToSeconds(double seconds)
 
 double AudioEngine::getCurrentPositionSeconds() const
 {
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
     return static_cast<double>(currentSamplePosition.load()) / currentSampleRate;
 }
 
@@ -284,22 +285,40 @@ void AudioEngine::setClickGain(float gain)
     if (!std::isfinite(gain) || gain < 0 || gain > 2) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click gain"); return; }
     const juce::SpinLock::ScopedLockType lock(channelsLock); clickTimeline.masterGain=gain;
 }
+bool AudioEngine::decodeClickSound(const juce::String& path, juce::AudioBuffer<float>& decoded, double& rate)
+{
+    rate=44100;
+    if (path.isEmpty()) return true;
+    juce::AudioFormatManager loader; loader.registerBasicFormats();
+    std::unique_ptr<juce::AudioFormatReader> reader(loader.createReaderFor(juce::File(path)));
+    if (!reader || reader->lengthInSamples <= 0 || !std::isfinite(reader->sampleRate) || reader->sampleRate < 8000 || reader->sampleRate > 192000
+        || reader->lengthInSamples > reader->sampleRate*10) { setLastError(EngineErrorCode::FileUnreadable,"Click sound unavailable or exceeds ten seconds"); return false; }
+    rate=reader->sampleRate; decoded.setSize(1,static_cast<int>(reader->lengthInSamples));
+    if (!reader->read(&decoded,0,decoded.getNumSamples(),0,true,false)) { setLastError(EngineErrorCode::FileUnreadable,"Click sound decoding failed"); return false; }
+    return true;
+}
+
 bool AudioEngine::loadClickSound(int voice, const juce::String& path)
 {
     if (voice < 0 || voice > 3) { setLastError(EngineErrorCode::FormatMismatch,"Invalid click voice"); return false; }
-    juce::AudioBuffer<float> decoded;
-    double rate=44100;
-    if (path.isNotEmpty()) {
-        juce::AudioFormatManager loader; loader.registerBasicFormats();
-        std::unique_ptr<juce::AudioFormatReader> reader(loader.createReaderFor(juce::File(path)));
-        if (!reader || reader->lengthInSamples <= 0 || !std::isfinite(reader->sampleRate) || reader->sampleRate < 8000 || reader->sampleRate > 192000
-            || reader->lengthInSamples > reader->sampleRate*10) { setLastError(EngineErrorCode::FileUnreadable,"Click sound unavailable or exceeds ten seconds"); return false; }
-        rate=reader->sampleRate; decoded.setSize(1,static_cast<int>(reader->lengthInSamples));
-        if (!reader->read(&decoded,0,decoded.getNumSamples(),0,true,false)) { setLastError(EngineErrorCode::FileUnreadable,"Click sound decoding failed"); return false; }
-    }
-    // Decoding and allocation are complete before acquiring the render lock.
+    juce::AudioBuffer<float> decoded; double rate;
+    if (!decodeClickSound(path,decoded,rate)) return false;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     clickTimeline.sounds[voice]=std::move(decoded); clickTimeline.soundRates[voice]=rate; clickTimeline.starts[voice]=-1;
+    setLastError(EngineErrorCode::None, "");
+    return true;
+}
+
+bool AudioEngine::loadClickBank(const std::array<juce::String,4>& paths)
+{
+    std::array<juce::AudioBuffer<float>,4> decoded;
+    std::array<double,4> rates;
+    for (int voice=0;voice<4;++voice)
+        if (!decodeClickSound(paths[voice],decoded[voice],rates[voice])) return false;
+    // Publish only after all four voices decode; a failure retains the old bank and tails.
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    clickTimeline.sounds=std::move(decoded); clickTimeline.soundRates=rates; clickTimeline.reset();
+    setLastError(EngineErrorCode::None, "");
     return true;
 }
 
@@ -318,7 +337,9 @@ void AudioEngine::generateClickBuffers(double sampleRate)
 void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
+    const double positionSeconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
     currentSampleRate = sampleRate;
+    currentSamplePosition=static_cast<int64_t>(std::llround(positionSeconds*sampleRate));
     clickTimeline.reset();
     mixerSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
 
@@ -334,8 +355,10 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
     for (auto& channel : channels)
         if (channel.resampler != nullptr)
         {
+            channel.readerSource->setNextReadPosition(static_cast<juce::int64>(std::llround(positionSeconds*channel.fileSampleRate)));
             channel.resampler->setResamplingRatio(channel.fileSampleRate / sampleRate);
             channel.resampler->prepareToPlay(samplesPerBlockExpected, sampleRate);
+            channel.resampler->flushBuffers();
         }
 }
 

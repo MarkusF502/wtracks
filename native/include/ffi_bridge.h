@@ -43,6 +43,8 @@ WTRACKS_API int wtracks_get_channel_count();
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.
 WTRACKS_API bool wtracks_configure_click(double bpm, int numerator, int denominator, int bpmUnit, double offset, double accent, double quarter, double eighth, double sixteenth);
 WTRACKS_API bool wtracks_load_click_sound(int voice, const char* path);
+// Atomic four-voice publication. Failure preserves the previous complete bank.
+WTRACKS_API bool wtracks_load_click_bank(const char** paths, int voiceCount);
 WTRACKS_API void wtracks_set_click_gain(float gain);
 WTRACKS_API void wtracks_set_click_enabled(bool enabled);
 WTRACKS_API void wtracks_set_click_bpm(double bpm);
