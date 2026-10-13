@@ -39,7 +39,7 @@ class FakeEngine implements WTracksEngine {
   @override
   Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) async => true;
   @override
-  void unloadTrack() { calls.add('unload'); }
+  void unloadTrack() { calls.add('unload'); loopEnabled = false; loopStart = 0; loopEnd = 0; clearQueuedLoop(); }
   @override
   void play() {
     calls.add('play');
@@ -56,6 +56,7 @@ class FakeEngine implements WTracksEngine {
   void stop() {
     calls.add('stop');
     playing = false;
+    loopEnabled = false; loopStart = 0; loopEnd = 0; clearQueuedLoop();
   }
 
   @override
@@ -73,6 +74,42 @@ class FakeEngine implements WTracksEngine {
   void setChannelMuted(int channelIndex, bool muted) => calls.add('muted($channelIndex,$muted)');
   @override
   int get channelCount => 0;
+  @override
+  bool loopEnabled = false;
+  @override
+  bool queuedLoopEnabled = false;
+  @override
+  double loopStart = 0, loopEnd = 0, queuedLoopStart = 0, queuedLoopEnd = 0;
+  @override
+  int underrunCount = 0;
+  bool failLoop = false;
+  @override
+  List<double> get loopState => [loopEnabled ? 1 : 0, loopStart, loopEnd,
+    queuedLoopEnabled ? 1 : 0, queuedLoopStart, queuedLoopEnd];
+  @override
+  bool setLoop(double start, double end, bool enabled) {
+    calls.add('loop($start,$end,$enabled)');
+    if (failLoop) return false;
+    loopEnabled = enabled;
+    loopStart = enabled ? start : 0;
+    loopEnd = enabled ? end : 0;
+    clearQueuedLoop();
+    if (enabled && (position < start || position >= end)) position = start;
+    return true;
+  }
+  @override
+  Future<bool> setLoopAsync(double start, double end, bool enabled) async => setLoop(start, end, enabled);
+  @override
+  bool enqueueLoop(double start, double end) {
+    calls.add('enqueueLoop($start,$end)');
+    if (failLoop || !loopEnabled) return false;
+    queuedLoopEnabled = true; queuedLoopStart = start; queuedLoopEnd = end;
+    return true;
+  }
+  @override
+  Future<bool> enqueueLoopAsync(double start, double end) async => enqueueLoop(start, end);
+  @override
+  void clearQueuedLoop() { queuedLoopEnabled = false; queuedLoopStart = 0; queuedLoopEnd = 0; }
   ClickSettings? configuredClick;
   @override
   bool configureClick(ClickSettings settings) {

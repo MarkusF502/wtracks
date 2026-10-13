@@ -91,6 +91,14 @@ typedef _LoadClickSoundNative = Bool Function(Int32, Pointer<Utf8>);
 typedef _LoadClickSoundDart = bool Function(int, Pointer<Utf8>);
 typedef _LoadClickBankNative = Bool Function(Pointer<Pointer<Utf8>>, Int32);
 typedef _LoadClickBankDart = bool Function(Pointer<Pointer<Utf8>>, int);
+typedef _SetLoopNative = Bool Function(Double, Double, Bool);
+typedef _SetLoopDart = bool Function(double, double, bool);
+typedef _EnqueueLoopNative = Bool Function(Double, Double);
+typedef _EnqueueLoopDart = bool Function(double, double);
+typedef _LoopSnapshotNative = Void Function(Pointer<Double>);
+typedef _LoopSnapshotDart = void Function(Pointer<Double>);
+typedef _GetCounterNative = Uint64 Function();
+typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
 typedef _ClickGainDart = void Function(double);
 
@@ -145,6 +153,15 @@ class WTracksEngine {
   late final _LoadClickBankDart _loadClickBank;
   late final _ClickGainDart _setClickGain;
   late final _GenerateWaveformDart _generateWaveformPeaks;
+
+  late final _SetLoopDart _setLoop;
+  late final _EnqueueLoopDart _enqueueLoop;
+  late final _VoidDart _clearQueuedLoop;
+  late final _IsPlayingDart _getLoopEnabled;
+  late final _IsPlayingDart _getQueuedLoopEnabled;
+  late final _GetPositionDart _getLoopStart, _getLoopEnd, _getQueuedLoopStart, _getQueuedLoopEnd;
+  late final _GetCounterDart _getUnderrunCount;
+  late final _LoopSnapshotDart _getLoopState;
 
   WTracksEngine() {
     _lib = _openLibrary();
@@ -230,6 +247,17 @@ class WTracksEngine {
           'wtracks_load_click_sound',
         );
     _loadClickBank = _lib.lookupFunction<_LoadClickBankNative, _LoadClickBankDart>('wtracks_load_click_bank');
+    _setLoop = _lib.lookupFunction<_SetLoopNative, _SetLoopDart>('wtracks_set_loop');
+    _enqueueLoop = _lib.lookupFunction<_EnqueueLoopNative, _EnqueueLoopDart>('wtracks_enqueue_loop');
+    _clearQueuedLoop = _lib.lookupFunction<_VoidNative, _VoidDart>('wtracks_clear_queued_loop');
+    _getLoopEnabled = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_get_loop_enabled');
+    _getQueuedLoopEnabled = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_get_queued_loop_enabled');
+    _getLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_loop_start');
+    _getLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_loop_end');
+    _getQueuedLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_start');
+    _getQueuedLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_end');
+    _getLoopState = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_loop_state');
+    _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
       'wtracks_set_click_gain',
     );
@@ -358,6 +386,27 @@ class WTracksEngine {
     if (ok) _setClickGain(settings.volume);
     return ok;
   }
+
+  List<double> get loopState {
+    final values = calloc<Double>(6);
+    try { _getLoopState(values); return List.generate(6, (i) => values[i]); }
+    finally { calloc.free(values); }
+  }
+
+  bool setLoop(double start, double end, bool enabled) => _setLoop(start, end, enabled);
+  Future<bool> setLoopAsync(double start, double end, bool enabled) =>
+      Isolate.run(() => WTracksEngine().setLoop(start, end, enabled));
+  bool enqueueLoop(double start, double end) => _enqueueLoop(start, end);
+  Future<bool> enqueueLoopAsync(double start, double end) =>
+      Isolate.run(() => WTracksEngine().enqueueLoop(start, end));
+  void clearQueuedLoop() => _clearQueuedLoop();
+  bool get loopEnabled => _getLoopEnabled();
+  bool get queuedLoopEnabled => _getQueuedLoopEnabled();
+  double get loopStart => _getLoopStart();
+  double get loopEnd => _getLoopEnd();
+  double get queuedLoopStart => _getQueuedLoopStart();
+  double get queuedLoopEnd => _getQueuedLoopEnd();
+  int get underrunCount => _getUnderrunCount();
 
   Future<bool> loadClickBankAsync(List<String?> paths) =>
       Isolate.run(() => WTracksEngine().loadClickBank(paths));

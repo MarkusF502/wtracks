@@ -201,9 +201,58 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     state = track.copyWith(title: title);
   }
 
+  int _loopRequest = 0;
+  void cancelLoopPreparation() { ++_loopRequest; }
+  bool _loopBusy = false;
+  bool get loopBusy => _loopBusy;
+
+  Future<bool> setSectionLoop(SongSection section, {bool queue = false}) {
+    final track = state;
+    if (track == null || loadingTrackId != null || _loopBusy ||
+        !track.sections.any((s) => s.id == section.id && s.startSeconds == section.startSeconds && s.endSeconds == section.endSeconds)) {
+      return Future.value(false);
+    }
+    final generation = _generation;
+    final request = _loopRequest;
+    _loopBusy = true;
+    final operation = _pending.then((_) async {
+      try {
+        if (_disposed || generation != _generation) return false;
+        final engine = ref.read(engineProvider);
+        final ok = queue ? await engine.enqueueLoopAsync(section.startSeconds, section.endSeconds)
+          : await engine.setLoopAsync(section.startSeconds, section.endSeconds, true);
+        if (_disposed || generation != _generation || request != _loopRequest) {
+          if (!_disposed) {
+            engine.setLoop(0, 0, false);
+            ref.read(transportProvider.notifier).refresh();
+          }
+          return false;
+        }
+        ref.read(transportProvider.notifier).refresh();
+        return ok;
+      } catch (e) {
+        debugPrint('Falha ao preparar loop: $e');
+        return false;
+      } finally { _loopBusy = false; }
+    });
+    _pending = operation.then((_) {});
+    return operation;
+  }
+
   bool updateSections(String trackId, List<SongSection> sections) {
     final track = state;
-    if (track == null || track.id != trackId || loadingTrackId != null || !SongSection.validSequence(sections)) return false;
+    if (track == null || track.id != trackId || loadingTrackId != null || _loopBusy || !SongSection.validSequence(sections)) return false;
+    final engine = ref.read(engineProvider);
+    final loop = engine.loopState;
+    bool matches(SongSection s, double start, double end) =>
+      (s.startSeconds - start).abs() <= 0.001 && (s.endSeconds - end).abs() <= 0.001;
+    bool removed(double start, double end) => track.sections.any((s) => matches(s, start, end)) && !sections.any((s) => matches(s, start, end));
+    if (loop[0] == 1 && removed(loop[1], loop[2])) {
+      if (!engine.setLoop(0, 0, false)) return false;
+    } else if (loop[3] == 1 && removed(loop[4], loop[5])) {
+      engine.clearQueuedLoop();
+    }
+    ref.read(transportProvider.notifier).refresh();
     state = track.copyWith(sections: List.unmodifiable(sections));
     return true;
   }
@@ -364,22 +413,26 @@ class TransportState {
   final double positionSeconds;
   final double lengthSeconds;
   final bool isPlaying;
-
-  const TransportState({
-    this.positionSeconds = 0,
-    this.lengthSeconds = 0,
-    this.isPlaying = false,
-  });
-
+  final bool loopEnabled;
+  final double loopStart, loopEnd;
+  final bool queuedLoopEnabled;
+  final double queuedLoopStart, queuedLoopEnd;
+  final int underrunCount;
+  const TransportState({this.positionSeconds = 0, this.lengthSeconds = 0, this.isPlaying = false,
+    this.loopEnabled = false, this.loopStart = 0, this.loopEnd = 0,
+    this.queuedLoopEnabled = false, this.queuedLoopStart = 0, this.queuedLoopEnd = 0, this.underrunCount = 0});
+  bool activeSection(SongSection section) => loopEnabled &&
+      (loopStart - section.startSeconds).abs() <= 0.001 && (loopEnd - section.endSeconds).abs() <= 0.001;
+  bool queuedSection(SongSection section) => queuedLoopEnabled &&
+      (queuedLoopStart - section.startSeconds).abs() <= 0.001 && (queuedLoopEnd - section.endSeconds).abs() <= 0.001;
   @override
-  bool operator ==(Object other) =>
-      other is TransportState &&
-      other.positionSeconds == positionSeconds &&
-      other.lengthSeconds == lengthSeconds &&
-      other.isPlaying == isPlaying;
-
+  bool operator ==(Object other) => other is TransportState &&
+      other.positionSeconds == positionSeconds && other.lengthSeconds == lengthSeconds && other.isPlaying == isPlaying &&
+      other.loopEnabled == loopEnabled && other.loopStart == loopStart && other.loopEnd == loopEnd &&
+      other.queuedLoopEnabled == queuedLoopEnabled && other.queuedLoopStart == queuedLoopStart && other.queuedLoopEnd == queuedLoopEnd && other.underrunCount == underrunCount;
   @override
-  int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying);
+  int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying, loopEnabled, loopStart, loopEnd,
+      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount);
 }
 
 class TransportNotifier extends Notifier<TransportState> {
@@ -390,11 +443,7 @@ class TransportNotifier extends Notifier<TransportState> {
   TransportState build() {
     final engine = ref.watch(engineProvider);
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      final next = TransportState(
-        positionSeconds: engine.currentPositionSeconds,
-        lengthSeconds: engine.totalLengthSeconds,
-        isPlaying: engine.isPlaying,
-      );
+      final next = _snapshot(engine);
       // Parado, nada muda entre ticks -- evita rebuild 10x/s à toa.
       if (_backgroundActive && !next.isPlaying) {
         _backgroundActive = false;
@@ -408,6 +457,18 @@ class TransportNotifier extends Notifier<TransportState> {
     });
     return const TransportState();
   }
+
+  TransportState _snapshot(WTracksEngine engine) {
+    final loop = engine.loopState;
+    return TransportState(positionSeconds: engine.currentPositionSeconds,
+      lengthSeconds: engine.totalLengthSeconds, isPlaying: engine.isPlaying,
+      loopEnabled: loop[0] == 1, loopStart: loop[1], loopEnd: loop[2],
+      queuedLoopEnabled: loop[3] == 1, queuedLoopStart: loop[4], queuedLoopEnd: loop[5],
+      underrunCount: engine.underrunCount);
+  }
+  void refresh() { final next = _snapshot(ref.read(engineProvider)); if (next != state) state = next; }
+  bool disableLoop() { final ok = ref.read(engineProvider).setLoop(0, 0, false); if (ok) refresh(); return ok; }
+  void clearQueuedLoop() { ref.read(engineProvider).clearQueuedLoop(); refresh(); }
 
   bool _backgroundActive = false;
   int _playGeneration = 0;
@@ -448,7 +509,9 @@ class TransportNotifier extends Notifier<TransportState> {
 
   Future<void> stop() async {
     ++_playGeneration;
+    ref.read(currentTrackProvider.notifier).cancelLoopPreparation();
     ref.read(engineProvider).stop();
+    refresh();
     _backgroundActive = false;
     await _background('stop');
   }

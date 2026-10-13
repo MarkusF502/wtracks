@@ -15,9 +15,19 @@ class SectionEditorScreen extends ConsumerStatefulWidget {
 
 class _SectionEditorScreenState extends ConsumerState<SectionEditorScreen> {
   bool _saving = false;
+  bool _loopBusy = false;
+  Future<void> _loop(SongSection section, {bool queue = false}) async {
+    if (_loopBusy) return;
+    setState(() => _loopBusy = true);
+    try {
+      final ok = await ref.read(currentTrackProvider.notifier).setSectionLoop(section, queue: queue);
+      if (!ok && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível preparar o loop desta seção.')));
+    } finally { if (mounted) setState(() => _loopBusy = false); }
+  }
+
   Future<void> _edit([SongSection? section]) async {
     final track = ref.read(currentTrackProvider);
-    if (track?.id != widget.trackId || _saving) return;
+    if (track?.id != widget.trackId || _saving || _loopBusy) return;
     final start =
         section?.startSeconds ??
         (track!.sections.isEmpty ? 0.0 : track.sections.last.endSeconds);
@@ -36,7 +46,7 @@ class _SectionEditorScreenState extends ConsumerState<SectionEditorScreen> {
   }
 
   Future<void> _save(List<SongSection> sections) async {
-    if (_saving) return;
+    if (_saving || _loopBusy) return;
     if (!ref
         .read(currentTrackProvider.notifier)
         .updateSections(widget.trackId, sections)) {
@@ -91,20 +101,27 @@ class _SectionEditorScreenState extends ConsumerState<SectionEditorScreen> {
   Widget build(BuildContext context) {
     final track = ref.watch(currentTrackProvider);
     final active = track?.id == widget.trackId;
+    final transport = ref.watch(transportProvider);
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
         backgroundColor: kPanelBg,
         title: const Text('Seções'),
         actions: [
+          if (transport.queuedLoopEnabled) IconButton(tooltip: 'Cancelar próxima seção',
+            icon: const Icon(Icons.playlist_remove), onPressed: _loopBusy ? null : () => ref.read(transportProvider.notifier).clearQueuedLoop()),
+          if (transport.loopEnabled) IconButton(tooltip: 'Desativar loop', icon: const Icon(Icons.repeat_on),
+            onPressed: _loopBusy ? null : () {
+              if (!ref.read(transportProvider.notifier).disableLoop()) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível desativar o loop.')));
+            }),
           IconButton(
             tooltip: 'Salvar seções',
             icon: const Icon(Icons.save_outlined),
-            onPressed: !active || _saving ? null : () => _save(track!.sections),
+            onPressed: !active || _saving || _loopBusy ? null : () => _save(track!.sections),
           ),
         ],
       ),
-      floatingActionButton: !active || _saving
+      floatingActionButton: !active || _saving || _loopBusy
           ? null
           : FloatingActionButton(
               tooltip: 'Adicionar seção',
@@ -137,18 +154,24 @@ class _SectionEditorScreenState extends ConsumerState<SectionEditorScreen> {
                                 .read(transportProvider.notifier)
                                 .seekTo(section.startSeconds);
                           },
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    trailing: Wrap(
+                      spacing: 0,
                       children: [
+                        IconButton(tooltip: 'Repetir ${section.name}',
+                          icon: Icon(Icons.repeat, color: transport.activeSection(section) ? kAccent : kTextDim),
+                          onPressed: _saving || _loopBusy ? null : () => _loop(section)),
+                        IconButton(tooltip: 'Próxima seção: ${section.name}',
+                          icon: Icon(Icons.playlist_play, color: transport.queuedSection(section) ? kAccent : kTextDim),
+                          onPressed: _saving || _loopBusy || !transport.loopEnabled ? null : () => _loop(section, queue: true)),
                         IconButton(
                           tooltip: 'Editar seção',
                           icon: const Icon(Icons.edit_outlined),
-                          onPressed: _saving ? null : () => _edit(section),
+                          onPressed: _saving || _loopBusy ? null : () => _edit(section),
                         ),
                         IconButton(
                           tooltip: 'Excluir seção',
                           icon: const Icon(Icons.delete_outline),
-                          onPressed: _saving ? null : () => _delete(section),
+                          onPressed: _saving || _loopBusy ? null : () => _delete(section),
                         ),
                       ],
                     ),
