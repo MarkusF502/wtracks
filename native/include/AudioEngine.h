@@ -8,7 +8,9 @@
 #include <atomic>
 #include "ClickTimeline.h"
 #include "GuideTimeline.h"
+#include "Preroll.h"
 #include "MixerStage.h"
+#include "MixerAutomation.h"
 #include "MidiClock.h"
 #include "CueTimeline.h"
 #include "MidiRouter.h"
@@ -35,6 +37,8 @@ struct Channel
     double fileSampleRate = 44100.0;
     float volume = 1.0f;
     bool muted = false;
+    bool soloMuted = false;  // silenced by another channel's solo; independent of the (automatable) mute
+    bool excludedFromFade = false;
     GainRamp ramp;
     ChannelRoute route;
 };
@@ -81,6 +85,31 @@ public:
     void setChannelMuted(int channelIndex, bool muted);
     bool setChannelRoute(int channelIndex, int outputBase, bool mono);
     void setMasterVolume(float volume);
+    void setChannelSoloMuted(int channelIndex, bool muted);
+    // Fade out (see FadeOut in MixerStage.h). startFadeOut needs playback running (0.05..60 s); it ends in a pause and a
+    // FadeFinished event. Seek, pause, stop, play and new songs cancel it. During a pre-roll count-in it pauses at once.
+    bool startFadeOut(double seconds);
+    void cancelFadeOut();
+    // Fade over the last `seconds` of the song (playhead based); 0 disables.
+    bool setEndFade(double seconds);
+    void setChannelExcludedFromFade(int channelIndex, bool excluded);
+    // Current manual fade gain (1..0) or -1 when no fade runs.
+    double getFadeGain() const;
+    enum TransportEvent : uint32_t { EndReached = 1, FadeFinished = 2 };
+    // Events raised by the audio thread since the last poll (bitmask of TransportEvent).
+    uint32_t pollTransportEvents();
+    // Peak meters since the previous call (and reset): post-fader per channel (<= 64) and per output after the master
+    // (<= 8; timecode excluded). Fills `capacity` / `outputCapacity` entries (0 past the song's channels or the
+    // device's outputs). Returns the song's channel count. Lock-free on the audio side.
+    int takeMeters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity);
+    // Mixer automation (own design, see MixerAutomation.h). Params: channel volume c, channel mute 64+c, master 128.
+    // Replaces the previous points; invalid input changes nothing. Points for channels the song lacks are ignored.
+    bool configureMixerAutomation(const double* starts, const double* ends, const int* params, const float* values, int count);
+    void setAutomationEnabled(bool enabled);
+    bool getAutomationEnabled() const;
+    // Effective mixer state at the playhead (automation when enabled, else the manual values). Returns the channel count;
+    // fills up to `capacity` channels. `master` may be null.
+    int getMixState(float* volumes, uint8_t* mutes, int capacity, float* master) const;
     int getChannelCount() const;
     // The loaded files are a time-stretched rendering of the song: processed length = song length * scale.
     // Every seconds-based API (position, length, seek, loops, click, guides) keeps using song time.
@@ -116,6 +145,15 @@ public:
     bool configureTimecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain);
     void setTimecodeEnabled(bool enabled);
     bool configureGuides(const double* times, const char** paths, const float* gains, int count);
+    // Dynamic guides: per cue an optional normal path (nullptr/"" = silent unless replaced), an optional replacement path
+    // and the start (song time, -1 = none) of the section it announces. See GuideTimeline.h for the replacement rule.
+    bool configureGuides(const double* times, const char** paths, const char** replacementPaths, const double* targets,
+                         const float* gains, int count);
+    // Song Section Pre-roll (own design, see Preroll.h): when enabled, play() from a stopped/paused playhead lying on one
+    // of `starts` (song time, within 1 ms) first plays one bar of click + spoken count while the stems wait. countPaths[k]
+    // speaks "k+1" (<= 16, empty entries are silent). Kept across seeks; dropped with the song.
+    bool configurePreroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount);
+    bool isPrerolling() const;
     void setGuidesEnabled(bool enabled);
 
     // Tratamento de Erros Blindado
@@ -167,6 +205,16 @@ private:
     void applyClickScale();
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
+    MixerAutomation mixerAutomation;
+    FadeOut fadeOut;
+    double endFadeSeconds = 0;
+    std::atomic<uint32_t> transportEvents { 0 };
+    std::vector<float> fadeGains;
+    std::array<PeakMeter, 64> channelMeters;
+    std::array<PeakMeter, 8> outputMeters;
+    void meterOutputs(const juce::AudioBuffer<float>& buffer, int start, int count) noexcept;
+    std::atomic<bool> automationEnabled { true };
+    void resetAutomationBases();
     GainRamp masterRamp;
     TimecodeGenerator timecode;
     juce::AudioBuffer<float> timecodeScratch;
@@ -183,6 +231,11 @@ private:
     void stopMidiClock();
     void clearCueQueue();
     GuideTimeline guideTimeline;
+    Preroll preroll;
+    bool prerollEnabled = false;
+    std::vector<double> prerollStarts;
+    bool beginPreroll();
+    int64_t guideWrapSample() const;
     juce::AudioBuffer<float> guideScratch;
     std::atomic<bool> guidesEnabled { false };
     ClickTimeline clickTimeline;

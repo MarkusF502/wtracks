@@ -139,7 +139,7 @@ void main() {
 
       await tester.tap(find.text('S').first);
       await tester.pump(const Duration(milliseconds: 100));
-      expect(engine.calls, containsAll(['muted(0,false)', 'muted(1,true)', 'muted(2,true)', 'muted(3,true)']));
+      expect(engine.calls, containsAll(['solo(0,false)', 'solo(1,true)', 'solo(2,true)', 'solo(3,true)']));
       await unmount(tester);
     });
   });

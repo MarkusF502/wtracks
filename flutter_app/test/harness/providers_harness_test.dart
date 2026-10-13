@@ -35,7 +35,7 @@ void main() {
 
       c.read(currentTrackProvider.notifier).toggleChannelSolo(1);
 
-      expect(engine.calls, containsAll(['muted(0,true)', 'muted(1,false)', 'muted(2,true)']));
+      expect(engine.calls, containsAll(['solo(0,true)', 'solo(1,false)', 'solo(2,true)', 'muted(0,false)', 'muted(1,false)', 'muted(2,false)']));
       expect(c.read(currentTrackProvider)!.channels.map((ch) => ch.muted), everyElement(false));
     });
 

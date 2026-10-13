@@ -230,6 +230,52 @@ bool wtracks_configure_guides(const double* times, const char** paths, const flo
 }
 void wtracks_set_guides_enabled(bool enabled) { if (engine) engine->setGuidesEnabled(enabled); }
 
+bool wtracks_configure_guides_ex(const double* times, const char** paths, const char** replacementPaths,
+                                 const double* targets, const float* gains, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureGuides(times,paths,replacementPaths,targets,gains,count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Guide preparation failed"); return false; }
+}
+
+bool wtracks_configure_preroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configurePreroll(enabled,starts,startCount,countPaths,countCount); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Pre-roll preparation failed"); return false; }
+}
+
+bool wtracks_is_prerolling() { return engine ? engine->isPrerolling() : false; }
+
+bool wtracks_configure_mixer_automation(const double* starts, const double* ends, const int* params, const float* values, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureMixerAutomation(starts,ends,params,values,count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Mixer automation failed"); return false; }
+}
+
+void wtracks_set_automation_enabled(bool enabled) { if (engine) engine->setAutomationEnabled(enabled); }
+
+int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master)
+{
+    return engine ? engine->getMixState(volumes,mutes,capacity,master) : 0;
+}
+
+void wtracks_set_channel_solo_muted(int channelIndex, bool muted) { if (engine) engine->setChannelSoloMuted(channelIndex,muted); }
+bool wtracks_start_fade_out(double seconds) { return engine ? engine->startFadeOut(seconds) : false; }
+void wtracks_cancel_fade_out() { if (engine) engine->cancelFadeOut(); }
+bool wtracks_set_end_fade(double seconds) { return engine ? engine->setEndFade(seconds) : false; }
+void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded) { if (engine) engine->setChannelExcludedFromFade(channelIndex,excluded); }
+double wtracks_get_fade_gain() { return engine ? engine->getFadeGain() : -1.0; }
+uint32_t wtracks_poll_transport_events() { return engine ? engine->pollTransportEvents() : 0; }
+int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity)
+{
+    return engine ? engine->takeMeters(channelPeaks,capacity,outputPeaks,outputCapacity) : 0;
+}
+
 bool wtracks_set_loop(double start, double end, bool enabled)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);

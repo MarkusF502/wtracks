@@ -13,6 +13,9 @@ import 'guide_editor_screen.dart';
 import 'time_pitch_sheet.dart';
 import 'midi_screen.dart';
 import 'tempo_map_screen.dart';
+import 'mixer_automation_screen.dart';
+import 'song_ending_sheet.dart';
+import '../providers/meter_provider.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -88,12 +91,18 @@ class PerformanceScreen extends ConsumerWidget {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)));
                 case 'tempo':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TempoMapScreen(trackId: track.id)));
+                case 'ending':
+                  showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const SongEndingSheet());
+                case 'automation':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MixerAutomationScreen(trackId: track.id)));
               }
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'tempo', child: Text('Mapa de andamento')),
               PopupMenuItem(value: 'pitch', child: Text('Tom e andamento')),
               PopupMenuItem(value: 'guides', child: Text('Guias')),
+              PopupMenuItem(value: 'automation', child: Text('Automação do mixer')),
+              PopupMenuItem(value: 'ending', child: Text('Fim da música e fade')),
               PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
             ],
           ),
@@ -175,6 +184,7 @@ class PerformanceScreen extends ConsumerWidget {
     return Column(
       children: [
         _Header(track: track),
+        _SetlistBar(track: track),
         _WaveformTimeline(track: track, onSeek: notifier.seekTo),
         _Transport(onStop: notifier.stop, track: track),
         Expanded(child: _Mixer(track: track)),
@@ -191,6 +201,7 @@ class PerformanceScreen extends ConsumerWidget {
           child: Column(
             children: [
               _Header(track: track),
+              _SetlistBar(track: track),
               _WaveformTimeline(track: track, onSeek: notifier.seekTo),
               Expanded(
                 child: Center(
@@ -784,6 +795,8 @@ class _Transport extends ConsumerWidget {
     // `select` pra só reconstruir este widget quando isPlaying de fato
     // muda (não a cada tick de posição/duração do polling de 100ms).
     final isPlaying = ref.watch(transportProvider.select((t) => t.isPlaying));
+    final prerolling = ref.watch(transportProvider.select((t) => t.prerolling));
+    final fading = ref.watch(transportProvider.select((t) => t.fading));
     final transportNotifier = ref.read(transportProvider.notifier);
     final onPlayPause = isPlaying ? transportNotifier.pause : transportNotifier.play;
 
@@ -808,7 +821,14 @@ class _Transport extends ConsumerWidget {
             }
           ),
           _TransportButton(icon: Icons.stop, accent: const Color(0xFFFF3B4E), onTap: onStop),
-          _PlayButton(isPlaying: isPlaying, onTap: onPlayPause),
+          _PlayButton(isPlaying: isPlaying, prerolling: prerolling, onTap: onPlayPause),
+          _TransportButton(
+            icon: Icons.trending_down,
+            accent: const Color(0xFFF5A020),
+            isActive: fading,
+            tooltip: 'Fade de 5 segundos',
+            onTap: () => transportNotifier.fadeOut(),
+          ),
           
           // Indicador de BPM clicável
           GestureDetector(
@@ -846,13 +866,57 @@ class _Transport extends ConsumerWidget {
   }
 }
 
+/// Setlist em execução: posição, próxima música e navegação.
+class _SetlistBar extends ConsumerWidget {
+  final Track track;
+  const _SetlistBar({required this.track});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(setlistSessionProvider);
+    if (session == null || session.current.id != track.id) return const SizedBox.shrink();
+    final notifier = ref.read(setlistSessionProvider.notifier);
+    final next = session.next;
+    final label = next == null
+        ? 'Última música'
+        : (track.transition == SongTransition.cueNextSong ? 'Próxima: ${next.title}' : 'Fica na música · depois: ${next.title}');
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Música anterior',
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            onPressed: session.previous == null ? null : notifier.previous,
+            icon: const Icon(Icons.skip_previous),
+          ),
+          Text('${session.index + 1}/${session.setlist.tracks.length}', style: const TextStyle(color: _textFaint, fontSize: 11)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _textDim, fontSize: 12))),
+          IconButton(
+            tooltip: 'Próxima música',
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            onPressed: next == null ? null : notifier.next,
+            icon: const Icon(Icons.skip_next),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TransportButton extends StatelessWidget {
   final IconData icon;
   final Color accent;
   final bool isActive;
   final VoidCallback onTap;
+  final String? tooltip;
 
-  const _TransportButton({required this.icon, required this.accent, required this.onTap, this.isActive = false});
+  const _TransportButton({required this.icon, required this.accent, required this.onTap, this.isActive = false, this.tooltip});
 
   @override
   Widget build(BuildContext context) {
@@ -863,7 +927,12 @@ class _TransportButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
-        child: SizedBox(width: 48, height: 48, child: Icon(icon, color: isActive ? accent : _textDim)),
+        child: SizedBox(
+            width: 48,
+            height: 48,
+            child: tooltip == null
+                ? Icon(icon, color: isActive ? accent : _textDim)
+                : Tooltip(message: tooltip!, child: Icon(icon, color: isActive ? accent : _textDim))),
       ),
     );
   }
@@ -871,9 +940,10 @@ class _TransportButton extends StatelessWidget {
 
 class _PlayButton extends StatelessWidget {
   final bool isPlaying;
+  final bool prerolling; // contagem do pré-roll antes da seção
   final VoidCallback onTap;
 
-  const _PlayButton({required this.isPlaying, required this.onTap});
+  const _PlayButton({required this.isPlaying, this.prerolling = false, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -886,8 +956,11 @@ class _PlayButton extends StatelessWidget {
         child: SizedBox(
           width: 64,
           height: 64,
-          child: Icon(isPlaying ? Icons.pause : Icons.play_arrow,
-              color: isPlaying ? _accent : _bg, size: 28),
+          child: Tooltip(
+            message: prerolling ? 'Contagem' : (isPlaying ? 'Pausar' : 'Tocar'),
+            child: Icon(prerolling ? Icons.av_timer : (isPlaying ? Icons.pause : Icons.play_arrow),
+                color: isPlaying ? _accent : _bg, size: 28),
+          ),
         ),
       ),
     );
@@ -901,6 +974,9 @@ class _Mixer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(currentTrackProvider.notifier);
+    // Com a automação agindo, os faders mostram os valores que o motor está aplicando.
+    final mix = ref.watch(automatedMixProvider);
+    final masterVolume = mix?.master ?? track.masterVolume;
 
     return Container(
       color: _mixerBg,
@@ -918,21 +994,36 @@ class _Mixer extends ConsumerWidget {
                     style: TextStyle(
                         color: _textFaint, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 const Spacer(),
+                if (track.mixerAutomation.isNotEmpty)
+                  TextButton(
+                    key: const Key('transport-automation'),
+                    onPressed: () => notifier.setAutomationEnabled(!track.automationEnabled),
+                    child: Text('AUTO',
+                        style: TextStyle(
+                            color: track.automationEnabled ? const Color(0xFF00FF88) : _textFaint,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ),
                 const Text('MASTER', style: TextStyle(color: _textFaint, fontSize: 10)),
-                SizedBox(
-                  width: 140,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(trackHeight: 2, overlayShape: SliderComponentShape.noOverlay),
-                    child: Slider(
-                      key: const Key('master-volume'),
-                      value: track.masterVolume.clamp(0.0, 2.0),
-                      max: 2,
-                      onChanged: notifier.setMasterVolume,
+                Flexible(
+                  flex: 4,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 140),
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(trackHeight: 2, overlayShape: SliderComponentShape.noOverlay),
+                      child: Slider(
+                        key: const Key('master-volume'),
+                        value: masterVolume.clamp(0.0, 2.0),
+                        max: 2,
+                        onChanged: notifier.setMasterVolume,
+                      ),
                     ),
                   ),
                 ),
-                Text('${(track.masterVolume * 100).round()}%',
+                Text('${(masterVolume * 100).round()}%',
                     style: const TextStyle(color: _textFaint, fontSize: 10)),
+                const SizedBox(width: 6),
+                const _MasterMeter(),
               ],
             ),
           ),
@@ -944,10 +1035,11 @@ class _Mixer extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final channel = track.channels[index];
                 return _MixerChannelStrip(
+                  index: index,
                   label: channel.label,
                   color: _colorForChannel(index),
-                  volume: channel.volume,
-                  muted: channel.muted,
+                  volume: mix != null && index < mix.volumes.length ? mix.volumes[index] : channel.volume,
+                  muted: mix != null && index < mix.mutes.length ? mix.mutes[index] : channel.muted,
                   soloed: channel.soloed,
                   route: channel.route,
                   onRouteToggled: () => notifier.setChannelRoute(
@@ -982,6 +1074,7 @@ class _MixerChannelStrip extends StatelessWidget {
   final String label;
   final Color color;
   final double volume; // 0.0 - 1.0
+  final int index; // canal no motor (medidor)
   final bool muted;
   final bool soloed;
   final ChannelRoute route;
@@ -994,6 +1087,7 @@ class _MixerChannelStrip extends StatelessWidget {
     required this.label,
     required this.color,
     required this.volume,
+    required this.index,
     required this.muted,
     required this.soloed,
     required this.route,
@@ -1040,6 +1134,10 @@ class _MixerChannelStrip extends StatelessWidget {
             ),
           ),
           Expanded(
+            child: Row(children: [
+              const SizedBox(width: 6),
+              _ChannelMeter(index: index),
+              Expanded(
             child: RotatedBox(
               quarterTurns: 3,
               child: SliderTheme(
@@ -1055,6 +1153,8 @@ class _MixerChannelStrip extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+            ]),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1085,6 +1185,67 @@ class _MixerChannelStrip extends StatelessWidget {
             height: 22,
           ),
           const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+/// Barra de nível (-60..0 dB): verde, amarelo a partir de -12 dB, vermelho a partir de -3 dB.
+class _MeterBar extends StatelessWidget {
+  final double level; // 0..1
+  final Axis axis;
+  final double thickness;
+  const _MeterBar({super.key, required this.level, this.axis = Axis.vertical, this.thickness = 4});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = level >= 57 / 60
+        ? const Color(0xFFFF3B4E)
+        : level >= 48 / 60
+            ? const Color(0xFFFFC107)
+            : const Color(0xFF00C896);
+    return Container(
+      width: axis == Axis.vertical ? thickness : null,
+      height: axis == Axis.horizontal ? thickness : null,
+      color: _border,
+      child: FractionallySizedBox(
+        alignment: axis == Axis.vertical ? Alignment.bottomCenter : Alignment.centerLeft,
+        heightFactor: axis == Axis.vertical ? level : null,
+        widthFactor: axis == Axis.horizontal ? level : null,
+        child: Container(color: color),
+      ),
+    );
+  }
+}
+
+class _ChannelMeter extends ConsumerWidget {
+  final int index;
+  const _ChannelMeter({required this.index});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final level = ref.watch(meterProvider.select((m) => index < m.channels.length ? m.channels[index] : 0.0));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: _MeterBar(key: Key('meter-$index'), level: level),
+    );
+  }
+}
+
+class _MasterMeter extends ConsumerWidget {
+  const _MasterMeter();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final outputs = ref.watch(meterProvider.select((m) => m.outputs));
+    double at(int i) => i < outputs.length ? outputs[i] : 0.0;
+    return SizedBox(
+      width: 36,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _MeterBar(key: const Key('meter-master-l'), level: at(0), axis: Axis.horizontal, thickness: 3),
+          const SizedBox(height: 2),
+          _MeterBar(key: const Key('meter-master-r'), level: at(1), axis: Axis.horizontal, thickness: 3),
         ],
       ),
     );

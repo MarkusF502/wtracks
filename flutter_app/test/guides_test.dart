@@ -10,10 +10,12 @@ import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/providers/engine_provider.dart';
 import 'package:flutter_app/screens/guide_editor_screen.dart';
 import 'package:flutter_app/services/guide_resource_service.dart';
+import 'package:flutter_app/services/dynamic_guides.dart';
 import 'harness/harness_support.dart';
 
 const _cueA = GuideCue(id: 'a', label: 'Intro', resourceName: 'r1', timeSeconds: 1, gain: 0.5);
 const _cueB = GuideCue(id: 'b', label: 'Verso', resourceName: 'r2', timeSeconds: 1.5);
+List<ScheduledGuide> _schedule(List<GuideCue> cues) => buildGuideSchedule(cues, const []);
 
 class FakeGuideResources extends GuideResourceService {
   final prepared = <List<String>>[];
@@ -37,9 +39,9 @@ class FakeGuideResources extends GuideResourceService {
 class GateEngine extends FakeEngine {
   Completer<void>? gate;
   @override
-  Future<bool> configureGuidesAsync(List<GuideCue> cues, List<String> paths) async {
+  Future<bool> configureGuideScheduleAsync(List<ScheduledGuide> guides, Map<String, String> paths) async {
     if (gate != null) await gate!.future;
-    return configureGuides(cues, paths);
+    return configureGuideSchedule(guides, paths);
   }
 }
 
@@ -122,7 +124,7 @@ void main() {
       final c = _container(engine, resources);
       final n = c.read(currentTrackProvider.notifier)..setLoadedTrack(base);
       expect(await n.updateGuides('song', [_cueA, _cueB], false), true);
-      expect(engine.configuredGuides, [_cueA, _cueB]);
+      expect(engine.configuredSchedule, _schedule([_cueA, _cueB]));
       expect(engine.guidesEnabled, false);
       expect(c.read(currentTrackProvider)!.guideCues, [_cueA, _cueB]);
       expect(c.read(currentTrackProvider)!.guidesEnabled, false);
@@ -135,10 +137,10 @@ void main() {
       final c = _container(engine, resources);
       final n = c.read(currentTrackProvider.notifier)..setLoadedTrack(base);
       await n.updateGuides('song', [_cueA], true);
-      engine.configuredGuides = [];
+      engine.configuredSchedule = [];
       expect(await n.updateGuides('song', [_cueA], false), true);
       expect(resources.prepared.length, 1);
-      expect(engine.configuredGuides, isEmpty);
+      expect(engine.configuredSchedule, isEmpty);
       expect(engine.guidesEnabled, false);
       expect(c.read(currentTrackProvider)!.guidesEnabled, false);
     });
@@ -158,7 +160,7 @@ void main() {
       expect(await n.updateGuides('song', [_cueB, _cueA], true), false); // unsorted
       expect(await n.updateGuides('other', [_cueB], true), false); // wrong track
       expect(c.read(currentTrackProvider)!.guideCues, [_cueA]);
-      expect(engine.configuredGuides, [_cueA]);
+      expect(engine.configuredSchedule, _schedule([_cueA]));
     });
 
     test('a track replaced while configuring discards the late result', () async {
@@ -183,7 +185,7 @@ void main() {
       final n = c.read(currentTrackProvider.notifier);
       final track = sampleTrack().copyWith(guideCues: [_cueA, _cueB], guidesEnabled: false);
       expect(await n.load(track), true);
-      expect(engine.configuredGuides, [_cueA, _cueB]);
+      expect(engine.configuredSchedule, _schedule([_cueA, _cueB]));
       expect(engine.guidesEnabled, false);
       engine.failGuides = true;
       expect(await n.load(track.copyWith(title: 'Again')), false);
@@ -215,7 +217,7 @@ void main() {
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       expect(find.text('Refrão'), findsOneWidget);
-      expect(engine.configuredGuides.single.timeSeconds, 3.5);
+      expect(engine.configuredSchedule.single.timeSeconds, 3.5);
       expect(persistence.tracks['song']!.guideCues.single.label, 'Refrão');
 
       await tester.tap(find.byTooltip('Editar guia'));

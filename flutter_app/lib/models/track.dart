@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'song_section.dart';
 import 'guide_cue.dart';
 import 'automation_cue.dart';
+import 'mixer_automation.dart';
 import 'timecode_settings.dart';
 import 'tempo_change.dart';
 import 'time_pitch_settings.dart';
@@ -23,6 +24,17 @@ enum ChannelRoute {
       ChannelRoute.values.firstWhere((r) => r.name == name, orElse: () => ChannelRoute.stereo);
 }
 
+/// O que acontece quando a música termina (ou o fade de saída acaba) numa setlist. Playback: SongArrangement.
+/// storedTransition, strings "Cue Next Song" / "Stay In Song"; os valores numéricos do Playback não foram
+/// recuperados, os nomes aqui são nossos.
+enum SongTransition {
+  cueNextSong,
+  stayInSong;
+
+  static SongTransition parse(Object? name) =>
+      SongTransition.values.firstWhere((t) => t.name == name, orElse: () => SongTransition.cueNextSong);
+}
+
 /// Representa um canal dentro de uma [Track] -- ex: "Click", "Bateria".
 /// [filePath] é sempre um caminho LOCAL (já copiado do content:// original
 /// pelo FileImportService) -- é isso que vai direto pro loadTrack() nativo.
@@ -34,6 +46,7 @@ class ChannelInfo {
   final bool muted; // intenção manual do usuário (botão M)
   final bool soloed; // conceito só do Dart -- o AudioEngine não tem solo nativo
   final ChannelRoute route;
+  final bool excludeFromFade; // não enfraquece no fade de saída
 
   const ChannelInfo({
     required this.label,
@@ -42,6 +55,7 @@ class ChannelInfo {
     this.muted = false,
     this.soloed = false,
     this.route = ChannelRoute.stereo,
+    this.excludeFromFade = false,
   });
 
   ChannelInfo copyWith({
@@ -51,6 +65,7 @@ class ChannelInfo {
     bool? muted,
     bool? soloed,
     ChannelRoute? route,
+    bool? excludeFromFade,
   }) {
     return ChannelInfo(
       label: label ?? this.label,
@@ -59,6 +74,7 @@ class ChannelInfo {
       muted: muted ?? this.muted,
       soloed: soloed ?? this.soloed,
       route: route ?? this.route,
+      excludeFromFade: excludeFromFade ?? this.excludeFromFade,
     );
   }
 
@@ -69,6 +85,7 @@ class ChannelInfo {
         'muted': muted,
         'soloed': soloed,
         'route': route.name,
+        'excludeFromFade': excludeFromFade,
       };
 
   factory ChannelInfo.fromJson(Map<String, dynamic> json) => ChannelInfo(
@@ -78,6 +95,7 @@ class ChannelInfo {
         muted: json['muted'] as bool? ?? false,
         soloed: json['soloed'] as bool? ?? false,
         route: ChannelRoute.parse(json['route']),
+        excludeFromFade: json['excludeFromFade'] as bool? ?? false,
       );
 }
 
@@ -225,6 +243,13 @@ class Track {
   final double masterVolume; // 0.0 - 2.0, ganho comum do mixer
   final TimePitchSettings timePitch;
   final List<AutomationCue> automationCues;
+  /// Automação do mixer (pontos que movem faders/mute/master) e o botão de transporte que a liga.
+  final List<MixerAutomationCue> mixerAutomation;
+  final bool automationEnabled;
+  /// Transição na setlist e fade de saída nos últimos 5 s (SongArrangement.endFade).
+  final SongTransition transition;
+  final bool endFade;
+  static const fadeSeconds = 5.0; // "5 Second Fade Out"
   final bool midiClockEnabled;
   final TimecodeSettings timecode;
   final List<TempoChange> tempoChanges;
@@ -243,6 +268,10 @@ class Track {
     this.masterVolume = 1.0,
     this.timePitch = const TimePitchSettings(),
     this.automationCues = const [],
+    this.mixerAutomation = const [],
+    this.automationEnabled = true,
+    this.transition = SongTransition.cueNextSong,
+    this.endFade = false,
     this.midiClockEnabled = false,
     this.timecode = const TimecodeSettings(),
     this.tempoChanges = const [],
@@ -262,6 +291,10 @@ class Track {
     double? masterVolume,
     TimePitchSettings? timePitch,
     List<AutomationCue>? automationCues,
+    List<MixerAutomationCue>? mixerAutomation,
+    bool? automationEnabled,
+    SongTransition? transition,
+    bool? endFade,
     bool? midiClockEnabled,
     TimecodeSettings? timecode,
     List<TempoChange>? tempoChanges,
@@ -278,6 +311,10 @@ class Track {
       masterVolume: masterVolume ?? this.masterVolume,
       timePitch: timePitch ?? this.timePitch,
       automationCues: automationCues ?? this.automationCues,
+      mixerAutomation: mixerAutomation ?? this.mixerAutomation,
+      automationEnabled: automationEnabled ?? this.automationEnabled,
+      transition: transition ?? this.transition,
+      endFade: endFade ?? this.endFade,
       midiClockEnabled: midiClockEnabled ?? this.midiClockEnabled,
       timecode: timecode ?? this.timecode,
       tempoChanges: tempoChanges ?? this.tempoChanges,
@@ -301,6 +338,10 @@ class Track {
         'masterVolume': masterVolume,
         'timePitch': timePitch.toJson(),
         'automationCues': automationCues.map((c) => c.toJson()).toList(),
+        'mixerAutomation': mixerAutomation.map((c) => c.toJson()).toList(),
+        'automationEnabled': automationEnabled,
+        'transition': transition.name,
+        'endFade': endFade,
         'midiClockEnabled': midiClockEnabled,
         'timecode': timecode.toJson(),
         'tempoChanges': tempoChanges.map((c) => c.toJson()).toList(),
@@ -319,6 +360,10 @@ class Track {
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
         timePitch: TimePitchSettings.fromJson(json['timePitch']),
         automationCues: AutomationCue.fromJsonList(json['automationCues'] as List? ?? const []),
+        mixerAutomation: MixerAutomationCue.fromJsonList(json['mixerAutomation'] as List? ?? const []),
+        automationEnabled: json['automationEnabled'] as bool? ?? true,
+        transition: SongTransition.parse(json['transition']),
+        endFade: json['endFade'] as bool? ?? false,
         midiClockEnabled: json['midiClockEnabled'] as bool? ?? false,
         timecode: TimecodeSettings.fromJson(json['timecode']),
         tempoChanges: TempoChange.fromJsonList(json['tempoChanges'] as List? ?? const []),

@@ -96,6 +96,29 @@ WTRACKS_API bool wtracks_configure_preset_loops(const double* starts, const doub
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
 WTRACKS_API void wtracks_set_guides_enabled(bool enabled);
+// Dynamic guides: replacementPaths/targets may be null (no replacement, no target); paths[i] may be null/"" when
+// replacementPaths[i] is set (silent unless the active loop wraps before targets[i]).
+WTRACKS_API bool wtracks_configure_guides_ex(const double* times, const char** paths, const char** replacementPaths,
+                                             const double* targets, const float* gains, int count);
+// Song Section Pre-roll: one bar of click + spoken count before playing from one of `starts` (song time).
+WTRACKS_API bool wtracks_configure_preroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount);
+WTRACKS_API bool wtracks_is_prerolling();
+// Mixer automation: params = channel volume c (0..63), channel mute 64+c, master 128; song seconds.
+WTRACKS_API bool wtracks_configure_mixer_automation(const double* starts, const double* ends, const int* params, const float* values, int count);
+WTRACKS_API void wtracks_set_automation_enabled(bool enabled);
+// Effective mixer state at the playhead; returns the channel count, fills up to `capacity` entries.
+WTRACKS_API int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master);
+WTRACKS_API void wtracks_set_channel_solo_muted(int channelIndex, bool muted);
+// Fade out: manual (ends in a pause) and over the last seconds of the song; -1 gain = no manual fade running.
+WTRACKS_API bool wtracks_start_fade_out(double seconds);
+WTRACKS_API void wtracks_cancel_fade_out();
+WTRACKS_API bool wtracks_set_end_fade(double seconds);
+WTRACKS_API void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded);
+WTRACKS_API double wtracks_get_fade_gain();
+// Bitmask since the last call: 1 = end of song reached, 2 = fade out finished.
+WTRACKS_API uint32_t wtracks_poll_transport_events();
+// Peaks since the previous call (then reset): post-fader per channel, per output after the master. Returns channels.
+WTRACKS_API int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity);
 
 // Click track
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.

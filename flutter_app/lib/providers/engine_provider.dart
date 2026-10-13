@@ -8,9 +8,15 @@ import '../models/track.dart';
 import '../models/song_section.dart';
 import '../models/guide_cue.dart';
 import '../services/guide_resource_service.dart';
+import '../services/guide_preferences_store.dart';
+import '../services/dynamic_guides.dart';
+import '../models/guide_settings.dart';
+import '../models/app_settings.dart';
+import '../services/app_preferences_store.dart';
 import '../services/time_pitch_service.dart';
 import '../services/midi_preferences_store.dart';
 import '../models/automation_cue.dart';
+import '../models/mixer_automation.dart';
 import '../models/timecode_settings.dart';
 import '../models/tempo_change.dart';
 import '../models/time_pitch_settings.dart';
@@ -98,6 +104,9 @@ final midiControllerProvider = NotifierProvider<MidiController, MidiState>(MidiC
 /// Última automação entregue pelo motor (para a interface mostrar).
 final firedAutomationProvider = StateProvider<AutomationCue?>((ref) => null);
 
+/// Valores do mixer movidos pela automação na posição atual (null quando a automação não age na música).
+final automatedMixProvider = StateProvider<MixState?>((ref) => null);
+
 final timePitchServiceProvider = Provider<TimePitchService>(
   (ref) => TimePitchService(),
 );
@@ -107,6 +116,84 @@ final guideResourceServiceProvider = Provider<GuideResourceService>(
 final guideResourcesProvider = FutureProvider<List<Map<String, dynamic>>>(
   (ref) => ref.read(guideResourceServiceProvider).resources(),
 );
+final guideCatalogProvider = FutureProvider<GuideCatalog>(
+  (ref) async => GuideCatalog((await ref.watch(guideResourcesProvider.future)).map((r) => r['name'] as String)),
+);
+final guidePreferencesProvider = Provider<GuidePreferencesStore>((ref) => GuidePreferencesStore());
+final appPreferencesProvider = Provider<AppPreferencesStore>((ref) => AppPreferencesStore());
+
+/// Preferências gerais (começa nos padrões e assume o arquivo quando ele é lido).
+class AppSettingsNotifier extends Notifier<AppSettings> {
+  bool _touched = false;
+
+  @override
+  AppSettings build() {
+    _load();
+    return const AppSettings();
+  }
+
+  Future<void> _load() async {
+    final saved = await ref.read(appPreferencesProvider).load();
+    if (!_touched) state = saved;
+  }
+
+  Future<void> apply(AppSettings settings) async {
+    _touched = true;
+    state = settings;
+    try {
+      await ref.read(appPreferencesProvider).save(settings);
+    } on Exception catch (e) {
+      debugPrint('Não foi possível salvar as preferências: $e');
+    }
+  }
+}
+
+final appSettingsProvider = NotifierProvider<AppSettingsNotifier, AppSettings>(AppSettingsNotifier.new);
+
+/// Preferências globais de guia. Começa nos padrões; quando o arquivo é lido, as guias da música carregada são
+/// refeitas (o carregamento de músicas não espera pelo disco).
+class GuideSettingsNotifier extends Notifier<GuideSettings> {
+  bool _touched = false;
+
+  @override
+  GuideSettings build() {
+    _load();
+    return const GuideSettings();
+  }
+
+  Future<void> _load() async {
+    final saved = await ref.read(guidePreferencesProvider).load();
+    if (_touched || saved == state) return;
+    state = saved;
+    await ref.read(currentTrackProvider.notifier).refreshGuides();
+  }
+
+  /// Aplica e salva; as guias da música carregada são refeitas.
+  Future<bool> apply(GuideSettings settings) async {
+    _touched = true;
+    if (settings == state) return true;
+    state = settings;
+    final ok = await ref.read(currentTrackProvider.notifier).refreshGuides();
+    try {
+      await ref.read(guidePreferencesProvider).save(settings);
+    } on Exception catch (e) {
+      debugPrint('Não foi possível salvar as preferências de guia: $e');
+    }
+    return ok;
+  }
+}
+
+final guideSettingsProvider = NotifierProvider<GuideSettingsNotifier, GuideSettings>(GuideSettingsNotifier.new);
+
+/// Guias dinâmicas da música carregada (para as telas); o motor recebe a mesma geração.
+final dynamicGuidePlanProvider = Provider<DynamicGuidePlan?>((ref) {
+  final track = ref.watch(currentTrackProvider);
+  final catalog = ref.watch(guideCatalogProvider).asData?.value;
+  if (track == null || catalog == null) return null;
+  return generateDynamicGuides(sections: track.sections, click: track.clickSettings, tempoChanges: track.tempoChanges,
+      settings: ref.watch(guideSettingsProvider), catalog: catalog);
+});
+
 final clickFamiliesProvider = FutureProvider<List<String>>(
   (ref) => ref.read(clickResourceServiceProvider).families(),
 );
@@ -193,12 +280,6 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           state = null;
           return false;
         }
-        final guidePaths = await ref.read(guideResourceServiceProvider).prepare(track.guideCues.map((c)=>c.resourceName).toList());
-        if (_disposed || generation != _generation) { if (!_disposed) engine.unloadTrack(); return false; }
-        final guidesLoaded=await engine.configureGuidesAsync(track.guideCues,guidePaths);
-        if (_disposed || generation != _generation) { if (!_disposed) engine.unloadTrack(); return false; }
-        if (!guidesLoaded) { engine.unloadTrack(); state=null; return false; }
-        engine.setGuidesEnabled(track.guidesEnabled);
         if (!engine.configureClick(track.clickSettings)) {
           engine.unloadTrack();
           state = null;
@@ -214,11 +295,31 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           if (!_disposed) engine.unloadTrack();
           return false;
         }
+        _guideSchedule = null;
+        _prerollSignature = null;
+        final guidesLoaded = await _syncGuides(engine, track);
+        if (_disposed || generation != _generation) {
+          if (!_disposed) engine.unloadTrack();
+          return false;
+        }
+        if (!guidesLoaded) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
+        engine.setGuidesEnabled(track.guidesEnabled);
         if (!engine.configureCues(track.automationCues)) {
           engine.unloadTrack();
           state = null;
           return false;
         }
+        if (!engine.configureMixerAutomation(_automationPointsFor(track))) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
+        engine.setAutomationEnabled(track.automationEnabled);
+        engine.setEndFade(track.endFade ? Track.fadeSeconds : 0);
         engine.setMidiClockEnabled(track.midiClockEnabled);
         if (!engine.configureTimecode(track.timecode)) {
           engine.unloadTrack();
@@ -232,6 +333,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         for (var i = 0; i < track.channels.length; i++) {
           engine.setChannelVolume(i, track.channels[i].volume);
           engine.setChannelRoute(i, track.channels[i].route);
+          engine.setChannelExcludedFromFade(i, track.channels[i].excludeFromFade);
         }
         engine.setMasterVolume(track.masterVolume);
         _syncEffectiveMutes();
@@ -377,10 +479,11 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final engine = ref.read(engineProvider);
     final anySoloed = track.channels.any((c) => c.soloed);
 
+    // O solo tem sua própria porta no motor: um mute automatizado não pode desfazê-lo.
     for (var i = 0; i < track.channels.length; i++) {
       final channel = track.channels[i];
-      final effectiveMuted = channel.muted || (anySoloed && !channel.soloed);
-      engine.setChannelMuted(i, effectiveMuted);
+      engine.setChannelMuted(i, channel.muted);
+      engine.setChannelSoloMuted(i, anySoloed && !channel.soloed);
     }
   }
 
@@ -412,6 +515,58 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     return true;
   }
 
+  List<AutomationPoint> _automationPointsFor(Track track) =>
+      automationPoints(track.mixerAutomation, track.clickSettings, track.tempoChanges, channelCount: track.channels.length);
+
+  /// Troca a automação do mixer; o motor valida antes de o estado mudar.
+  bool updateMixerAutomation(String trackId, List<MixerAutomationCue> cues) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null || !MixerAutomationCue.validSequence(cues)) return false;
+    final updated = track.copyWith(mixerAutomation: List.unmodifiable(cues));
+    if (!ref.read(engineProvider).configureMixerAutomation(_automationPointsFor(updated))) return false;
+    state = updated;
+    return true;
+  }
+
+  /// Botão de transporte "Automação": desligado, valem os faders manuais.
+  void setAutomationEnabled(bool enabled) {
+    final track = state;
+    if (track == null) return;
+    ref.read(engineProvider).setAutomationEnabled(enabled);
+    state = track.copyWith(automationEnabled: enabled);
+  }
+
+  /// Fade nos últimos 5 s da música (SongArrangement.endFade).
+  void setEndFade(bool enabled) {
+    final track = state;
+    if (track == null) return;
+    ref.read(engineProvider).setEndFade(enabled ? Track.fadeSeconds : 0);
+    state = track.copyWith(endFade: enabled);
+  }
+
+  void setChannelExcludedFromFade(int index, bool excluded) {
+    final track = state;
+    if (track == null || index < 0 || index >= track.channels.length) return;
+    ref.read(engineProvider).setChannelExcludedFromFade(index, excluded);
+    final channels = [...track.channels];
+    channels[index] = channels[index].copyWith(excludeFromFade: excluded);
+    state = track.copyWith(channels: channels);
+  }
+
+  /// O que a setlist faz quando esta música termina.
+  void setTransition(SongTransition transition) {
+    final track = state;
+    if (track != null) state = track.copyWith(transition: transition);
+  }
+
+  /// A duração das transições é medida em tempos: mudanças de andamento movem o início das rampas.
+  void _resendMixerAutomation(Track track) {
+    if (track.mixerAutomation.isEmpty) return;
+    if (!ref.read(engineProvider).configureMixerAutomation(_automationPointsFor(track))) {
+      debugPrint('Automação do mixer recusada: ${ref.read(engineProvider).lastError}');
+    }
+  }
+
   /// Aplica o timecode; o motor valida antes de o estado mudar.
   bool updateTimecode(String trackId, TimecodeSettings settings) {
     final track = state;
@@ -421,6 +576,80 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     return true;
   }
 
+  List<ScheduledGuide>? _guideSchedule;
+  String? _prerollSignature;
+
+  /// Envia ao motor a agenda de guias (manuais + dinâmicas das seções) e o pré-roll de [track]. Só decodifica o que
+  /// mudou. Se a parte dinâmica falhar, fica a agenda só com as manuais (a música toca); false só quando nem essa
+  /// é aceita (o motor mantém a anterior). Falha no pré-roll só é registrada.
+  Future<bool> _syncGuides(WTracksEngine engine, Track track) async {
+    final settings = ref.read(guideSettingsProvider);
+    final needsCatalog = track.sections.isNotEmpty &&
+        (settings.sectionPreroll ||
+            (settings.dynamicEnabled && (settings.countIntoEachSection || track.sections.any((s) => s.playGuideCue || s.playCountIn))));
+    final catalog = needsCatalog ? await ref.read(guideCatalogProvider.future) : GuideCatalog(const []);
+    final service = ref.read(guideResourceServiceProvider);
+    final plan = generateDynamicGuides(sections: track.sections, click: track.clickSettings, tempoChanges: track.tempoChanges,
+        settings: settings, catalog: catalog);
+    final schedule = buildGuideSchedule(track.guideCues, plan.cues);
+    if (_guideSchedule == null || !listEquals(schedule, _guideSchedule)) {
+      Future<bool> send(List<ScheduledGuide> guides) async {
+        try {
+          final names = {for (final g in guides) ...[?g.resource, ?g.replacement]}.toList();
+          final paths = names.isEmpty ? <String, String>{} : Map.fromIterables(names, await service.prepare(names));
+          if (await engine.configureGuideScheduleAsync(guides, paths)) {
+            _guideSchedule = guides;
+            return true;
+          }
+          debugPrint('Agenda de guias recusada: ${engine.lastError}');
+        } catch (e) {
+          debugPrint('Falha ao preparar guias: $e');
+        }
+        return false;
+      }
+      if (!await send(schedule)) {
+        final manual = buildGuideSchedule(track.guideCues, const []);
+        if (plan.cues.isEmpty || !await send(manual)) return false;
+        debugPrint('Guias dinâmicas indisponíveis; ficam só as manuais.');
+      }
+    }
+    final counts = settings.sectionPreroll ? prerollCounts(catalog, settings) : const <String?>[];
+    final starts = settings.sectionPreroll ? [for (final s in track.sections) s.startSeconds] : const <double>[];
+    final signature = '${settings.sectionPreroll}|$starts|$counts';
+    if (signature != _prerollSignature) {
+      try {
+        final names = counts.whereType<String>().toList();
+        final paths = names.isEmpty ? <String, String>{} : Map.fromIterables(names, await service.prepare(names));
+        if (await engine.configurePrerollAsync(settings.sectionPreroll, starts, [for (final n in counts) n == null ? null : paths[n]])) {
+          _prerollSignature = signature;
+        } else {
+          debugPrint('Pré-roll indisponível: ${engine.lastError}');
+        }
+      } catch (e) {
+        debugPrint('Falha ao preparar o pré-roll: $e');
+      }
+    }
+    return true;
+  }
+
+  /// Refaz as guias da música carregada (seções, andamento ou preferências mudaram).
+  Future<bool> refreshGuides() {
+    final generation = _generation;
+    final operation = _pending.then((_) async {
+      if (_disposed || generation != _generation || loadingTrackId != null) return false;
+      final track = state;
+      if (track == null) return false;
+      try {
+        return await _syncGuides(ref.read(engineProvider), track);
+      } catch (e) {
+        debugPrint('Falha nas guias: $e');
+        return false;
+      }
+    });
+    _pending = operation.then((_) {});
+    return operation;
+  }
+
   Future<bool> updateGuides(String trackId, List<GuideCue> cues, bool enabled) {
     if (state?.id != trackId || loadingTrackId != null || !GuideCue.validSequence(cues)) return Future.value(false);
     final generation=_generation;
@@ -428,16 +657,10 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       try {
         final engine=ref.read(engineProvider);
         final current=state;
-        // Only the switch changed: keep the prepared native schedule instead of decoding again.
-        if (current != null && current.id == trackId && listEquals(current.guideCues, cues)) {
-          engine.setGuidesEnabled(enabled);
-          state=current.copyWith(guidesEnabled:enabled);
-          return true;
-        }
-        final paths=await ref.read(guideResourceServiceProvider).prepare(cues.map((c)=>c.resourceName).toList());
+        if (_disposed || generation != _generation || current == null || current.id != trackId) return false;
+        // Only the switch changed: the native schedule stays as prepared.
+        if (!listEquals(current.guideCues, cues) && !await _syncGuides(engine, current.copyWith(guideCues: cues))) return false;
         if (_disposed || generation != _generation || state?.id != trackId) return false;
-        final ok=await engine.configureGuidesAsync(cues,paths);
-        if (_disposed || generation != _generation || !ok) return false;
         engine.setGuidesEnabled(enabled);
         state=state!.copyWith(guideCues:List.unmodifiable(cues),guidesEnabled:enabled);
         return true;
@@ -527,6 +750,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       if (_disposed || generation != _generation) return;
       await _syncPresetLoops(engine, sections);
     });
+    refreshGuides();
     return true;
   }
 
@@ -566,6 +790,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     }
     if (!ref.read(engineProvider).setClickTempoChanges(changes)) return false;
     state = track.copyWith(tempoChanges: List.unmodifiable(changes));
+    _resendMixerAutomation(state!);
+    refreshGuides();
     return true;
   }
 
@@ -580,6 +806,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final keep = TempoChange.validSequence(track.tempoChanges, baseOffset: settings.beatOffsetSeconds);
     state = track.copyWith(clickSettings: settings, tempoChanges: keep ? track.tempoChanges : const []);
     if (!keep) engine.setClickTempoChanges(const []);
+    _resendMixerAutomation(state!);
+    refreshGuides(); // the bar before each section moved with the grid
     return true;
   }
 
@@ -670,6 +898,20 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
     state = state.where((t) => t.id != id).toList();
   }
 
+  /// Troca a transição de setlist da música [id] (carregada ou não) e salva.
+  Future<void> setTransition(String id, SongTransition transition) async {
+    final index = state.indexWhere((t) => t.id == id);
+    if (index < 0) return;
+    final saved = await ref.read(persistenceServiceProvider).saveTrack(state[index].copyWith(transition: transition));
+    state = [...state]..[index] = saved;
+    if (ref.read(currentTrackProvider)?.id == id) ref.read(currentTrackProvider.notifier).setTransition(transition);
+    final editor = ref.read(setlistEditorProvider);
+    if (editor != null && editor.tracks.any((t) => t.id == id)) {
+      ref.read(setlistEditorProvider.notifier).setLoadedSetlist(
+          editor.copyWith(tracks: [for (final t in editor.tracks) t.id == id ? t.copyWith(transition: transition) : t]));
+    }
+  }
+
   /// Renomeia a track [id] direto na biblioteca (não precisa estar
   /// carregada no engine). Se for a track atualmente carregada, atualiza
   /// também o [currentTrackProvider] pra UI de performance refletir na
@@ -706,9 +948,14 @@ class TransportState {
   final bool queuedLoopEnabled;
   final double queuedLoopStart, queuedLoopEnd;
   final int underrunCount;
+  /// Contagem do pré-roll de seção em curso (a posição espera no início da seção).
+  final bool prerolling;
+  /// Fade de saída em curso (botão de transporte).
+  final bool fading;
   const TransportState({this.positionSeconds = 0, this.lengthSeconds = 0, this.isPlaying = false,
     this.loopEnabled = false, this.loopStart = 0, this.loopEnd = 0,
-    this.queuedLoopEnabled = false, this.queuedLoopStart = 0, this.queuedLoopEnd = 0, this.underrunCount = 0});
+    this.queuedLoopEnabled = false, this.queuedLoopStart = 0, this.queuedLoopEnd = 0, this.underrunCount = 0,
+    this.prerolling = false, this.fading = false});
   bool activeSection(SongSection section) => loopEnabled &&
       (loopStart - section.startSeconds).abs() <= 0.001 && (loopEnd - section.endSeconds).abs() <= 0.001;
   bool queuedSection(SongSection section) => queuedLoopEnabled &&
@@ -717,10 +964,11 @@ class TransportState {
   bool operator ==(Object other) => other is TransportState &&
       other.positionSeconds == positionSeconds && other.lengthSeconds == lengthSeconds && other.isPlaying == isPlaying &&
       other.loopEnabled == loopEnabled && other.loopStart == loopStart && other.loopEnd == loopEnd &&
-      other.queuedLoopEnabled == queuedLoopEnabled && other.queuedLoopStart == queuedLoopStart && other.queuedLoopEnd == queuedLoopEnd && other.underrunCount == underrunCount;
+      other.queuedLoopEnabled == queuedLoopEnabled && other.queuedLoopStart == queuedLoopStart && other.queuedLoopEnd == queuedLoopEnd && other.underrunCount == underrunCount &&
+      other.prerolling == prerolling && other.fading == fading;
   @override
   int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying, loopEnabled, loopStart, loopEnd,
-      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount);
+      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling, fading);
 }
 
 class TransportNotifier extends Notifier<TransportState> {
@@ -738,7 +986,13 @@ class TransportNotifier extends Notifier<TransportState> {
         unawaited(_background('stop'));
       }
       if (next != state) state = next;
-      final cues = ref.read(currentTrackProvider)?.automationCues ?? const <AutomationCue>[];
+      final events = engine.pollTransportEvents();
+      if (events != 0) unawaited(ref.read(setlistSessionProvider.notifier).songFinished());
+      final track = ref.read(currentTrackProvider);
+      final automated = track != null && track.automationEnabled && track.mixerAutomation.isNotEmpty;
+      final mix = automated ? engine.mixState() : null;
+      if (mix != ref.read(automatedMixProvider)) ref.read(automatedMixProvider.notifier).state = mix;
+      final cues = track?.automationCues ?? const <AutomationCue>[];
       if (cues.isNotEmpty) {
         final fired = engine.pollCues();
         if (fired.isNotEmpty) {
@@ -760,7 +1014,7 @@ class TransportNotifier extends Notifier<TransportState> {
       lengthSeconds: engine.totalLengthSeconds, isPlaying: engine.isPlaying,
       loopEnabled: loop[0] == 1, loopStart: loop[1], loopEnd: loop[2],
       queuedLoopEnabled: loop[3] == 1, queuedLoopStart: loop[4], queuedLoopEnd: loop[5],
-      underrunCount: engine.underrunCount);
+      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling, fading: engine.fadeGain >= 0);
   }
   void refresh() { final next = _snapshot(ref.read(engineProvider)); if (next != state) state = next; }
   bool disableLoop() { final ok = ref.read(engineProvider).setLoop(0, 0, false); if (ok) refresh(); return ok; }
@@ -813,7 +1067,63 @@ class TransportNotifier extends Notifier<TransportState> {
   }
 
   void seekTo(double seconds) => ref.read(engineProvider).seekToSeconds(seconds);
+
+  /// Botão de transporte "5 Second Fade Out": termina pausando (e a setlist segue a transição da música).
+  bool fadeOut() {
+    final ok = ref.read(engineProvider).startFadeOut(Track.fadeSeconds);
+    refresh();
+    return ok;
+  }
 }
+
+/// Setlist em execução: a música atual é `setlist.tracks[index]`.
+@immutable
+class SetlistSession {
+  final Setlist setlist;
+  final int index;
+  const SetlistSession(this.setlist, this.index);
+  Track get current => setlist.tracks[index];
+  Track? get next => index + 1 < setlist.tracks.length ? setlist.tracks[index + 1] : null;
+  Track? get previous => index > 0 ? setlist.tracks[index - 1] : null;
+}
+
+/// Navegação na setlist e transições ao fim da música (Playback: "Cue Next Song" carrega a próxima, parada no
+/// início; "Stay In Song" fica). A música aberta fora de uma setlist encerra a sessão.
+class SetlistSessionNotifier extends Notifier<SetlistSession?> {
+  @override
+  SetlistSession? build() => null;
+
+  void begin(Setlist setlist, int index) {
+    if (index >= 0 && index < setlist.tracks.length) state = SetlistSession(setlist, index);
+  }
+
+  void end() => state = null;
+
+  /// Carrega a música [index] da setlist (versão mais recente da biblioteca).
+  Future<bool> go(int index) async {
+    final session = state;
+    if (session == null || index < 0 || index >= session.setlist.tracks.length) return false;
+    final listed = session.setlist.tracks[index];
+    final track = ref.read(trackLibraryProvider).where((t) => t.id == listed.id).firstOrNull ?? listed;
+    final ok = await ref.read(currentTrackProvider.notifier).load(track);
+    if (ok && identical(state, session)) state = SetlistSession(session.setlist, index);
+    return ok;
+  }
+
+  Future<bool> next() => go((state?.index ?? -2) + 1);
+  Future<bool> previous() => go((state?.index ?? 0) - 1);
+
+  /// Fim da música ou do fade: aplica a transição da música atual.
+  Future<void> songFinished() async {
+    final session = state;
+    final track = ref.read(currentTrackProvider);
+    if (session == null || track == null || track.id != session.current.id) return;
+    if (track.transition == SongTransition.stayInSong || session.next == null) return;
+    await go(session.index + 1);
+  }
+}
+
+final setlistSessionProvider = NotifierProvider<SetlistSessionNotifier, SetlistSession?>(SetlistSessionNotifier.new);
 
 final transportProvider =
     NotifierProvider<TransportNotifier, TransportState>(TransportNotifier.new);

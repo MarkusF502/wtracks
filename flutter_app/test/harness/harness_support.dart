@@ -15,7 +15,9 @@ import 'package:flutter_app/models/track.dart';
 import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/services/persistence_service.dart';
 import 'package:flutter_app/models/guide_cue.dart';
+import 'package:flutter_app/services/dynamic_guides.dart';
 import 'package:flutter_app/models/automation_cue.dart';
+import 'package:flutter_app/models/mixer_automation.dart';
 import 'package:flutter_app/models/timecode_settings.dart';
 import 'package:flutter_app/models/tempo_change.dart';
 import 'package:flutter_app/models/song_section.dart';
@@ -83,6 +85,60 @@ class FakeEngine implements WTracksEngine {
       calls.add('volume($channelIndex,$volume)');
   @override
   void setChannelMuted(int channelIndex, bool muted) => calls.add('muted($channelIndex,$muted)');
+  @override
+  void setChannelSoloMuted(int channelIndex, bool muted) => calls.add('solo($channelIndex,$muted)');
+  List<AutomationPoint> automationPoints = [];
+  bool failMixerAutomation = false;
+  bool automationEnabled = true;
+  MixState mix = const MixState([], [], 1);
+  @override
+  bool configureMixerAutomation(List<AutomationPoint> points) {
+    if (failMixerAutomation) return false;
+    automationPoints = points;
+    return true;
+  }
+  @override
+  void setAutomationEnabled(bool enabled) => automationEnabled = enabled;
+  @override
+  MixState mixState() => mix;
+  double fadeGainValue = -1;
+  int pendingEvents = 0;
+  double endFadeSeconds = 0;
+  final excludedFromFade = <int>{};
+  @override
+  bool startFadeOut(double seconds) {
+    calls.add('fadeOut($seconds)');
+    if (!playing) return false;
+    fadeGainValue = 1;
+    return true;
+  }
+  @override
+  void cancelFadeOut() => fadeGainValue = -1;
+  @override
+  bool setEndFade(double seconds) {
+    endFadeSeconds = seconds;
+    return true;
+  }
+  @override
+  void setChannelExcludedFromFade(int channelIndex, bool excluded) =>
+      excluded ? excludedFromFade.add(channelIndex) : excludedFromFade.remove(channelIndex);
+  @override
+  double get fadeGain => fadeGainValue;
+  List<double> channelPeaks = [];
+  List<double> outputPeaks = [0, 0];
+  @override
+  (List<double>, List<double>) takeMeters() {
+    final taken = (channelPeaks, outputPeaks);
+    channelPeaks = [for (final _ in channelPeaks) 0.0];
+    outputPeaks = [0, 0];
+    return taken;
+  }
+  @override
+  int pollTransportEvents() {
+    final events = pendingEvents;
+    pendingEvents = 0;
+    return events;
+  }
   @override
   double timeScale = 1;
   bool failTimeScale = false;
@@ -240,6 +296,37 @@ class FakeEngine implements WTracksEngine {
   bool configureGuides(List<GuideCue> cues,List<String> paths) { if(failGuides) return false; configuredGuides=cues; return true; }
   @override
   Future<bool> configureGuidesAsync(List<GuideCue> cues,List<String> paths) async => configureGuides(cues,paths);
+  List<ScheduledGuide> configuredSchedule = [];
+  Map<String, String> configuredSchedulePaths = {};
+  @override
+  bool configureGuideSchedule(List<ScheduledGuide> guides, Map<String, String> paths) {
+    if (failGuides) return false;
+    configuredSchedule = guides;
+    configuredSchedulePaths = paths;
+    return true;
+  }
+  @override
+  Future<bool> configureGuideScheduleAsync(List<ScheduledGuide> guides, Map<String, String> paths) async =>
+      configureGuideSchedule(guides, paths);
+  bool prerollEnabled = false;
+  List<double> prerollStarts = [];
+  List<String?> prerollCountPaths = [];
+  int prerollCalls = 0;
+  bool failPreroll = false;
+  @override
+  bool configurePreroll(bool enabled, List<double> starts, List<String?> countPaths) {
+    prerollCalls++;
+    if (failPreroll) return false;
+    prerollEnabled = enabled;
+    prerollStarts = starts;
+    prerollCountPaths = countPaths;
+    return true;
+  }
+  @override
+  Future<bool> configurePrerollAsync(bool enabled, List<double> starts, List<String?> countPaths) async =>
+      configurePreroll(enabled, starts, countPaths);
+  @override
+  bool get isPrerolling => false;
   ClickSettings? configuredClick;
   @override
   bool configureClick(ClickSettings settings) {
