@@ -14,9 +14,9 @@ class DelayedLoopEngine extends FakeEngine {
   final entered = Completer<void>();
   final release = Completer<void>();
   @override
-  Future<bool> setLoopAsync(double start, double end, bool enabled) async {
+  Future<bool> setLoopAsync(double start, double end, bool enabled, {int repeats = 0}) async {
     entered.complete(); await release.future;
-    return super.setLoopAsync(start, end, enabled);
+    return super.setLoopAsync(start, end, enabled, repeats: repeats);
   }
 }
 

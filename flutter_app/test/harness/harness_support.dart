@@ -17,6 +17,8 @@ import 'package:flutter_app/services/persistence_service.dart';
 import 'package:flutter_app/models/guide_cue.dart';
 import 'package:flutter_app/models/automation_cue.dart';
 import 'package:flutter_app/models/timecode_settings.dart';
+import 'package:flutter_app/models/tempo_change.dart';
+import 'package:flutter_app/models/song_section.dart';
 
 /// Engine falso que grava cada chamada recebida, pra os testes conferirem
 /// o que a UI/providers mandaram pro motor nativo.
@@ -186,8 +188,8 @@ class FakeEngine implements WTracksEngine {
   List<double> get loopState => [loopEnabled ? 1 : 0, loopStart, loopEnd,
     queuedLoopEnabled ? 1 : 0, queuedLoopStart, queuedLoopEnd];
   @override
-  bool setLoop(double start, double end, bool enabled) {
-    calls.add('loop($start,$end,$enabled)');
+  bool setLoop(double start, double end, bool enabled, {int repeats = 0}) {
+    calls.add(repeats == 0 ? 'loop($start,$end,$enabled)' : 'loop($start,$end,$enabled,x$repeats)');
     if (failLoop) return false;
     loopEnabled = enabled;
     loopStart = enabled ? start : 0;
@@ -197,18 +199,38 @@ class FakeEngine implements WTracksEngine {
     return true;
   }
   @override
-  Future<bool> setLoopAsync(double start, double end, bool enabled) async => setLoop(start, end, enabled);
+  Future<bool> setLoopAsync(double start, double end, bool enabled, {int repeats = 0}) async => setLoop(start, end, enabled, repeats: repeats);
   @override
-  bool enqueueLoop(double start, double end) {
-    calls.add('enqueueLoop($start,$end)');
+  bool enqueueLoop(double start, double end, {int repeats = 0}) {
+    calls.add(repeats == 0 ? 'enqueueLoop($start,$end)' : 'enqueueLoop($start,$end,x$repeats)');
     if (failLoop || !loopEnabled) return false;
     queuedLoopEnabled = true; queuedLoopStart = start; queuedLoopEnd = end;
     return true;
   }
   @override
-  Future<bool> enqueueLoopAsync(double start, double end) async => enqueueLoop(start, end);
+  Future<bool> enqueueLoopAsync(double start, double end, {int repeats = 0}) async => enqueueLoop(start, end, repeats: repeats);
   @override
   void clearQueuedLoop() { queuedLoopEnabled = false; queuedLoopStart = 0; queuedLoopEnd = 0; }
+  List<SongSection> presetSections = [];
+  bool failPresets = false;
+  final presetCalls = <List<String>>[];
+  @override
+  bool configurePresetLoops(List<SongSection> sections) {
+    presetCalls.add([for (final s in sections) s.id]);
+    if (failPresets) return false;
+    presetSections = sections;
+    return true;
+  }
+  @override
+  Future<bool> configurePresetLoopsAsync(List<SongSection> sections) async => configurePresetLoops(sections);
+  List<TempoChange> configuredTempoChanges = [];
+  bool failTempoChanges = false;
+  @override
+  bool setClickTempoChanges(List<TempoChange> changes) {
+    if (failTempoChanges) return false;
+    configuredTempoChanges = changes;
+    return true;
+  }
   List<GuideCue> configuredGuides = [];
   bool guidesEnabled = true;
   bool failGuides = false;

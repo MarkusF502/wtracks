@@ -201,6 +201,10 @@ class _SectionDialogState extends State<_SectionDialog> {
   late final _end = TextEditingController(
     text: (widget.section?.endSeconds ?? widget.initialStart + 10).toString(),
   );
+  late final _loops = TextEditingController(text: (widget.section?.loopCount ?? 0).toString());
+  late bool _preset = widget.section?.presetInfiniteLoop ?? false;
+  late bool _guide = widget.section?.playGuideCue ?? true;
+  late bool _countIn = widget.section?.playCountIn ?? false;
   double? _number(String? text) =>
       double.tryParse((text ?? '').replaceAll(',', '.'));
   @override
@@ -208,6 +212,7 @@ class _SectionDialogState extends State<_SectionDialog> {
     _name.dispose();
     _start.dispose();
     _end.dispose();
+    _loops.dispose();
     super.dispose();
   }
 
@@ -257,6 +262,38 @@ class _SectionDialogState extends State<_SectionDialog> {
                     : null;
               },
             ),
+            TextFormField(
+              key: const Key('section-loops'),
+              controller: _loops,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Repetições do laço (0 = infinito)'),
+              validator: (text) {
+                final n = int.tryParse((text ?? '').trim());
+                return n == null || n < 0 || n > SongSection.maxLoopCount ? 'Use 0 a ${SongSection.maxLoopCount}' : null;
+              },
+            ),
+            SwitchListTile(
+              key: const Key('section-preset'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Laço infinito automático'),
+              subtitle: const Text('Entra em laço ao chegar nesta seção.'),
+              value: _preset,
+              onChanged: (v) => setState(() => _preset = v),
+            ),
+            SwitchListTile(
+              key: const Key('section-guide'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Guia falado da seção'),
+              value: _guide,
+              onChanged: (v) => setState(() => _guide = v),
+            ),
+            SwitchListTile(
+              key: const Key('section-countin'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Contagem ao entrar'),
+              value: _countIn,
+              onChanged: (v) => setState(() => _countIn = v),
+            ),
           ],
         ),
       ),
@@ -276,6 +313,10 @@ class _SectionDialogState extends State<_SectionDialog> {
               name: _name.text.trim(),
               startSeconds: _number(_start.text)!,
               endSeconds: _number(_end.text)!,
+              loopCount: int.parse(_loops.text.trim()),
+              presetInfiniteLoop: _preset,
+              playGuideCue: _guide,
+              playCountIn: _countIn,
             ),
           );
         },

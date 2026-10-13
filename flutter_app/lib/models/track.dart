@@ -3,6 +3,7 @@ import 'song_section.dart';
 import 'guide_cue.dart';
 import 'automation_cue.dart';
 import 'timecode_settings.dart';
+import 'tempo_change.dart';
 import 'time_pitch_settings.dart';
 
 /// Saída do canal no mixer nativo (contrato BusChannelAU): estéreo usa a base
@@ -226,6 +227,7 @@ class Track {
   final List<AutomationCue> automationCues;
   final bool midiClockEnabled;
   final TimecodeSettings timecode;
+  final List<TempoChange> tempoChanges;
   final int schemaVersion;
   final List<SongSection> sections;
   final String id;
@@ -243,6 +245,7 @@ class Track {
     this.automationCues = const [],
     this.midiClockEnabled = false,
     this.timecode = const TimecodeSettings(),
+    this.tempoChanges = const [],
     this.schemaVersion = currentSchemaVersion,
     this.sections = const [],
     required this.id,
@@ -261,6 +264,7 @@ class Track {
     List<AutomationCue>? automationCues,
     bool? midiClockEnabled,
     TimecodeSettings? timecode,
+    List<TempoChange>? tempoChanges,
     List<SongSection>? sections,
     String? title,
     List<ChannelInfo>? channels,
@@ -276,6 +280,7 @@ class Track {
       automationCues: automationCues ?? this.automationCues,
       midiClockEnabled: midiClockEnabled ?? this.midiClockEnabled,
       timecode: timecode ?? this.timecode,
+      tempoChanges: tempoChanges ?? this.tempoChanges,
       sections: sections ?? this.sections,
       id: id,
       title: title ?? this.title,
@@ -298,6 +303,7 @@ class Track {
         'automationCues': automationCues.map((c) => c.toJson()).toList(),
         'midiClockEnabled': midiClockEnabled,
         'timecode': timecode.toJson(),
+        'tempoChanges': tempoChanges.map((c) => c.toJson()).toList(),
         'id': id,
         'title': title,
         'channels': channels.map((c) => c.toJson()).toList(),
@@ -315,6 +321,7 @@ class Track {
         automationCues: AutomationCue.fromJsonList(json['automationCues'] as List? ?? const []),
         midiClockEnabled: json['midiClockEnabled'] as bool? ?? false,
         timecode: TimecodeSettings.fromJson(json['timecode']),
+        tempoChanges: TempoChange.fromJsonList(json['tempoChanges'] as List? ?? const []),
         masterVolume: ((json['masterVolume'] as num?)?.toDouble() ?? 1.0).clamp(0.0, 2.0),
         schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
         sections: SongSection.fromJsonList(json['sections'] as List? ?? const []),

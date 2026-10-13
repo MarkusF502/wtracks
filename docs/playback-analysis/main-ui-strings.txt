@@ -1,0 +1,1472 @@
+Abnormal Closure
+Aborting delete - Included tracks or/and package path are nil
+About MIDI Banks, Buses & Production Cues
+Access data retrieved successfully
+Access our growing Production Cue library with a Live Bundle subscription, including cues that match our ProPresenter templates and Song Specific Patches.
+Accompaniment Track
+Accompaniment Track Waveform
+Account Creation and Deletion
+Account will be charged for renewal within 24-hours prior to the end of the current period
+A Cloud Pro subscription is required to play this Cloud Song in Playback. It will be converted to a Click.
+Acoustic Guitars
+Action In Progress
+Activate Playback Redundancy?
+Activate Your Device
+Activating Device
+Activation attempted for non-rental content type: 
+Activation attempted for non-rental content type ID: 
+Active Rental Preview
+Active Rental Previews
+Add an Automation Point
+Add and Edit MIDI Cues in Playback for lights, lyrics, and more
+Add Click Section to Songs
+Add content to your setlist to initiate playback.
+Added sections must be at least one measure in duration. Please adjust the Timecode value to at least one measure before the next section.
+Additional previews are required for your selection.
+Additional rentals are required for your selection.
+Add loopable performances perfect for use behind preaching or other service moments. Includes 12 keys and individual track mix control.
+Add notes regarding any changes you just made to the setlist.
+Add/remove/re-order songs, adjust transitions, and edit song settings in Edit Setlist Mode.
+Adds a verbal count into each song section
+Add Section Markers to your Cloud song in the Cloud Song Sections Edit Mode.
+Add Service Time
+Add Song Section
+Add Song Sections
+Add this Free MultiTrack to your Setlist and explore what you can do with MT Complete.
+Add userAccessIDs: 
+Adjustments to your current Rentals subscription can be made on MultiTracks.com
+Adjust this song section marker location by measure or timecode. You can later nudge existing song sections by measure using the menu in the top left.
+Adjust your custom end point, or set playhead before it.
+Adjust your custom start point, or set playhead after it.
+Advanced arguments :
+Advanced MIDI Out
+Advanced Pad Player Interface
+After the Rentals have been transferred they will not be available on this device and will be replaced with a Click & Guide in your Setlist.
+Album not available
+All edits to this section will be reset to default.
+All edits to this song's sections will be reset to default.
+All fields are required.
+All other buses will become available for the song once the Rental Preview has been converted into a Rental.
+Allow Playback on this device to be remotely controlled by a different device on the network, or use this device to control Playback on another.
+Allow Remote Connections
+Allow this device to be controlled by another device running Playback.
+ALL USER DEFAULTS:
+A lot of firmware details.
+Ambient Pad Mixer
+Ambient Pads cannot be downloaded while audio is playing. Please stop all audio and return to this menu to download.
+An error occurred downloading this content. Please try again or contact support.
+An error occurred requesting products for your subscription.
+An error occurred when processing this content.
+An internet connection is required to make changes to Cloud Songs
+An issue was encountered when attempting to download this pad.
+An unexpected error occurred while saving. If the problem persists, please clear your storage and try again.
+An unexpected value was received. Please update Playback to the latest version and try again.
+An unknown download error occurred
+An unknown error occurred.
+Any automations present will also be removed.
+Any songs using this Ambient Pad will now play the default Ambient Pad. Re-download at any time.
+Any unsaved local changes to the setlist will be lost.
+Any unused portion of a free trial will be forfeited if you upgrade from a free subscription to a paid version
+APIContentItem contains bad data
+A Playback Rentals subscription or a MultiTracks One subscription is required.
+APNS registration failed
+Apple Certification Authority1
+App License ID - 
+Apply New Bus Routings
+Apply new bus routing to automatically re-route instrument tracks to the new buses.
+Archive contentType invalid: 
+Are you sure you want to delete this setlist? It will be removed from your account and all of your devices.
+Are you sure you want to discard all changes to this song's sections?
+Are you sure you want to enable Auto Update?
+Are you sure you want to overwrite the current saved version of this setlist?
+Are you sure you want to re-enable redundancy for these devices?
+Are you sure you want to reset all bus to output routings to default settings?
+Are you sure you want to reset all track to bus routings to default settings?
+Arguments can be appended together, or provided independently. For example :
+Arrangement Changes
+Arrangement Download Error
+Arrangement has not been saved to cloud. Save as New arrangement to keep your changes.
+Arrangement ID: 
+Arrangement Name
+Arrangement Name Invalid
+Arrangement Sync Failure
+Arrangement title: 
+Arrangement Update Error
+Assign a new default Ambient Pad to the Pad Player in Settings 
+Assign Multiple Buses
+A Team Leader or higher permission is required to save setlist changes in this organization. Please contact your administrator.
+A Team Sharing seat is required to use purchased ambient pads. Please contact your admin.
+Attempted to transfer to a device that already rented song(s).
+Attempted to update an unsynced setlist
+Attempting Biometric Login
+Attempting Manual Login
+Attempt to load snapshot into default arrangement, which is for referencing purposes only!
+Attempt to write empty data on the websocket
+AudioBox 1818 VSL
+AudioBox 22 VSL
+AudioBox 44 VSL
+Audio engine running
+AudioEngine.shared.configuration?.padPlayer or selectedPad nil
+Audio File Error
+Audio files are missing for 
+Audio files are missing for this content 
+Audio files are missing for this content (Please see user diagnostics 'PadToAttach Error' for details.)
+Audio files key: 
+Audio files missing for 
+Audio Interface Error
+Audio Interface Warning
+Audio tracks in this content are missing. Help us fix this by contacting support.
+Authentication Error
+Automate volume faders, Pad Player, and more
+Automatically report songs in your setlists with the Church Streaming License.
+Automatically update MIDI Cue changes
+AutomationCue - 
+AutomationItem - 
+Auto Pan enabled: 
+Available for 1 more day
+Available for 1 more hour
+Available Playback Devices
+Available Storage: 
+Available Templates
+Available To Download
+Available with a Playback Premium subscription.
+A valid IPV4 IP Address could not be found for this device.
+Base64 encoded hash too long
+Behringer FCA1616
+Behringer FCA610
+Behringer UMC1820
+Behringer UMC404HD
+Benchmark arguments :
+Bluetooth Audio Device
+Both devices need to be on the same network and have access to the host device
+Build configuration does not allow Sentry start.
+Bus data is incomplete and must be reloaded to continue.
+Bus Data Missing
+Bus Data Reload Failed
+Buses and SmartRouting
+Bus levels, mute, and solo are per song
+Bus output invalid when applying standard output routings
+Bus routing is only available with a Premium subscription.
+Bus Settings Locked
+Bus Settings update failed, with error: 
+Cache-Control: no-cache
+Cancel Redundancy
+Cannot connect bus channel to input. No available input bus.
+Cannot connect master fader mixer to input. No available input bus.
+Cannot connect MIDI clock channel to input. No available input bus.
+Cannot connect to iTunes or user canceled.
+Cannot determine an output filename
+Cannot find audio channel on this bus
+Cannot Restore Arrangement
+Cannot Save Arrangement
+Catalog Waveform
+Certification Authority1
+Changes cannot be saved to the default arrangement. Save as New arrangement to keep your changes.
+Changes have been made to one or more items in this Setlist.
+Changes will be reflected on Dante.
+Check for Firmware Update
+Check For Firmware Update
+Choose a click sound
+Choose an expiry option
+Choose any purchased Ambient Pad to play with this click.
+Choose any purchased Ambient Pad to play with this song.
+Choose from one of the following options:
+Choose Guide Cue language
+Choose Product to Unlock
+Choose the 'Click & Guide' option for your songs if you do not want to use a rental.
+Choose the 'Preview' or 'Click & Guide' option for your songs if you do not want to use a rental.
+Choose whether or not the lyrics and tracks in this setlist are included in the Church Streaming License auto-reporting.
+Choose whether or not the lyrics in this setlist are included in the Church Lyric License auto-reporting.
+Choose which MIDI Bank to load for this song. MIDI Banks can be built in your Library on MultiTracks.com.
+Church Lyric License:
+Church Lyric Licensing
+Church Streaming License:
+Church Streaming Licensing
+Clean up Playback by removing setlists on this device that have not been used in two months or more.
+Clear Remote Cache
+Clear Remote Cache?
+Click and Pad MIDI Cues Are Local Only
+Click Could Not Be Added
+Click Could Not Be Updated
+Click data missing
+Click data source: 
+Click Section cannot be added to this song type.
+Click Section Length
+Click songs with a 2/4 time signature are compatible with Playback version 8.1.0 and onwards.
+Click VU meters will flash in sync with tempo
+Client Communications Error
+Client Connection Error
+Cloud Click & Guide with an Ambient Pad.
+Cloud Left track
+Cloud Original song
+Cloud Right track
+Cloud Song changes must be saved to cloud before continuing.
+Cloud Song Section Editing Not Available
+Cloud Song Section editing requires Campus Admin permissions or higher. Please contact your admin.
+Cloud Song Sections
+Combine Sections
+Comparison tempo
+Compressed filename will be : 
+Compression levels :
+Confirm Auto Update
+Confirm Password
+Confirm Selections
+Confirm Switch Organization
+Confirm Transfer
+Connect a hardware MIDI or audio/MIDI interface to see ports
+Connect device to a network to see ports
+Connected Remote Devices
+Connected to Host
+Connection established
+Connection State: 
+Connection: Upgrade
+Connect To Planning Center
+Connect to Planning Center to import your Plans into Playback as a Setlist.
+Contact your Org Admin to change your role, or select 'Revert Changes' to enable Playback Sync.
+Content Downloads In Progress
+Content in your setlist needs to be updated before editing song sections. Would you like to perform the updates now?
+Content item missing from response
+Content Items Zero
+Content missing parts
+Content Not Available
+Content not ready for download - 
+Content not ready for download.
+Content not ready for download. Content ID: 
+Content package ID
+Content Processing Alert
+Content redemption ID
+Content type not supported
+Content type(s): 
+Content Update Failed
+Content Update Required
+Continue Downloading
+Continue Editing
+Continue Without Saving
+Control frame asking for extended length is illegal
+Controlling General Settings for Host device
+Controlling MIDI Settings for this device
+ControlMapping 
+Control Playback from anywhere in the house with Remote
+Control the Pad Player
+Control this device via Playback Remote with a Playback Premium subscription.
+Copy and Paste Cues
+Copy Section Cues
+Core Data Delete
+Could Not Be Loaded
+Could not copy diagnostics to clipboard!
+Could not create DateFilter
+Could not find track files. Please try again or contact support.
+Could not get custom guides directory path
+Could not instantiate downloadable item object
+Could not match track file to stem ID
+Could not parse waveform filename
+Could Not Retrieve Lyrics Cues
+Could not retrieve Transport View Controller to display Setlist Menu
+Could not set time signature for pad
+Could not start engine. Could not access audio engine configuration.
+Could not unwrap essential properties: 
+Could not unwrap essential song properties: 
+Could not update the default song map. Please try again or contact support.
+Couldn't create the required context.
+Couldn't find bus index
+Couldn't find MIDI bus index
+Couldn't open the audio file
+Couldn't read the audio file
+Count Into Each Section
+Count Into Each Section enabled: 
+Create a MultiTracks.com account
+Create a new setlist to add songs, click tracks and ambient pads.
+Create a new setlist to edit Setlist title, performance date, and reporting details.
+Create a new setlist to save changes to the cloud and open on other Playback and ChartBuilder devices.
+Create a Setlist
+Create a Setlist to use Pad
+Create Custom Bus Label
+Create Empty Setlist
+Create Empty Setlist?
+Create MIDI Bank Failed
+Create new Service Types in your account on MultiTracks.com.
+Create New Setlist
+Create, open, and manage setlists in your organization. Multiple setlists can be downloaded on one Playback device.
+Credits Remaining
+Crossfade between keys instantly, and switch between any purchased ambient pad sounds in real time. Unlink the Pad Player from your setlist for manual control.
+CSL Service Times
+Cues contained within a trimmed area will not fire during playback.
+Current Audio Device
+Current Audio Device Channel Count
+Current audio device not found
+Current audio output device
+Current Customer ID
+Current Resource: 
+Current song content ID
+Current song content type
+Current subscription tier unknown 
+Current Template
+Current User data update failed
+Current Working Directory
+Custom Clicks Directory Path
+Custom - Downloading...
+Custom End Point Removed
+Custom - Failed to download
+Custom Guides Directory Path
+Customize the volume of individual instruments, mute/solo individual tracks, and access the Playback bus faders.
+CustomMix Waveform
+Custom - Not uploaded
+Custom Start/End Points Removed
+Custom Start Point Removed
+Custom - Tap to download
+Dante Virtual Soundcard
+Data not available
+Decompression failed with exit code: 
+Decompression successful. Written file to: 
+Default Ambient Pad
+Default Pad title
+Delete All Content And Local Setlists?
+Delete All Content From Device
+Delete All Setlists From Device
+Delete All Setlists From Device?
+Delete and Choose Another Setlist
+Delete Arrangement
+Delete Charts Data?
+Delete Content and Setlists
+Delete Global Template?
+Delete MIDI Bank?
+Delete Past Setlists From Device?
+Delete Section Marker
+Delete Setlist From Account
+Delete Setlists from Device
+Delete Song From Setlist?
+Delete Song Section
+Delete Song Section?
+Delete Unused Past Setlists
+Delete Unused Setlists
+Deleting Setlists only removes them from this device, your Setlists will still be available in the Cloud.
+Deleting songs and setlists only removes them from this device. Your songs and setlists will still be available in the Cloud.
+Deleting these instances may cause weird side effects.
+Demo Setlist Failure
+Demo the full power of Playback and The Connected Stage with a free setlist.
+Description Too Long
+Designate a pad to be the default for Playback
+Device details have been copied to the clipboard.
+Device IP Address
+Device primary IP Address: 
+Diagnostic Information
+Diagnostics Copied
+Directory creation not found
+Directory Not Found
+Disable Preset Infinite Loop
+Disable Redundancy
+Discard Changes?
+Disconnect From Host
+Disconnect From Host?
+Disconnect Remote Session
+Discoverable as 
+Displaying Forgot Password Prompt
+Displaying New Account VC
+Displaying Organization Selector
+Documents Directory
+Don't Show This Again
+Do this later by selecting 'Reset Default Settings' in the Tracks settings.
+Down-casted Array element failed to match the target type
+Download destination nil for 
+Downloaded file nil for 
+Downloaded file URL nil for 
+DOWNLOADED SETLISTS
+Downloading Firmware (version 
+Downloading Firmware Version
+Download Invalid - Status Code 
+Download Rental Preview
+Download Rental Previews with a Playback Premium subscription.
+Download response redirected
+Download State: 
+Download State(s): 
+Download URL expired immediately upon retrieval. Device date/time has likely been manually set.
+Download URL expired or unauthorized for 
+Download URL nil for 
+DO YOU WISH TO CONTINUE?
+Duplicate section start times detected
+Duplicate section start times detected.
+Duplicate Section Start Times Detected
+Duplicate Setlist
+Each genre for this song will require 1 rental. If you rent 3 genres, the 4th genre will not require a rental.
+Each rental expires 7 days from the date that you download it to Playback.
+Each rental preview expires 30 days from the date that you download it to Playback.
+Easter egg! Copying diagnostic info to clipboard
+Edit and Move Song Sections
+Edit Cloud Song Sections
+Edit Device Name
+Edited Cues Saved to Cloud
+Edited Cues Without Saving
+Editing Production Cues
+Editing requires at least one selectable cue. Add cues by pressing the plus button on the timeline.
+Edit MIDI Cues and access MIDI Mapping by tapping and holding the EDIT button. Quick tap to edit your setlist.
+Edit MIDI Cues directly in Playback with a Premium subscription.
+Edit MIDI Port Name
+Edit Song Arrangement (with Dynamic Guide Cues)
+Edit Song Section
+Electric Guitars
+Email address entered is invalid.
+Empty response from 
+Empty setlist. Please add a song.
+Enabled Features
+Enable Do Not Disturb
+Enable Preset Infinite Loop
+Enable Push Notifications
+Enable Push Notifications?
+Enable Redundancy
+Enable SMPTE by selecting the frame rate output in Settings.
+Enable SMPTE for the selected song via the Song Edit Menu.
+Enable SMPTE Timecode and choose the frame rate output
+Enable the Pad Player in Settings to use pads during songs and transitions.
+Enable Touch Visualizer
+Enharmonic Key Selection
+Enter a new name for this bus
+Enter Description Here
+Enter IP Address
+Enter the IP Address of the Host Device to connect.
+Enter URL to Test
+Enter your email address
+Error description
+Error downloading POTW files: 
+Error: exited Elastique processing before file read complete
+Error finding file after unzipping
+Error Importing From Planning Center
+Error loading file for Pad content ID 
+Error opening input file: 
+Error opening output file: 
+ERROR opening socket
+Error reading broadcast payload
+ERROR reading from proxy socket
+Error Retrieving Planning Center Plans
+Error Retrieving Planning Center Service Types
+Error saving setlist
+Error Updating Settings
+Event-Specific Properties
+Exit demo mode by opening a setlist or creating a new one.
+Expected file path: 
+Expiration Date(s): 
+Expired Rentals On This Device
+Expire request failed
+Expire Song Download URL
+Expire This Song's download URL?
+Faders for this mode cannot be displayed due to an error
+Failed to Add Song
+Failed to add song to setlist.
+Failed to convert APIContentItem timecodes
+Failed to delete setlist item.
+Failed to find all required song map properties
+Failed to find Automation cue
+Failed to find MIDIEvent or valid song map
+Failed to find required properties for: 
+Failed to find SMPTE timecode
+Failed to find valid section element and its boundary
+Failed to generate handshake for client, closing it
+Failed to make connection to server - not authenticated
+Failed to retrieve available 
+Failed to retrieve contentSectionIDs for sections
+Failed to retrieve requested Setlist while offline.
+Failed to retrieve required properties for byte count - 
+Failed to retrieve required properties to determine byte count.
+Failed to Save Default Song Sections
+Failed to Save MIDI Cues
+Failed to save new setlist to cloud.
+Failed to save settings snapshot before Remote connection
+Failed to send encoded duplicate request
+Failed to set up a valid audio device
+Failed to write file (check your free space)
+File does not exist after decompression at expected url: 
+File extraction success
+Filename is nil for PadTrack: 
+File URL is nil for PadTrack: 
+Filter not available
+Finding Available Devices...
+Firmware Version
+Follow Default Arrangement
+For sections following a Count Off, the 'Play Section Count In' option will only apply when looping.
+For the best experience while using Playback it is recommended to enable push notifications.
+Found bad output file
+Frame Location indicates the specific frame number within the song in which SMPTE will begin being transmitted.
+Free Album of the Week
+Free for the first month. Cancel anytime.
+Free MT Complete Song
+Free Play of the Week
+Further instructions will be sent to this email address.
+General Client Error
+Get access to all available Song Pads with a Live Bundle subscription.
+Global Arrangement Sync Failure
+Global Templates
+Go to MIDI Mapping Mode
+Guide Behavior Per Section
+Guide Cue Language
+Guide Cue Language/Gender: 
+Guide Cue - Type: 
+Had trouble establishing the end time of this arrangement. You may want to check this out.
+Has Team Sharing?
+Help Center Articles
+Host Connection Disabled
+HTTP/1.1 101 Switching Protocols
+HTTP status code
+IEM Mix From Dante
+Import From Planning Center
+Import Production Cues
+Import selected Production Cues into this MIDI Bus. Any previously saved cues will be overwritten.
+Improves performance on older devices
+Incorrect parameters
+Init audio engine
+Initial Setlist Created
+Init with coder not implemented
+Input Already Mapped
+Install Firmware Update
+Installing Firmware Version
+Insufficient Preview Balance
+Insufficient Rental Balance
+Insufficient Storage
+Intro/Outro Only
+Intro/Outro Only: 
+Invalid Content Download Attempted with content type ID: 
+Invalid File Permissions
+Invalid IP Address
+Invalid license: App - 
+Invalid number of keys found, expected one.
+Invalid Playhead Position
+Invalid Response
+It is not equivalent to :
+It is recommended to enable push notifications for the best experience.
+It is required to have a subscription to download this content
+It will not use any rentals.
+Jorgenson's MT Connect Device
+Keep Current Setlist
+Keep Local Version
+Keep MultiTracks.com Setlists up to date with Plans in this Service Type.
+Keyboard Mapping
+Keyboard Mapping is only available with a Premium subscription.
+Keyboard Mapping Not Available
+Keyboard Mapping requires iOS 13.4 or higher. Please update your device to enable this feature.
+Keyboard shortcuts
+Key group not available
+Key, Tempo & Time Signature
+Latest download error: 
+Latest Download Error: 
+Latest Save Error: 
+Learn more about Automations.
+Leave 1 Day Remaining
+Legacy arguments :
+Legacy arguments take precedence. Therefore :
+Lightning Audio Adapter Output
+Link an Ambient Pad to automatically play alongside this Click Track.
+Link an Ambient Pad to play automatically alongside the tracks of this song. Choose whether it plays only in the intro/outro, or throughout the song.
+Linking Songs between Planning Center and Multitracks.com
+Live control of track performance
+Live ReOrder between song sections
+Load Click and Guide
+Load Click & Guide
+Load MIDI Production Cues built to match the ProPresenter template from MultiTracks.com. Available with a Live Bundle subscription.
+Load the Cloud Click & Guide with an Ambient Pad. Unlock the tracks at any time from the Edit Song Menu.
+Local DaNetwork
+Local Network Access Denied
+Local setlist changes not saved to Cloud will be lost, and all downloaded content not used in a recent setlist will be deleted.
+Local setlist changes not saved to Cloud will be lost, and all downloaded content will be deleted.
+Local song and setlist changes not saved to Cloud will be lost, and all downloaded content will be deleted.
+Log All User Defaults
+Login VC Did Appear
+Loop/Infinite Loop song sections
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.
+Lost connection to Host. Attempting to reconnect...
+Low Memory Warning
+Lyric Projection
+MacBook Air (Intel, 2020)
+MacBook Air (Intel, late 2018)
+MacBook Air (Intel, True Tone, 2019)
+MacBook Air (M1)
+Mac mini (Intel, late 2014)
+Mac mini (Intel, late 2018)
+Mac mini (M2 Pro)
+Mac mini (M4 Pro)
+Mac Pro (M2 Ultra)
+Mac Pro (Xeon, 2019)
+Mac Pro (Xeon, late 2013)
+Mac Studio (M1 Max)
+Mac Studio (M1 Ultra)
+Mac Studio (M2 Max)
+Mac Studio (M2 Ultra)
+Mac Studio (M3 Ultra)
+Mac Studio (M4 Max)
+Main audio output is currently muted.
+Main Playback Device
+Make sure Do Not Disturb is enabled while using Playback to avoid interruptions or notifications.
+Making song section changes will reset the song map to default in any saved song arrangements. This cannot be undone.
+Manage port assignments for MIDI controllers
+Manage Subscription
+Manage Your Setlists
+Manage your subscriptions in Account Settings after purchase
+Manual Remote Connection Required
+Mappings Data Update Available
+Master fader will control overall level per song
+Matching Section Orders Encountered
+Memory warning received
+MetadataClick - 
+MetadataSection - 
+MetadataTimeSignature - 
+Metadata Version: 
+Metadata version(s): 
+Metronome Style VU
+Metronome Style VUs enabled: 
+MIDI Bank Description
+MIDI Banks bring a deeper level of customization and organization to your MIDI Cues. Build separate presets of MIDI Cues across every bus that work together for unique environments.
+MIDI Clock Endpoint Selected Count: 
+MIDI Controllers: 
+MIDI Cue Controls
+MIDI Cues added to Click Tracks or Ambient Pads cannot be saved to the cloud and are only available on this device.
+MIDI Cues are being updated with Host changes. Remote access will be restored when update is complete.
+MIDI cues are saved locally and will not appear on the remote device.
+MIDI Cues Saved Locally
+MIDI Cue updates could not be applied. Please try again.
+MIDI In Endpoint Selected Count: 
+MIDI In Selector
+MIDI Mapping 2.0
+MIDI Mapping is only available with a Premium subscription.
+MIDI Out enabled: 
+MIDI virtual destinations changed
+MIDI virtual sources changed
+Misc (Requisitioned)
+Missing details for planID
+Missing field in response header - 
+Missing required metadata. Please try again or contact support.
+Missing required properties: 
+Mix and match parts like they were recorded to go together, because they were.
+Mixer Display Error
+Mixer Infinite Loop button
+Mixer Loop button
+Mixer MIDI Mute button
+Mixer Mode button
+Mixer Pad Link button
+Mixer Pad Panel VC
+Mixer Tracks button
+Mixer Track Set Error: 
+MorningStar MIDI Thing
+MOTU UltraLite AVB
+Move cloud song section newStartTime
+Move Song Section
+MT Complete Free Song not available
+MTComplete metadata retrieval failed with error:
+MT Complete search failed with error:
+MT Complete song found in setlist, but user is not subscribed to a rental plan. Song title: 
+MT Complete - Song Pad
+MT Complete songs are a Playback Rentals exclusive.
+MT Connect Network Output
+MTKS: Automation
+MTKS: Bus Channel
+MTKS: File Player
+MTKS: Looping File Playback
+MTKS: MIDI Clock
+Multichannel to 10-channel
+Multichannel to Stereo
+MultiTracks.com LLC. All Rights Reserved
+Multi User Persistence
+Mute Network Output
+My Playback Setlist
+My Rental Previews
+Network Interfaces
+Network Session 1
+Never miss setlist updates
+New Arrangement Created
+New buses have been added for expanded mixing control over additional groups of instruments.
+New Demo Songs Available
+Newer Device Required
+New MIDI Banks can be created for any song in your Library with unique cues in each bus. Add your own cues or import Production Cues, all within Playback.
+New Playback Buses Available
+New Playback Update:
+New version of Playback available
+Nil response received from server. Please try again.
+No Active Rental Previews on this device.
+No Active Rentals on other devices
+No Active Rentals on this device
+No audio files found
+No available devices
+No available people
+No Available Ports
+No callback on payload spill!
+No Changes Found
+No data available
+No Destinations To Display
+No Device Detected
+No email address entered.
+No features are enabled
+No Internet Connection
+No internet connection is detected. Continue to load content as Click & Guide, or re-establish internet connection to load as Rental.
+No internet connection is detected. Continue to load content as Click & Guide, or re-establish internet connection to load as Rental or Preview.
+No Key Selected For Product
+No memory for websocket context
+No MIDI Out ports have been set up
+No Non-Guide Tracks Selected
+No Outputs Available
+No PadTracks found for key ID: 
+No Playback devices were found on this device's network. Refresh the device list and try again.
+No Playback devices were found. Refresh the device list and try again.
+No purchases restored.
+No receipt for the current iTunes App Store user
+No results found
+No results found for
+No songs available.
+Not Authenticated
+Not Available in Remote Mode
+Notifications are
+Not on this device's network
+No Tracks Available
+No Tracks Selected
+Not ReacWiFi ReaWWAN Reahable
+No valid key found for this content. Please try again or contact support.
+NSArray element failed to match the Swift Array Element type
+Offline: Please connect to a wireless network
+OK Zip file exists
+Once added to the setlist, have the host save any pending changes to cloud, select Restore From Cloud on the host device, and attempt connection again.
+One or more of your rentals will expire soon
+One or more songs require a rental to unlock tracks
+Open Cloud Version
+Open Demo Setlist
+Open Device Settings
+Open in ChartBuilder
+Open Settings & Routing
+Open the Pad Player Interface to take live control of the pad key and sound. Available with a Playback Premium subscription.
+Organization ID: 
+Other Audio Device
+Other devices must be on the same network to connect to this device.
+Outdated Local Setlist
+Out of memory for conn user space
+Out of memory for new connection
+Out of memory for response buffer
+Output Channel: 
+Overlapping section markers
+Overlay measure & beat grid on waveform
+Overwrite MIDI cues?
+Overwrite Setlist?
+Overwrite the existing automation.
+Overwrite the existing MIDI cues in this section?
+PackageID migration failed
+Pad Assigned As Default
+Pad Data Download Failed
+PadDownloadHandler - Title: 
+Pad Player Disabled
+Pad Player Interface
+Pad Player is disabled for songs with key changes.
+Pads Directory Path
+Pad Song Waveform
+Pair this device with another device running Playback to control it remotely.
+Passwords entered do not match.
+Paste Automation
+Paste Section Cues
+Pending Pad Details Error: 
+Performance Date: 
+Performance Metrics
+Planning Center Unavailable
+Planning Center update not available.
+Playback Build: 
+Playback Device Keychain Retrieval Failed
+Playback Device Keychain Storage Failed
+Playback encountered an issue accessing audio properties. Please relaunch Playback or contact support if the issue persists.
+Playback encountered an issue downloading the tracks in this song. Please report this song to our support team.
+Playback encountered an issue. Please try again later.
+Playback encountered a song arrangement issue. Please re-download the song or contact support if the issue persists.
+Playback encountered a song map issue. Please re-download the song or contact support if the issue persists.
+Playback for Mac
+Playback is unable to redeem an in-app subscription. Please check your Apple billing information and subscription info.
+Playback Logo Triple Tap
+Playback Premium title
+Playback Redundancy
+Playback Remote sequence time resync applied
+Playback Remote Troubleshooting
+Playback's mapping data has been updated and we have detected conflicts in your mappings.
+Playback's MT Connect
+Playback Subscription Tier: 
+Playback Sync connection failed
+Playback Sync invalid section found
+Playback Sync requires the current setlist is saved to cloud.
+Playback Sync requires the setlist to be saved in order to operate.
+Playback Sync Unavailable
+Playback Transport
+Playback uses push notifications to notify you when a rental has finished processing.
+Playback uses push notifications to notify you when a subscription is expiring.
+Playback uses push notifications to update a song's MIDI events automatically.
+Playback Version: 
+Playback Versions:
+Playback will be reset to a freshly installed state.
+Play of the Week
+Play of the Week is available for free in its original key.
+Play of the Week not available
+Play Section Count In
+Play Section Guide Cue
+Play tracks, view the song tempo/time signature, and access settings/edit menus.
+Please cancel your current Playback Pro subscription before upgrading.
+Please check your internet connection.
+Please check your Internet connection and try again.
+Please check your MIDI controllers to confirm what channel is being sent and update your mappings to reflect what channel you would like each mapping to receive.
+Please choose another song
+Please connect to the internet to access setlists in your account.
+Please connect to the internet to manage your online song arrangements.
+Please connect to the internet to restore arrangements from the cloud.
+Please connect to the internet to save setlists to your account.
+Please connect to the internet to save song arrangements to the cloud.
+Please disable Auto Pan to change routings.
+Please do not disconnect from the internet while the device is being activated.
+Please do not disconnect from the internet while the firmware is downloading.
+Please ensure your device's network connection is active with a valid IPV4 IP address.
+Please enter a value to set the SMPTE frame.
+Please log back in to continue using Playback.
+Please log in again.
+Please note that a Rental can only be transferred once. Confirm to finalize this transfer.
+Please reconnect using an ethernet connection to the internet to continue with the firmware update.
+Please save your current setlist to the cloud, or open an existing cloud setlist in order to be a Host for Playback Remote.
+Please select a Built-In Click Sound in Settings to add a Click Section.
+Please select a different arrangement and try again.
+Please select a measure or timecode that does not already mark the beginning of a section.
+Please select at least 1 non-Guide track.
+Please select at least 1 track.
+Please tell us about the issue you are experiencing with Playback:
+Please try again.
+Please try closing any other audio applications and relaunching Playback. If the problem persists, please contact support.
+Please try downloading this pad again in the Edit Song Menu, and reach out to support if the download is unsuccessful.
+Please try reloading the selected song and/or relaunching Playback before playing.
+Please verify the key and product selection.
+Please wait until all pads have finished downloading before playing audio.
+Please wait until all songs have finished downloading before playing audio.
+Popularity Global
+Port Description Unavailable
+Pragma: no-cache
+Present Ad On Next Launch
+Present Ad With Custom URL
+Present MT Connect UI
+PreSonus AudioBox iTwo
+Preview available for 1 more day
+Preview available for 1 more hour
+Preview Confirmation
+Previous Section
+Price may vary by location
+Processing Did Begin
+Processing Did Finish
+Processing Manager Process Audio File
+Processing Will Begin
+Production Cues have been built by hand to keep ProPresenter templates and tracks in sync, no matter which slide format you use.
+ProPresenter 1 Line Template
+ProPresenter 2 Line Template
+ProPresenter 4 Line Template
+ProPresenter MIDI settings must be auto-filled with a default of 0.
+ProPresenter Playlist
+ProPresenter Playlist Item
+ProPresenter Templates
+ProPresenter Templates (Requested)
+Provided URL Invalid
+Provides a count-in when playing from the beginning of a section
+Purchased Track Available
+Push notification authorization not granted
+Quick Tap to Edit
+RARARARARARARAWAp p
+Ready to download
+Re-Authentication Required
+Receive alerts when Rentals are done processing
+Receive Plan Updates
+Redownload Content
+Redundancy Device Connected
+Redundancy Enabled
+Redundancy with PlayAudio 12
+Re-enable Redundancy
+Re-enable Redundancy?
+Reference Track audio file missing
+Reference Track enabled: 
+Reference Track stem ID
+Refresh Device List
+Refresh MIDI Cues
+Refresh Subscriptions
+Refresh Unsuccessful
+Registration Error
+Reliance on this certificate by any party assumes acceptance of the then applicable standard terms and conditions of use, certificate policy and certification practice statements.0
+Reload Selected Song
+Remote Access Denied
+Remote access will be restored when all content downloads on the Host are complete.
+Remote Connection Failed
+Remote devices must be logged into the same MultiTracks.com organization as the host device.
+Remote Disconnected
+Remote push notification error
+Remove Click Sections?
+Remove Remote Device?
+Remove Setlist From Device
+Remove userAccessIDs: 
+Rename Arrangement
+Renew Selected Content
+Rental Available
+Rental available for 1 more day
+Rental available for 1 more hour
+Rental Confirmation
+Rental content is being updated. Remote access will be restored when update is complete.
+Rental download failed
+Rental download response missing required metadata for content ID: 
+Rental failed to transfer:
+Rental license invalid
+Rental not available
+Rental Preview Available
+Rental Preview Error
+Rental Preview Limitations
+Rental Previews allow access to a song's tracks for 30 days. Tracks will contain a watermark and are limited to a single mono output. The song can be rented at any point to remove the preview limitations.
+Rental Previews Available
+Rental processing
+Rental prompt contains processing content
+Rental ready for download
+Rentals Available
+Rental song invalid
+Rentals Subscription Required
+Rental Subscription Required
+Rental Transfer Failed
+Rental Transfer Unavailable
+Rental unauthorized
+Rent a MultiTrack in Playback. Each rental expires 7 days from the date that you download it to Playback.
+Rent any catalog song for 7 days for use on your Playback device. Learn more at MultiTracks.com/rentals.
+Rented on this device.
+Rent & Preview Content
+Rent Selected Song
+Reported State: 
+Request Production Cues
+Request Song Pad
+Requires shift to bpm 
+Requires shift to keyID 
+Requires shift to: KeyID 
+Reset All Sections?
+Reset All Sections to Default
+Reset Bus Routings
+Reset Default Buses
+Reset Default Settings
+Reset Section to Default
+Reset Song Map To Default
+Reset to Default Song Map
+Reset to Default Song Map?
+Reset Track Routings
+Response Diagnostics
+Restore Default Name
+Restore From Cloud
+Restore Purchases
+Restore purchases failure: 
+Results not available
+Retrieving Image
+Retry Activation
+Retry Firmware Update
+Routing source not available
+Running in RELEASE mode
+Sample Timecode: 
+SARBZGp p(XCSAp
+Save and Continue
+Save and Overwrite
+Save Arrangement
+Save As New Arrangement
+Save As New Global
+Save As New Setlist
+Save Automation Cues for Arrangement?
+Save changes to Production Cues? This will overwrite any currently existing User Cues.
+Save Current Template Changes
+Save custom arrangements to the Cloud and use them in other setlists with a Cloud Pro subscription.
+Save Default Song Sections?
+Saved Setlist Required
+Saved song arrangements
+Save MIDI Cues to the Cloud and use them in other setlists with a Cloud Pro subscription.
+Save MIDI Cues to the Cloud? This will affect all saved song arrangements.
+Save MIDI Cues with Cloud Pro
+Save Setlist to Cloud?
+Save Song Arrangements with Cloud Pro
+Save the fader mix, song map, key and tempo, and more as a saved song arrangement with a Cloud Pro subscription.
+Save the latest setlist changes to the Cloud?
+Save this setlist to cloud before enabling Playback Sync.
+Save this setlist to the cloud to enable Playback Sync.
+Save to Device Only
+Save to the Cloud to share setlist changes with your team.
+Saving changes to Production Cues will overwrite any currently existing User Cues.
+Saving MIDI Cue changes for this demo setlist will only save locally. Learn more about how you can save MIDI Cues.
+Saving MIDI Cues to the Cloud requires Campus Admin permissions or higher. Please contact your admin.
+Saving Planning Center changes
+Scarlett 18i20 USB
+Scarlett 18i8 USB
+Scarlett 2i2 USB
+Scarlett 2i4 USB
+Scarlett 6i6 USB
+Scheduling second attempt to update MIDIEvents
+Scroll between song sections with the arrows, and use the 
+Scroll through the song waveform and edit the arrangement in Edit Setlist mode.
+Second attempt to update MIDIEvents failed
+Section Order 0 Encountered
+Section setlist song section ID
+Section Validation
+Sec-WebSocket-Accept: 
+Sec-WebSocket-Extensions: 
+Sec-WebSocket-Key: 
+Sec-WebSocket-Protocol: 
+Select an Organization
+Select a song section to move.
+Select Destinations
+Select Different IP Address?
+Selected setlist is not valid, it was deleted or it belongs to a different customer
+Selecting an alternate key requires the use of a Playback Rentals subscription or a MultiTracks One subscription.
+Selecting an alternate key requires the use of your 1 available rental.
+Selecting Server Click Sound will remove all Click Sections from your downloaded songs.
+Select Pad on Host device
+Select 'Save to Cloud' to save current template changes and access them on other devices.
+Select Song Genres to expire:
+Select Song to expire URL:
+Select the IP Address of the network interface to use for Playback Sync and Playback Remote connections.
+Send Click & Guide to left and tracks to right (Stereo output only)
+Send MIDI Clock signal to selected MIDI Ports for syncing external software to Playback
+Send SMPTE timecode out of Playback with a Premium subscription.
+Sequencer Time Critical Queue: 
+Sequence Timecode: 
+Server Client Collision
+Server Communications Error
+Server Connection Error
+Server is not currently listening for client connections
+Server Not Active Error
+Set Channel Range
+Set From Current
+Setlist cloud saving
+Setlist Compatibility Warning
+Setlist contains no items.
+Setlist Deleted From Account
+Setlist Index: 
+Setlist not found
+Setlist position 
+SetlistPosition 
+Setlist Reporting
+Setlist Reporting details can only be modified up to two weeks after the Setlist's date.
+Setlist Saved Locally
+Setlist / Song Map
+Setlist Song Tiles
+Setlist Sync Error
+Setlist Update Unsuccessful
+Set playhead at a location that has not been trimmed.
+Set points on the song timeline to automatically trigger custom adjustments to individual track faders, the master fader, Pad Player, and more.
+Set the Automation Snapshot
+Setting not available
+Settings disabled while Pad is playing
+Settings update called with Transport playing. Update cancelled.
+Sign in with your MultiTracksAfrica.com account
+Sign in with your MultiTracks.com account
+Sign in with your MultiTracks.ph account
+Simple example :
+Simulate Memory Warning
+Simulate Unreachable API
+Simulate Unused Setlist
+Sine wave is sent to a dedicated output for supported devices
+Single key not found for product
+Single key not found for product. Please try again or contact support.
+Single tap any song section icon to edit the section label and position.
+Site not recognized (site ID: 
+SMPTE audio cannot be routed to the same audio output as another instrument bus. Try again after re-routing other instrument buses.
+SMPTE Editing Not Available
+SMPTE Frame Rate: 
+SMPTE / LTC Timecode Output
+SMPTE Time Start
+SMPTE Time Start indicates where in the SMPTE audio file your Timeline Location will begin from.
+Some ambient pads used in this setlist require a Team Sharing seat. Pad Player will use the Default Ambient Pad instead. Please contact your admin.
+Some of the content in your Host Setlist is out of date. Please re-download the songs to be sure all content is up to date.
+Some Rentals failed to transfer:
+Something went wrong. Please choose another key to proceed.
+Something went wrong. Please try again later.
+Song Add existing failed
+Song Arrangement Error
+Song audio files key ID
+Song contains bad section data
+Song contentID: 
+Song Could Not Be Loaded
+Song currently selected: 
+Song details not available
+SongDownloadHandler - Title: 
+Song encountered audio error 
+Song key current
+Song missing track data: 
+Song not available
+Song object tempo
+Songs are downloading in another setlist. For best performance, finish downloading before pressing play
+Songs cannot be deleted in the Demo Setlist.
+Song's content type is not supported in this version of Playback. Content type ID: 
+Songs Directory Path
+Song Section Error
+Song Section Failure
+Song Section Pre-roll
+Song Section Pre-roll enabled: 
+Song Section Renaming
+Song Sections Updated
+SongSection - Type: 
+Songs must contain at least one section.
+Song Specific Buses
+Song Specific Buses enabled: 
+Song Specific Master Fader
+Song Specific Master Fader enabled: 
+Song Specific Pad Player Settings
+Song Specific Patch Cues are available for this song. Import into any MIDI Bus on MultiTracks.com.
+Song Specific Patches
+Song Specific Patches (Requested)
+Song tempo current
+Song tempo original
+Song Track(s) audio file(s) missing
+Song track stem ID
+Song track stemIDs
+Song update complete
+Sorry, that song could not be downloaded at this time. Please try again later.
+Sorry, we weren't able to process your rental. Try deleting and adding the song again.
+Stack Menu Developer Tools
+Stack Menu Feature Notification
+Stack Menu force crash
+Start Pad Player With Song enabled: 
+Start Pad Player with Songs
+Start Pad With Song
+Start Song With Pad: 
+Stems version(s): 
+Still attempting connection to the server...
+Stop Downloading
+Streaming Online
+Sub click accent
+Sub click eighth
+Sub click fourth
+Sub click sixteenth
+Subscribe to Premium
+Subscription Alert
+Subscription Error
+Subscription payment failed. Please try again or contact support.
+Subscription Renewal
+Subscription Required
+Subscriptions will be charged to your credit card through your iTunes account
+Subscription Terms
+Subscription transaction failed
+Switch Organizations
+Switch Organization Warning
+Sync ChartBuilder over a network connection to follow your Playback setlist automatically while tracks are playing.
+Take full control of the Pad Player interface!
+Tap and Hold Edit
+Tap and hold the Pad fader to expand all of the tracks of the currently playing Ambient Pad. Tap and hold to return to the Pad Player interface.
+Tap on a song section icon to copy the MIDI Cues from one section and paste them into another.
+Tap Tempo for Click Tracks
+Tap Tempo is available with Playback Premium Subscription.
+Tap the Pad button in the transport to turn off the Pad Player.
+Tap to enter the Edit Song Menu and customize the Pad Player behavior during this song. Change the Ambient Pad sound, disable the Pad Player, and more.
+Target Resource: 
+TASCAM Series 208i
+Team Leader Permissions Required
+Team Sharing is required to download one or more Cloud songs in this Setlist. These will be converted to Click & Guide.
+Team Sharing Required
+Team Sharing required. Please contact your admin.
+Team Sharing Required to use Ambient Pads
+Template couldn't be loaded
+Template couldn't be saved
+Tempo can be changed after the song has been added.
+Tempo can be changed after the song has been downloaded.
+Temporary Cache Directory
+Terms of Service
+Thanks, you should receive an email with password reset instructions shortly.
+The Ambient Pad assigned as Default cannot be removed from device.
+The attempt to download this content was unsuccessful. If another attempt fails, please share your experience with us.
+The audio file for this track is missing. Please re-download the song or contact support if the issue persists.
+The audio files for this song are missing. Please re-download the song or contact support if the issue persists.
+The data couldn't be read because it isn't in the correct format: 
+The data for this song is incomplete. Please try again later.
+The Demo Setlist could not be retrieved. Please try again later.
+The device does not have enough available storage space to download this content.
+The end point of this song is no longer valid and has been reset to song end.
+The first section cannot be moved from the beginning of the song.
+The frame entered contains invalid characters. Please enter only numeric characters.
+The Host device has changed setlists. Please reconnect after an organization admin adds this user to the Host setlist.
+The Host device is on a different version of Playback than this device. Please ensure all devices are on the same version of Playback.
+The Host device is running a different Playback Remote data version. To enable Playback Remote, please ensure all devices are running the same version of Playback.
+The Host device's IP address could not be found. Please verify this device and the Host device are connected to the same network.
+The host has removed this device from the Playback Remote session.
+The Host is no longer available.
+The Internet connection appears to be offline.
+Theme not available
+The most powerful version of Playback
+The new songs included in the Demo Setlist are now being downloaded.
+The operation couldn
+The original mix will be visible in the track list
+The preview for this song is currently unavailable.
+The product could not be requested. Please try again or contact support.
+There are technically 2 accessible compression levels.
+There is an issue with this downloaded content. Help us fix this by contacting support.
+There is currently an issue with the Scarlett 6i6 USB that will cause a high pitched sound if you close the app and re-open while the interface is connected.
+There is no internet connection detected. Please reconnect to the internet using an ethernet connection to continue with activation.
+The remaining free disk space on this device is unknown.
+The removed device will not be able to rejoin the current Playback Remote session.
+The rentals in this setlist have already been transferred from another device and cannot be transferred again.
+The request timed out. Please try again.
+There was an error attempting to delete the selected MIDI bank.
+There was an error connecting to your Planning Center account.
+There was an error enabling Playback Sync. Please try again.
+There was an error saving the MIDI cues to the cloud. Please try again.
+There was an error syncing this setlist. Please try again later or select another setlist.
+There was an error updating the setlist. Please re-download the setlist to enable section editing.
+There was an error updating the song sections. If the issue continues, please contact support.
+There was an error while authorizing the download of this content. Please try again, ensuring your device remains connected to the same network while downloading. If another attempt fails, please contact our support team.
+There was an error with the connection.
+There was an issue downloading this content: 
+There was an issue downloading this content. If this occurs again, please contact us.
+There was an issue during playback of this song. If this issue persists please try downloading the song again or contact support.
+There was an issue finding this content. If this occurs again, please let us know.
+There was an issue opening this content. If this occurs again, please contact us.
+There was an issue renting this content. If this occurs again, please contact us.
+There was an issue updating this arrangement.
+There was an issue with your account subscriptions. If this occurs again, please let us know.
+There was a problem adding this click to your setlist.
+There was a problem creating a new MIDI Bank. Please try again or contact support.
+There was a problem loading this template. Please try again or contact support.
+There was a problem saving this template. Please try again or contact support.
+There was a problem updating this click.
+There was a problem updating this MIDI Bank. Please try again or contact support.
+There was a problem with this Cloud song and it needs to be removed from your Setlist. Please re-upload in your account. Contact support for more info.
+There was a problem with this song and it needs to be removed from your Setlist. Please contact support for more info.
+There was no valid key found for content item: 
+The sections for this song are missing. Please re-download the song or contact support if the issue persists.
+These devices are currently connected and able to control Playback remotely.
+These features are only available in the Premium version of Playback.
+The selected setlist has been deleted from your account by an admin or team leader and will be removed from your device.
+The selected setlist has been deleted from your account. What would you like to do?
+The selected setlist will be deleted permanently and replaced with a new empty setlist.
+The selected song has not been fully loaded.
+These MIDI Cue changes have been saved in this setlist and can only be accessed on this device.
+These songs have been downloaded to your device and can be added without having to be redownloaded or reprocessed. They are also available to use when your device is offline.
+The setlist updates could not be applied. Please try again.
+The song map will be reset to use the original sections for this song.
+The song on this device has been converted to Click & Guide.
+The Song Pad will automatically download when the song is added.
+The song(s) could not be rented at this time. Please try again later.
+The songs on this device have been converted to Click & Guide.
+The start and end points of this song are no longer valid and have been reset.
+The start point of this song is no longer valid and has been reset to song start.
+This action requires Team Leader permissions or higher. Please contact your organization admin.
+This arrangement will be deleted forever. This cannot be undone!
+This audio interface is currently incompatible with Playback because of an iOS bug. Please use a different device or use the built in headphone output.
+This audio interface supports a redundant Playback system.
+This bus will only be used when a song is played while in a Rental Preview state. All Rental Preview audio will be summed to this single bus.
+This cannot be undone.
+This content is missing required information. Please contact us so we can fix it.
+This content is no longer available for download and will be removed from your setlist.
+This content is not available for download at this time. Please try again later.
+This content is not available for download at this time. Please try again, or contact support if the issue persists.
+This content is not ready for download. Please try again or contact support.
+This content requires a rental subscription.
+This content will not be present in setlists loaded on earlier versions of Playback.
+This device cannot be used as a Remote Device when it is set as the Host Device.
+This device currently has no available songs.
+This device currently has no downloaded Ambient Pads.
+This device currently has no downloaded Ambient Pads or Soundbeds.
+This device currently has no downloaded Soundbeds.
+This device currently has no expired songs.
+This device doesn't support your Premium Subscription. You'll get Pro features on this device. Log into a newer device to access your Premium Subscription.
+This device is connected as a Remote device. Disconnect from the Host device in order to make this device a host.
+This device is not allowed to rejoin the current Playback Remote session.
+This device will no longer remotely control the Host device.
+This free Multitrack will remain on your device for 7 days.
+This input is already mapped to another control. Would you like to re-map it to the new control?
+This MIDI Bank and all associated MIDI cues will be permanently deleted from your device and your account. Are you sure you want to delete it?
+This option is only available on newer devices.
+This Plan has already been imported as a Setlist
+This Plan has songs that have not been linked and they will display as a placeholder click and pad in your Setlist.
+This rental preview will expire 30 days after processing is complete
+This rental will expire 7 days after processing is complete
+This setlist could not be loaded. Please try again.
+This setlist does not match the Host. Remote access will be restored when the Host setlist is updated from cloud, and all content downloads are complete.
+This setlist has an outdated local version that doesn't match the version stored in the Cloud.
+This setlist has been altered by the Host. Remote access will be restored when Host changes are saved to cloud, and all content downloads are complete.
+This setlist has been removed by the Host. Remote access will be restored when a valid setlist has been loaded by the Host.
+This setlist has been reported and can no longer be used.
+This setlist is being updated with Host changes. Remote access will be restored when update is complete.
+This song currently does not have tracks available to rent and will be added to the setlist as a Click & Guide song.
+This song has an issue with its audio files. Please try downloading the song again or contact support.
+This song is not supported in this version of Playback. Update to the latest version of Playback, or contact support.
+This song section has uploaded cloud chart data. Deleting this section will permanently delete chart data.
+This song will be removed from your setlist.
+This template will no longer be accessible from any of your Playback devices.
+This user must be a member of the host setlist to control with Playback Remote.
+This will delete all content, including setlists, songs, arrangements, and user settings.
+This will overwrite this arrangement with the latest changes.
+This will permanently delete the song section data from your Cloud song, including any uploaded Cloud Chart data and saved arrangements.
+This will remove all cached remote data from this device.
+Timecode Conversion Failed
+Timeline Location
+Timeline Location indicates where in the selected song SMPTE will begin being transmitted.
+Time signature ID: 
+To control the Host, an internet connection will be needed to download remote data.
+To copy this setlist for an upcoming date, select 
+To create or duplicate a setlist, contact your Org Admin to change your account role to Team Leader or higher.
+To edit song sections in your Cloud Song, the song map must be reset.
+To enable Playback Sync changes to your current setlist must to be saved to the cloud. Your role is currently Team Member, which does not allow this.
+To enable Playback Sync your current setlist must to be synced to the cloud. Contact your Organization Admin to change your role.
+To enable SMPTE output, select a frame rate in the Settings Menu.
+To ensure reliable playback the duplicates have been removed.
+To fix this issue, edit the section data for this song on the MultiTracks website, then download again.
+To get all the latest features and fixes please head to the App Store to update.
+Toggle to the Pad Player
+To protect the console from binary flooding (bad argument mistake)
+To remove this pad, choose a different Default Ambient Pad in Settings 
+To use this feature, disconnect from the Playback Remote Host device.
+Track data could not be found.
+Track Data Missing
+Track Mappable Component - Component Type: 
+Tracks not found in local Playback data.
+Track with Part ID 
+Transfer Rentals
+Transfer Rentals to Another Device
+Transition Beats: 
+Transition Length
+Transition length is the length of time (in beats) the faders will start leading to the Automation point. Mute or unmute changes are instant.
+Transport Automation button
+Transport Fade button
+Transport Pad button
+Transport Play button
+Transport Reset button
+Transport Select button
+Transport Tap Tempo button
+Trigger downloading demo setlist in background.
+Trim Contains Cues
+Trim measures from the song section to shorten it.
+Trim song sections
+Try again after re-downloading this song
+Try out MT Complete for free. One song. Four genres with matching arrangements, chord progressions, and keys.
+Turn on Playback notifications to:
+Turn the Pad Player on once a song has been added to your setlist. Ambient Pads will fade in the correct key and automatically transition between songs.
+Turn the Pad Player on once a song has been added to your setlist, and it will fade in the correct key and automatically transition between songs.
+Typecasting failure
+Uh oh! Something went wrong.
+UITEST SETLIST - REMOVE ME!
+Unable to activate non-rental content. Please try again or contact support.
+Unable To Add Song To Setlist
+Unable To Complete Purchase
+Unable to create the folder necessary for Playback to store files at path '
+Unable To Generate Snapshot
+Unable to generate waveform. Please try again or contact support.
+Unable to initialize AVAudioChannelLayout object
+Unable to initialize AVAudioFormat object
+Unable to load a setlist that is not saved to cloud. Save the setlist on the Host device and try again.
+Unable to load URL 
+Unable to Process
+Unable to Rent Song
+Unable to retrieve global templates.
+Unable to retrieve MIDI Cues
+Unable to retrieve required data to duplicate setlist.
+Unable to retrieve setlists without date filter.
+Unable to save setlist while offline.
+Unable to save song sections. Please try again.
+Unable to update available devices. Remote access will require manual entry of the IP Address.
+Unable to update. Please save setlist to cloud.
+Unexpected Content Status
+Unexpected response from server. Please try again.
+Unknown Device - 
+Unknown sectionType for this song
+Unknown value for property 
+Unlinked Songs In Setlist
+Unlock the Pad Player interface with a Premium subscription to instantly crossfade between pad sounds and keys.
+Unlock with Playback Premium
+Unlock with Premium
+Unlock with Team Sharing
+Unresolved error 
+Unsaved changes will remain locally only on this device.
+Unsaved Setlist Changes
+Unsaved Template Changes
+Unsuccessful response from server - 
+Unused Test Setlist
+Update and Save to Cloud
+Update API Settings
+Update Arrangement?
+Update Available
+Update default song map failed with error: 
+Updated filePath from:
+Update from Planning Center
+Update From Planning Center
+Update In Progress
+Update MIDI Bank Failed
+Update the song with this arrangement in order to save changes to it.
+Update Track Data
+Updating song, please wait
+Updating this setlist with the most recent Planning Center changes will overwrite your existing setlist.
+Upgrade to a Premium Subscription of Playback to unlock Playback for Mac and much more.
+Upgrade to Cloud Pro to save custom song arrangements and use in other setlists.
+Upgrade to get started.
+Upgrade to iOS 12.4 to access the Network Session MIDI port
+Upgrade: websocket
+Upgrade: WebSocket
+Upload your own MIDI User Cues to any song in your library on MultiTracks.com.
+Up to 32 MultiOuts
+USB AUDIO   DAC
+Use Complex Algorithm
+Use MIDI Clock to automatically share the track tempo with connected patches, music software, and instruments.
+User cancelled login
+User code denied connection
+User Did Edit MIDI Cues Count: 
+User does not want to use biometrics for login
+User Entry String: 
+Username or Email
+Use the left and right arrows above to make incremental adjustments (16th) to your MIDI Cue. Tap the check when you are finished.
+Use the left and right arrows above to navigate through MIDI Cues on your timeline. Press the 
+Use the Pad Player in between songs by enabling the Continue Pad toggle during Cue Next Song or Stay In Song transitions.
+Use your own content in Playback with a Cloud subscription. Head to MultiTracks.com to get started.
+Validation Error
+Vamp Ending on 1
+Vamp Ending on 4
+Vamp on 1 and 1sus
+View and choose from the product types you have purchased in the Content section below.
+View Downloaded Pads
+View Downloaded Setlists
+View Downloaded Songs
+View Subscriptions
+Vision Pro (Original, 2023)
+Visit MultiTracks.com to add a Rentals subscription to your account.
+Visit the setlist page on your MultiTracks.com account to link your Planning Center songs to MultiTracks.com songs.
+WARNING!! Test API runs from a different database, which may not contain the Users and Content you require.
+Waveform Grid enabled: 
+We are working with the manufacturer on a solution. Please consider using another device or not closing the app while using this interface.
+Web Socket Preferred IP Address: 
+We currently do not have tracks for this song. Please set a Key, Tempo, and Time Signature and we
+We detect that your device is screen-recording, and have muted the Playback audio. Please end the screen recording to send audio out of Playback.
+Weekly Edited Cues Not Saved: 
+Weekly Edited Cues Saved to Cloud: 
+We have received your request! You will receive an email once these cues are available.
+We have received your request! You will receive an email once the tracks are available.
+Welcome to MT Connect
+We'll let you know when this song is available to rent.
+We recommend closing background apps, force closing and restarting Playback, and refreshing your device
+We recommend to check your MIDI and Keyboard mappings to confirm they work as you expect.
+We will check once a day and notify you if updates are available, but you can also update at any time.
+What is Transition Length?
+When Auto Update is enabled, any Plan changes made in Planning Center will be available to be applied to the Setlist in Playback.
+When disabled, SMPTE timecode will be based off of the current song map.
+When 'Follow Default Arrangement' is enabled, SMPTE timecode will be based off of the default song map, with duplicated/deleted sections not affecting the timecode of the surrounding sections.
+When linked, the Pad Player will automatically follow your setlist. Unlink to take full manual control of the Pad Player. Re-Link at any time.
+With this new MIDI update, all channel mappings in Playback are now mapped to channel one by default.
+Would you like to disable Infinite Loop for this section?
+Would you like to overwrite your locally stored version and open the updated cloud version?
+Would you like to preset this section to Infinite Loop?
+Would you like to proceed?
+Would you like to re-map it to the new control?
+Would you like to request this song?
+Would you like to try again? If the issue continues, please contact support.
+Wrong content type used: 
+Wrong parameters '
+You are currently offline. If you log out now, you will not be able to log in again until you connect to the internet.
+You are currently offline. If you switch organizations now, you will not be able to log in again until you connect to the internet.
+You are logging in as a different user. Doing so will delete all content and local setlists. (Setlists saved in the cloud will be unaffected.)
+You are subscribed to Playback Premium
+You are unauthorized to make this request.
+You can continue to use Playback while the firmware update is installing.
+You currently have less than 5GB of storage available on your device. Please clear off space for the best experience with Playback.
+You have 1 Rental
+You have less than 500MB of free space available on your device. This will negatively effect the performance of Playback. Please free up space on your device before continuing to use Playback.
+You have used all your available rental previews.
+You have used all your available rentals.
+You'll receive a reply to the email address associated with your MultiTracks.com account.
+You must be logged in to Playback to purchase a subscription. Please log in and try again.
+You must specify a valid song section and timecode.
+Your current genre selections will use 1 rental.
+Your current setlist date has passed.
+You're Currently Offline
+Your MultiTracks Cloud Pro subscription has expired
+Your new setlist has been saved locally, but could not be synced to your MultiTracks account.
+Your new setlist has been saved locally, but could not be synced to your MultiTracks account as you are not logged in.
+Your Premium subscription has expired, but you have an existing Pro subscription. You'll be downgraded to Pro features.
+Your Premium subscription has expired. You'll be downgraded to Intro features.
+Your Pro subscription has expired. You'll be downgraded to Intro features.
+Your request for this Song Pad failed. Please try again later.
+Your request for this Song Pad has been received and you
+Your Setlist is up to date.
+Your song will be processed and available to download on this device soon.
+Your song will be processed and then downloaded to this device.
+Your subscription will automatically renew unless cancelled at least 24 hours before the end of the current period
+Your username or/and password are blank. Please provide all details and log in again.
+Zip File Open Error: Does not exist

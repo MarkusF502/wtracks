@@ -8,6 +8,8 @@ import '../models/track.dart';
 import '../models/guide_cue.dart';
 import '../models/automation_cue.dart';
 import '../models/timecode_settings.dart';
+import '../models/tempo_change.dart';
+import '../models/song_section.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
 
@@ -128,6 +130,14 @@ typedef _PollCuesNative = Int32 Function(Pointer<Uint32>, Int32);
 typedef _PollCuesDart = int Function(Pointer<Uint32>, int);
 typedef _ConfigureTimecodeNative = Bool Function(Int32, Int64, Double, Int32, Float);
 typedef _ConfigureTimecodeDart = bool Function(int, int, double, int, double);
+typedef _SetLoopRepeatsNative = Bool Function(Double, Double, Bool, Int32);
+typedef _SetLoopRepeatsDart = bool Function(double, double, bool, int);
+typedef _EnqueueLoopRepeatsNative = Bool Function(Double, Double, Int32);
+typedef _EnqueueLoopRepeatsDart = bool Function(double, double, int);
+typedef _PresetLoopsNative = Bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Int32);
+typedef _PresetLoopsDart = bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, int);
+typedef _TempoChangesNative = Bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Pointer<Int32>, Int32);
+typedef _TempoChangesDart = bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Pointer<Int32>, int);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -198,6 +208,10 @@ class WTracksEngine {
   late final _SetTimeScaleDart _setTimeScale;
   late final _GetTimeScaleDart _getTimeScale;
   late final _CancelTimePitchDart _cancelTimePitch;
+  late final _SetLoopRepeatsDart _setLoopRepeats;
+  late final _EnqueueLoopRepeatsDart _enqueueLoopRepeats;
+  late final _TempoChangesDart _setClickTempoChanges;
+  late final _PresetLoopsDart _configurePresetLoops;
   late final _ConfigureTimecodeDart _configureTimecode;
   late final _SetClickEnabledDart _setTimecodeEnabled;
   late final _MidiListDart _midiList;
@@ -311,6 +325,10 @@ class WTracksEngine {
     _setTimeScale = _lib.lookupFunction<_SetTimeScaleNative, _SetTimeScaleDart>('wtracks_set_time_scale');
     _getTimeScale = _lib.lookupFunction<_GetTimeScaleNative, _GetTimeScaleDart>('wtracks_get_time_scale');
     _cancelTimePitch = _lib.lookupFunction<_CancelTimePitchNative, _CancelTimePitchDart>('wtracks_cancel_time_pitch');
+    _setLoopRepeats = _lib.lookupFunction<_SetLoopRepeatsNative, _SetLoopRepeatsDart>('wtracks_set_loop_repeats');
+    _enqueueLoopRepeats = _lib.lookupFunction<_EnqueueLoopRepeatsNative, _EnqueueLoopRepeatsDart>('wtracks_enqueue_loop_repeats');
+    _configurePresetLoops = _lib.lookupFunction<_PresetLoopsNative, _PresetLoopsDart>('wtracks_configure_preset_loops');
+    _setClickTempoChanges = _lib.lookupFunction<_TempoChangesNative, _TempoChangesDart>('wtracks_set_click_tempo_changes');
     _configureTimecode = _lib.lookupFunction<_ConfigureTimecodeNative, _ConfigureTimecodeDart>('wtracks_configure_timecode');
     _setTimecodeEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_timecode_enabled');
     _midiList = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_outputs');
@@ -588,12 +606,58 @@ class WTracksEngine {
     finally { calloc.free(values); }
   }
 
-  bool setLoop(double start, double end, bool enabled) => _setLoop(start, end, enabled);
-  Future<bool> setLoopAsync(double start, double end, bool enabled) =>
-      Isolate.run(() => WTracksEngine().setLoop(start, end, enabled));
-  bool enqueueLoop(double start, double end) => _enqueueLoop(start, end);
-  Future<bool> enqueueLoopAsync(double start, double end) =>
-      Isolate.run(() => WTracksEngine().enqueueLoop(start, end));
+  /// [repeats] passagens antes de a música seguir após o fim do laço (0 = laço contínuo).
+  bool setLoop(double start, double end, bool enabled, {int repeats = 0}) =>
+      repeats == 0 ? _setLoop(start, end, enabled) : _setLoopRepeats(start, end, enabled, repeats);
+  Future<bool> setLoopAsync(double start, double end, bool enabled, {int repeats = 0}) =>
+      Isolate.run(() => WTracksEngine().setLoop(start, end, enabled, repeats: repeats));
+  bool enqueueLoop(double start, double end, {int repeats = 0}) =>
+      repeats == 0 ? _enqueueLoop(start, end) : _enqueueLoopRepeats(start, end, repeats);
+  Future<bool> enqueueLoopAsync(double start, double end, {int repeats = 0}) =>
+      Isolate.run(() => WTracksEngine().enqueueLoop(start, end, repeats: repeats));
+
+  /// Seções que entram em laço sozinhas ao chegar ao início (até 16, sem sobreposição). Decodifica o áudio:
+  /// use [configurePresetLoopsAsync] fora da interface.
+  bool configurePresetLoops(List<SongSection> sections) {
+    if (sections.length > 16 || !SongSection.validSequence(sections)) return false;
+    final slots = sections.isEmpty ? 1 : sections.length;
+    final starts = calloc<Double>(slots), ends = calloc<Double>(slots), repeats = calloc<Int32>(slots);
+    try {
+      for (var i = 0; i < sections.length; i++) {
+        starts[i] = sections[i].startSeconds;
+        ends[i] = sections[i].endSeconds;
+        repeats[i] = 0; // preset = loop until released
+      }
+      return _configurePresetLoops(starts, ends, repeats, sections.length);
+    } finally {
+      calloc.free(starts);
+      calloc.free(ends);
+      calloc.free(repeats);
+    }
+  }
+
+  Future<bool> configurePresetLoopsAsync(List<SongSection> sections) => Isolate.run(() => WTracksEngine().configurePresetLoops(sections));
+
+  /// Mudanças de andamento/compasso depois do segmento base do click (tempo da música).
+  bool setClickTempoChanges(List<TempoChange> changes) {
+    if (!TempoChange.validSequence(changes)) return false;
+    final slots = changes.isEmpty ? 1 : changes.length;
+    final starts = calloc<Double>(slots), bpms = calloc<Double>(slots), nums = calloc<Int32>(slots), dens = calloc<Int32>(slots);
+    try {
+      for (var i = 0; i < changes.length; i++) {
+        starts[i] = changes[i].startSeconds;
+        bpms[i] = changes[i].bpm;
+        nums[i] = changes[i].numerator;
+        dens[i] = changes[i].denominator;
+      }
+      return _setClickTempoChanges(starts, bpms, nums, dens, changes.length);
+    } finally {
+      calloc.free(starts);
+      calloc.free(bpms);
+      calloc.free(nums);
+      calloc.free(dens);
+    }
+  }
   void clearQueuedLoop() => _clearQueuedLoop();
   bool get loopEnabled => _getLoopEnabled();
   bool get queuedLoopEnabled => _getQueuedLoopEnabled();

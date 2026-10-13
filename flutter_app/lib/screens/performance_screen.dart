@@ -12,6 +12,7 @@ import 'section_editor_screen.dart';
 import 'guide_editor_screen.dart';
 import 'time_pitch_sheet.dart';
 import 'midi_screen.dart';
+import 'tempo_map_screen.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -74,13 +75,28 @@ class PerformanceScreen extends ConsumerWidget {
           ),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.piano), tooltip: 'MIDI e automações',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MidiScreen(trackId: track.id)))),
-          IconButton(icon: const Icon(Icons.tune), tooltip: 'Tom e andamento',
-            onPressed: () => showModalBottomSheet<void>(context: context, isScrollControlled: true,
-              builder: (_) => TimePitchSheet(trackId: track.id))),
-          IconButton(icon: const Icon(Icons.record_voice_over), tooltip: 'Guias',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)))),
+          PopupMenuButton<String>(
+            tooltip: 'Mais',
+            icon: const Icon(Icons.more_vert),
+            onSelected: (choice) {
+              switch (choice) {
+                case 'midi':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MidiScreen(trackId: track.id)));
+                case 'pitch':
+                  showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => TimePitchSheet(trackId: track.id));
+                case 'guides':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)));
+                case 'tempo':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TempoMapScreen(trackId: track.id)));
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'tempo', child: Text('Mapa de andamento')),
+              PopupMenuItem(value: 'pitch', child: Text('Tom e andamento')),
+              PopupMenuItem(value: 'guides', child: Text('Guias')),
+              PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
+            ],
+          ),
           IconButton(icon: const Icon(Icons.segment), tooltip: 'Seções',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
               builder: (_) => SectionEditorScreen(trackId: track.id)))),

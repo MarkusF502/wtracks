@@ -1,0 +1,2121 @@
+{
+ "MetadataSection": {
+  "class": "Playback.MetadataSection",
+  "parent": "$null",
+  "props": {
+   "abbreviation": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "locale": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "textColorCSV": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "backgroundColorCSV": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "partID": {
+    "type": 100,
+    "default": 0
+   },
+   "circleColorCSV": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "title": {
+    "type": 700,
+    "default": "$null"
+   },
+   "borderColorCSV": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "User": {
+  "class": "Playback.User",
+  "parent": "$null",
+  "props": {
+   "hasOldPro": {
+    "type": 800,
+    "default": false
+   },
+   "hasMIDIOutSubscription": {
+    "type": 800,
+    "default": false
+   },
+   "isRestricted": {
+    "type": 800,
+    "default": false
+   },
+   "hasProPresenterSubscription": {
+    "type": 800,
+    "default": false
+   },
+   "countryID": {
+    "type": 300,
+    "default": 0
+   },
+   "playbackLicenseID": {
+    "type": 300,
+    "default": 0
+   },
+   "userID": {
+    "type": 300,
+    "default": 0
+   },
+   "authHash": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "playbackSubscriptionExpiration": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "organizations": {
+    "toMany": 0
+   },
+   "customerID": {
+    "type": 300,
+    "default": 0
+   },
+   "siteID": {
+    "type": 100,
+    "default": 1
+   },
+   "teamSharingLicenseID": {
+    "type": 300,
+    "default": 0
+   },
+   "rentalsLicenseID": {
+    "type": 300,
+    "default": 0
+   },
+   "hasPadSubscription": {
+    "type": 800,
+    "default": false
+   },
+   "cloudProTierID": {
+    "type": 100,
+    "default": 0
+   },
+   "isAdmin": {
+    "type": 800,
+    "default": false
+   },
+   "hasPlanningCenterConnection": {
+    "type": 800,
+    "default": false
+   },
+   "accessID": {
+    "type": 300,
+    "default": 0
+   },
+   "hasSongSpecificPatchesSubscription": {
+    "type": 800,
+    "default": false
+   },
+   "hasArrangementsSubscription": {
+    "type": 800,
+    "default": false
+   },
+   "firstName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "isInternal": {
+    "type": 800,
+    "default": false
+   },
+   "hasMappingSnapshot": {
+    "type": 800,
+    "default": false
+   },
+   "hasPlaybackSubscriptionReceipt": {
+    "type": 800,
+    "default": false
+   },
+   "playbackSubscriptionTierID": {
+    "type": 100,
+    "default": 1
+   },
+   "playbackSubscriptionTypeID": {
+    "type": 100,
+    "default": 0
+   },
+   "roleID": {
+    "type": 100,
+    "default": 4
+   },
+   "selectedOrganizationCustomerID": {
+    "type": 300,
+    "optional": true,
+    "default": 0
+   },
+   "lastName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "latestStableAppVersion": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "appID": {
+    "type": 300,
+    "default": 0
+   }
+  }
+ },
+ "MetadataKeyGroup": {
+  "class": "Playback.MetadataKeyGroup",
+  "parent": "$null",
+  "props": {
+   "id": {
+    "type": 100,
+    "default": 0
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "MIDIDevice": {
+  "class": "Playback.MIDIDevice",
+  "parent": "$null",
+  "props": {
+   "deviceID": {
+    "type": 200,
+    "default": 0
+   },
+   "isVirtual": {
+    "type": 800,
+    "default": false
+   },
+   "displayName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "selectedMIDIClockEndpointIDs": {
+    "type": 1800,
+    "optional": true,
+    "default": "$null"
+   },
+   "selectedMIDIInEndpointIDs": {
+    "type": 1800,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "GlobalBus": {
+  "class": "Playback.GlobalBus",
+  "parent": "$null",
+  "props": {
+   "volume": {
+    "type": 600,
+    "optional": true,
+    "default": 1.0
+   },
+   "audioDevice": {
+    "optional": true,
+    "toMany": 1
+   },
+   "type": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "titleEdited": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "order": {
+    "type": 100,
+    "default": -1
+   },
+   "outputChannel": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "abbreviationStored": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "isMuted": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "abbreviationEdited": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "expandedStateValue": {
+    "type": 100,
+    "default": 0
+   },
+   "titleStored": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "SongBus": {
+  "class": "Playback.SongBus",
+  "parent": "$null",
+  "props": {
+   "muted": {
+    "type": 800,
+    "default": false
+   },
+   "id": {
+    "type": 100,
+    "default": 1
+   },
+   "expandedStateValue": {
+    "type": 100,
+    "default": 0
+   },
+   "volume": {
+    "type": 500,
+    "default": 0.0
+   },
+   "arrangement": {
+    "toMany": 1
+   }
+  }
+ },
+ "MIDIEvent": {
+  "class": "Playback.MIDIEvent",
+  "parent": "$null",
+  "props": {
+   "id": {
+    "type": 300,
+    "default": 0
+   },
+   "note": {
+    "type": 100,
+    "default": 0
+   },
+   "velocity": {
+    "type": 100,
+    "default": 0
+   },
+   "disableLoop": {
+    "type": 800,
+    "default": false
+   },
+   "sampleTimecode": {
+    "type": 500,
+    "default": 0.0
+   },
+   "bankID": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "sequenceTimecode": {
+    "type": 500,
+    "default": 0.0
+   },
+   "song": {
+    "optional": true,
+    "toMany": 1
+   },
+   "bank": {
+    "optional": true,
+    "toMany": 1
+   },
+   "busID": {
+    "type": 100,
+    "default": 0
+   },
+   "duration": {
+    "type": 500,
+    "default": 0.0
+   },
+   "bus": {
+    "optional": true,
+    "toMany": 1
+   },
+   "eventDescription": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "eventChannel": {
+    "type": 100,
+    "default": 0
+   },
+   "storedType": {
+    "type": 100,
+    "default": 0
+   }
+  }
+ },
+ "SongSection": {
+  "class": "Playback.SongSection",
+  "parent": "$null",
+  "props": {
+   "contentSectionID": {
+    "type": 200,
+    "default": 0
+   },
+   "startTimeOriginal": {
+    "type": 500,
+    "default": 0.0
+   },
+   "storedSectionType": {
+    "type": 100,
+    "default": 0
+   },
+   "storedPlayCountIn": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "loopInfinite": {
+    "type": 800,
+    "default": false
+   },
+   "presetInfiniteLoop": {
+    "type": 800,
+    "default": false
+   },
+   "sectionID": {
+    "type": 700,
+    "default": ""
+   },
+   "hasCharts": {
+    "type": 800,
+    "default": false
+   },
+   "storedSetlistSongSectionID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   },
+   "isOriginalSection": {
+    "type": 800,
+    "default": true
+   },
+   "endTimeOriginal": {
+    "type": 500,
+    "default": 0.0
+   },
+   "storedEndTimeTrimOffset": {
+    "type": 500,
+    "default": 0.0
+   },
+   "arrangement": {
+    "toMany": 1
+   },
+   "songSectionGroup": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedPlayGuideCue": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "loopCount": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "editedSectionTypeID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedStartTimeTrimOffset": {
+    "type": 500,
+    "default": 0.0
+   },
+   "storedAutomationCues": {
+    "toMany": 0
+   }
+  }
+ },
+ "Pad": {
+  "class": "Playback.Pad",
+  "parent": "$null",
+  "props": {
+   "uuid": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "producer": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedDownloadedAudioByteCount": {
+    "type": 300,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedContentStatus": {
+    "type": 100,
+    "default": 0
+   },
+   "contentTypeID": {
+    "type": 100,
+    "default": 36
+   },
+   "currentKeyID": {
+    "type": 100,
+    "default": 0
+   },
+   "storedAudioByteCount": {
+    "type": 300,
+    "optional": true,
+    "default": "$null"
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "remoteArtworkURL": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "padDownloadHandler": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedTracks": {
+    "toMany": 0
+   },
+   "storedStemsVersion": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "audioFilesBytes": {
+    "type": 300,
+    "default": 0
+   },
+   "contentID": {
+    "type": 200,
+    "default": 0
+   },
+   "songArrangements": {
+    "optional": true,
+    "toMany": 0
+   }
+  }
+ },
+ "Organization": {
+  "class": "Playback.Organization",
+  "parent": "$null",
+  "props": {
+   "teamSharingLicenseExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "cloudLicenseExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "appLicenseID": {
+    "type": 300,
+    "default": 0
+   },
+   "rentalsLicenseExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "cllLicenseExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "customerID": {
+    "type": 300,
+    "default": 0
+   },
+   "teamSharingLicenseID": {
+    "type": 300,
+    "default": 0
+   },
+   "hasCloud": {
+    "type": 800,
+    "default": false
+   },
+   "isDefault": {
+    "type": 800,
+    "default": false
+   },
+   "rentalPreviewsRemainingCount": {
+    "type": 300,
+    "default": 0
+   },
+   "rentalsRemainingCount": {
+    "type": 300,
+    "default": 0
+   },
+   "rentalsLicenseID": {
+    "type": 300,
+    "default": 0
+   },
+   "hasCLLReporting": {
+    "type": 800,
+    "default": false
+   },
+   "rentalsRenewalDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "cslLicenseExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "rentalsTotalCount": {
+    "type": 300,
+    "default": 0
+   },
+   "name": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "hasCSLReporting": {
+    "type": 800,
+    "default": false
+   },
+   "hasTeamSharing": {
+    "type": 800,
+    "default": false
+   },
+   "hasRentals": {
+    "type": 800,
+    "default": false
+   },
+   "avatarURLString": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "users": {
+    "optional": true,
+    "toMany": 0
+   },
+   "userAccessID": {
+    "type": 300,
+    "default": 0
+   }
+  }
+ },
+ "Person": {
+  "class": "Playback.Person",
+  "parent": "$null",
+  "props": {
+   "firstName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "image2xURL": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "isAdmin": {
+    "type": 800,
+    "default": false
+   },
+   "email": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "added": {
+    "type": 800,
+    "default": false
+   },
+   "imageURL": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "username": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "userAccessID": {
+    "type": 300,
+    "default": 0
+   }
+  }
+ },
+ "ControlMapping": {
+  "class": "Playback.ControlMapping",
+  "parent": "$null",
+  "props": {
+   "intValue2": {
+    "type": 300,
+    "default": 0
+   },
+   "mappingTypeID": {
+    "type": 100,
+    "default": 0
+   },
+   "intValue3": {
+    "type": 300,
+    "default": 0
+   },
+   "stringValue1": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "intValue1": {
+    "type": 300,
+    "default": 0
+   },
+   "mappingID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "SetlistDateSpan": {
+  "class": "Playback.SetlistDateSpan",
+  "parent": "$null",
+  "props": {
+   "endDate": {
+    "type": 900,
+    "default": {
+     "NS.time": 0.0
+    }
+   },
+   "startDate": {
+    "type": 900,
+    "default": {
+     "NS.time": 0.0
+    }
+   },
+   "setlist": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "MetadataClick": {
+  "class": "Playback.MetadataClick",
+  "parent": "$null",
+  "props": {
+   "id": {
+    "type": 100,
+    "default": 0
+   },
+   "bpm": {
+    "type": 100,
+    "default": 0
+   },
+   "timeSignatureID": {
+    "type": 100,
+    "default": 0
+   },
+   "title": {
+    "type": 700,
+    "default": "$null"
+   }
+  }
+ },
+ "SongArrangement": {
+  "class": "Playback.SongArrangement",
+  "parent": "$null",
+  "props": {
+   "includePad": {
+    "type": 800,
+    "default": true
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "masterVolumeLevel": {
+    "type": 500,
+    "default": 1.0
+   },
+   "storedPadTracks": {
+    "optional": true,
+    "toMany": 0
+   },
+   "storedEndTime": {
+    "type": 500,
+    "default": 0.0
+   },
+   "endFade": {
+    "type": 800,
+    "default": false
+   },
+   "lastSavedDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedSections": {
+    "toMany": 0
+   },
+   "automationSaveStateValue": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "id": {
+    "type": 300,
+    "default": 0
+   },
+   "smpteStartTime": {
+    "type": 500,
+    "default": 0.0
+   },
+   "storedSMPTETimelineLocation": {
+    "type": 500,
+    "optional": true,
+    "default": "$null"
+   },
+   "pendingPadContentTypeID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "readOnly": {
+    "type": 800,
+    "default": false
+   },
+   "midiBankID": {
+    "type": 300,
+    "default": 0
+   },
+   "song": {
+    "toMany": 1
+   },
+   "storedStartTime": {
+    "type": 500,
+    "default": 0.0
+   },
+   "pendingPadContentID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "transitionContinuePad": {
+    "type": 800,
+    "default": false
+   },
+   "storedBuses": {
+    "optional": true,
+    "toMany": 0
+   },
+   "storedTransition": {
+    "type": 100,
+    "default": 0
+   },
+   "storedPad": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedTracks": {
+    "toMany": 0
+   },
+   "storedSMPTEEnabled": {
+    "type": 800,
+    "default": true
+   },
+   "padIntroOutroOnly": {
+    "type": 800,
+    "default": false
+   },
+   "useDefaultPad": {
+    "type": 800,
+    "default": false
+   }
+  }
+ },
+ "SongDownloadHandler": {
+  "class": "Playback.SongDownloadHandler",
+  "parent": "$null",
+  "props": {
+   "downloadStateID": {
+    "type": 100,
+    "default": 0
+   },
+   "indexToInsertInto": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "downloadURL": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "resumeData": {
+    "type": 1000,
+    "optional": true,
+    "default": "$null"
+   },
+   "song": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "SongClicks": {
+  "class": "Playback.SongClicks",
+  "parent": "$null",
+  "props": {
+   "storedSixteenths": {
+    "type": 1800,
+    "default": "$null"
+   },
+   "storedEighths": {
+    "type": 1800,
+    "default": "$null"
+   },
+   "song": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedQuarters": {
+    "type": 1800,
+    "default": "$null"
+   },
+   "storedAccents": {
+    "type": 1800,
+    "default": "$null"
+   }
+  }
+ },
+ "MIDIBus": {
+  "class": "Playback.MIDIBus",
+  "parent": "$null",
+  "props": {
+   "channel": {
+    "type": 100,
+    "default": 1
+   },
+   "enabled": {
+    "type": 800,
+    "default": true
+   },
+   "id": {
+    "type": 100,
+    "default": 0
+   },
+   "lastConnectedPortName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "title": {
+    "type": 700,
+    "default": "$null"
+   },
+   "allChannels": {
+    "type": 800,
+    "default": false
+   },
+   "storedPortID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   }
+  }
+ },
+ "SongTrack": {
+  "class": "Playback.SongTrack",
+  "parent": "$null",
+  "props": {
+   "volume": {
+    "type": 500,
+    "optional": true,
+    "default": 0.0
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "included": {
+    "type": 800,
+    "default": false
+   },
+   "isVocal": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedAbbreviation": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "arrangement": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "fileName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "keyID": {
+    "type": 200,
+    "default": 0
+   },
+   "type": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "validated": {
+    "type": 800,
+    "default": true
+   },
+   "partID": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "storedExpandedStateValue": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "isClickOrGuide": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "range": {
+    "type": 100,
+    "default": "$null"
+   },
+   "genreID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "orderBy": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "anyKey": {
+    "type": 800,
+    "default": "$null"
+   },
+   "isMuted": {
+    "type": 800,
+    "optional": true,
+    "default": false
+   },
+   "stemID": {
+    "type": 200,
+    "default": 0
+   }
+  }
+ },
+ "MIDIBank": {
+  "class": "Playback.MIDIBank",
+  "parent": "$null",
+  "props": {
+   "bankDescription": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "id": {
+    "type": 300,
+    "default": 0
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "events": {
+    "toMany": 0
+   }
+  }
+ },
+ "SongTempo": {
+  "class": "Playback.SongTempo",
+  "parent": "$null",
+  "props": {
+   "storedBPM": {
+    "type": 500,
+    "optional": true,
+    "default": 0.0
+   },
+   "storedTimecode": {
+    "type": 500,
+    "optional": true,
+    "default": 0.0
+   },
+   "storedTempoID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   },
+   "song": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "WaveformFile": {
+  "class": "Playback.WaveformFile",
+  "parent": "$null",
+  "props": {
+   "song": {
+    "optional": true,
+    "toMany": 1
+   },
+   "filename": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "screenPointsPerSecond": {
+    "type": 100,
+    "default": 0
+   }
+  }
+ },
+ "OutputRouting": {
+  "class": "Playback.OutputRouting",
+  "parent": "$null",
+  "props": {
+   "busID": {
+    "type": 100,
+    "default": 1
+   },
+   "outputTitle": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "outputCount": {
+    "type": 100,
+    "default": 2
+   }
+  }
+ },
+ "Song": {
+  "class": "Playback.Song",
+  "parent": "$null",
+  "props": {
+   "storedTimeSignatureIDOriginal": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "transferCount": {
+    "type": 100,
+    "default": 0
+   },
+   "padCategoryID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "waveformFiles": {
+    "optional": true,
+    "toMany": 0
+   },
+   "clickSongMeasureCount": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedLibraryID": {
+    "type": 300,
+    "default": 0
+   },
+   "tapTempoFallbackBPMValue": {
+    "type": 500,
+    "optional": true,
+    "default": "$null"
+   },
+   "songDownloadHandler": {
+    "optional": true,
+    "toMany": 1
+   },
+   "smpteSaveStateValue": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "artworkURLString": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "rentalExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "bpmOriginal": {
+    "type": 500,
+    "default": 0.0
+   },
+   "artistName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "title": {
+    "type": 700,
+    "default": "$null"
+   },
+   "modularClickLengthValue": {
+    "type": 100,
+    "default": 0
+   },
+   "setlist": {
+    "optional": true,
+    "toMany": 1
+   },
+   "trimCombineSaveStateValue": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "songSectionsSaveStateValue": {
+    "type": 100,
+    "default": 0
+   },
+   "status": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "midiProPresenterPlaylist": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "freeRental": {
+    "type": 800,
+    "default": false
+   },
+   "keyIDForShift": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedStemsVersion": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "timeSignaturesData": {
+    "type": 1000,
+    "optional": true,
+    "default": "$null"
+   },
+   "rentalPreviewID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedOfficialKeyID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "midiProPresenterPlaylistItem": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "lastSavedArrangementID": {
+    "type": 300,
+    "default": 0
+   },
+   "bpmForShift": {
+    "type": 500,
+    "optional": true,
+    "default": "$null"
+   },
+   "hasBuiltClickLocally": {
+    "type": 800,
+    "default": false
+   },
+   "redemptionID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "keyChanges": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedArrangementSnapshots": {
+    "type": 1000,
+    "optional": true,
+    "default": "$null"
+   },
+   "keyID": {
+    "type": 100,
+    "default": 0
+   },
+   "keyIDOriginal": {
+    "type": 100,
+    "default": 0
+   },
+   "customName": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "rentalID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "workingCopyArrangementID": {
+    "type": 300,
+    "optional": true,
+    "default": "$null"
+   },
+   "order": {
+    "type": 100,
+    "default": 0
+   },
+   "freeMTComplete": {
+    "type": 800,
+    "default": false
+   },
+   "artworkData": {
+    "type": 1000,
+    "optional": true,
+    "default": "$null"
+   },
+   "setlistSongID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "clickTimes": {
+    "optional": true,
+    "toMany": 1
+   },
+   "storedBehaviorType": {
+    "type": 100,
+    "default": 0
+   },
+   "storedSongGenres": {
+    "optional": true,
+    "toMany": 0
+   },
+   "contentID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedFallbackGenreSongID": {
+    "type": 300,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedCloudSongType": {
+    "type": 100,
+    "default": 0
+   },
+   "midiCuesSaveStateValue": {
+    "type": 100,
+    "default": 0
+   },
+   "unowned": {
+    "type": 800,
+    "default": false
+   },
+   "bpm": {
+    "type": 500,
+    "default": 0.0
+   },
+   "rentalPreviewExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "transferAvailable": {
+    "type": 800,
+    "default": false
+   },
+   "lyricCueTypeID": {
+    "type": 100,
+    "default": -1
+   },
+   "storedSMPTEFollowsDefaultArrangement": {
+    "type": 800,
+    "default": false
+   },
+   "audioFilesBytes": {
+    "type": 300,
+    "default": 0
+   },
+   "expiration": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedKeyAccidental": {
+    "type": 100,
+    "default": 2
+   },
+   "metadataVersion": {
+    "type": 200,
+    "default": 1
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "arrangements": {
+    "optional": true,
+    "toMany": 0
+   },
+   "storedDemoSetlistSongID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   },
+   "midiEventsDefaultArrangement": {
+    "optional": true,
+    "toMany": 0
+   },
+   "storedContentStatus": {
+    "type": 100,
+    "default": 0
+   },
+   "audioFilesBytesDownloaded": {
+    "type": 300,
+    "optional": true,
+    "default": "$null"
+   },
+   "tempos": {
+    "optional": true,
+    "toMany": 0
+   },
+   "contentTypeID": {
+    "type": 100,
+    "default": 14
+   },
+   "savedArrangementCount": {
+    "type": 100,
+    "default": 0
+   }
+  }
+ },
+ "MetadataKey": {
+  "class": "Playback.MetadataKey",
+  "parent": "$null",
+  "props": {
+   "storedRelativeKeyID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedEnharmonicKeyID": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   },
+   "id": {
+    "type": 100,
+    "default": 0
+   },
+   "order": {
+    "type": 100,
+    "default": 0
+   },
+   "storedAccidental": {
+    "type": 100,
+    "default": 0
+   },
+   "title": {
+    "type": 700,
+    "default": "$null"
+   },
+   "storedScale": {
+    "type": 100,
+    "default": 0
+   }
+  }
+ },
+ "SongSectionGroup": {
+  "class": "Playback.SongSectionGroup",
+  "parent": "$null",
+  "props": {
+   "representedContentSectionID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedSongSections": {
+    "toMany": 0
+   }
+  }
+ },
+ "PadDownloadHandler": {
+  "class": "Playback.PadDownloadHandler",
+  "parent": "$null",
+  "props": {
+   "downloadStateID": {
+    "type": 100,
+    "default": 0
+   },
+   "downloadURL": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "pad": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "SongPadTrack": {
+  "class": "Playback.SongPadTrack",
+  "parent": "$null",
+  "props": {
+   "muted": {
+    "type": 800,
+    "default": false
+   },
+   "padContentTypeID": {
+    "type": 100,
+    "default": 36
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "padContentID": {
+    "type": 200,
+    "default": 0
+   },
+   "volume": {
+    "type": 500,
+    "default": 1.0
+   },
+   "arrangement": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "AutomationItem": {
+  "class": "Playback.AutomationItem",
+  "parent": "$null",
+  "props": {
+   "automationID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedValue": {
+    "type": 500,
+    "default": 0.0
+   },
+   "cue": {
+    "toMany": 1
+   }
+  }
+ },
+ "SongGenre": {
+  "class": "Playback.SongGenre",
+  "parent": "$null",
+  "props": {
+   "serverFilesURL": {
+    "type": 1200,
+    "optional": true,
+    "default": "$null"
+   },
+   "audioPreviewURL": {
+    "type": 1200,
+    "optional": true,
+    "default": "$null"
+   },
+   "audioFilesBytes": {
+    "type": 300,
+    "default": 0
+   },
+   "rentalPreviewID": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "expectedAudioByteCount": {
+    "type": 300,
+    "default": 0
+   },
+   "rentalExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "volume": {
+    "type": 500,
+    "default": 1.0
+   },
+   "rentalID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   },
+   "muted": {
+    "type": 800,
+    "default": false
+   },
+   "expandedStateValue": {
+    "type": 100,
+    "default": 0
+   },
+   "songID": {
+    "type": 200,
+    "default": 0
+   },
+   "storedStemsVersion": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "contentTypeID": {
+    "type": 100,
+    "default": 26
+   },
+   "storedDownloadedAudioByteCount": {
+    "type": 300,
+    "optional": true,
+    "default": "$null"
+   },
+   "freeRental": {
+    "type": 800,
+    "default": false
+   },
+   "songGenreDownloadHandler": {
+    "optional": true,
+    "toMany": 1
+   },
+   "song": {
+    "optional": true,
+    "toMany": 1
+   },
+   "genreID": {
+    "type": 100,
+    "default": 0
+   },
+   "rentalPreviewExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "contentStatusID": {
+    "type": 100,
+    "default": 0
+   },
+   "abbreviation": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "isUnowned": {
+    "type": 800,
+    "default": false
+   },
+   "itemExpirationDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedCatalogStatus": {
+    "type": 100,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "SetlistMember": {
+  "class": "Playback.SetlistMember",
+  "parent": "$null",
+  "props": {
+   "firstName": {
+    "type": 700,
+    "default": ""
+   },
+   "lastName": {
+    "type": 700,
+    "default": ""
+   },
+   "userAccessID": {
+    "type": 300,
+    "default": 0
+   },
+   "userID": {
+    "type": 300,
+    "default": 0
+   },
+   "roleID": {
+    "type": 300,
+    "default": 0
+   },
+   "setlist": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "MetadataTrack": {
+  "class": "Playback.MetadataTrack",
+  "parent": "$null",
+  "props": {
+   "abbreviation": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "cloud": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "anyKey": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "cloudSingle": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "order": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "busIDOriginal": {
+    "type": 100,
+    "default": 1
+   },
+   "partID": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "storedBusID": {
+    "type": 100,
+    "default": 1
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "vocal": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "clickorguide": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "Setlist": {
+  "class": "Setlist",
+  "parent": "$null",
+  "props": {
+   "serviceTypeID": {
+    "type": 200,
+    "default": 0
+   },
+   "performanceDate": {
+    "type": 900,
+    "default": {
+     "NS.time": 0.0
+    }
+   },
+   "hasUnsyncedChanges": {
+    "type": 800,
+    "default": false
+   },
+   "serverVersion": {
+    "type": 200,
+    "optional": true,
+    "default": "$null"
+   },
+   "setlistID": {
+    "type": 300,
+    "default": 0
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "saveStateValue": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "lastLoadedDate": {
+    "type": 900,
+    "optional": true,
+    "default": "$null"
+   },
+   "songs": {
+    "optional": true,
+    "toMany": 0
+   },
+   "isDemo": {
+    "type": 800,
+    "default": false
+   },
+   "isReported": {
+    "type": 800,
+    "optional": true,
+    "default": false
+   },
+   "tag": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "serviceTimesSet": {
+    "optional": true,
+    "toMany": 0
+   },
+   "declinedUpdateVersion": {
+    "type": 200,
+    "default": 0
+   },
+   "privateForeignID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   },
+   "privatePadPlayerLinked": {
+    "type": 800,
+    "default": true
+   },
+   "storedMembers": {
+    "optional": true,
+    "toMany": 0
+   },
+   "setlistSaveError": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "streamingOnline": {
+    "type": 800,
+    "default": false
+   },
+   "sourceAPISetlistData": {
+    "type": 1000,
+    "optional": true,
+    "default": "$null"
+   },
+   "lyricProjection": {
+    "type": 800,
+    "default": false
+   },
+   "notes": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "pinned": {
+    "type": 800,
+    "default": false
+   },
+   "planningCenterAutoUpdate": {
+    "type": 800,
+    "default": false
+   },
+   "privateForeignTypeID": {
+    "type": 200,
+    "optional": true,
+    "default": 0
+   },
+   "remoteOperationOnly": {
+    "type": 800,
+    "default": false
+   }
+  }
+ },
+ "AudioDevice": {
+  "class": "Playback.AudioDevice",
+  "parent": "$null",
+  "props": {
+   "channelCount": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "name": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "outputChannels": {
+    "optional": true,
+    "toMany": 0
+   },
+   "totalChannelsToMap": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   }
+  }
+ },
+ "MetadataTimeSignature": {
+  "class": "Playback.MetadataTimeSignature",
+  "parent": "$null",
+  "props": {
+   "beatUnit": {
+    "type": 100,
+    "default": 4
+   },
+   "title": {
+    "type": 700,
+    "default": "4/4"
+   },
+   "beatsPerBar": {
+    "type": 100,
+    "default": 4
+   },
+   "storedID": {
+    "type": 100,
+    "default": 3
+   }
+  }
+ },
+ "SongGenreDownloadHandler": {
+  "class": "Playback.SongGenreDownloadHandler",
+  "parent": "$null",
+  "props": {
+   "downloadStateID": {
+    "type": 100,
+    "default": 0
+   },
+   "setlistInsertIndex": {
+    "type": 100,
+    "default": 0
+   },
+   "songGenre": {
+    "optional": true,
+    "toMany": 1
+   },
+   "downloadURL": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "resumeData": {
+    "type": 1000,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ },
+ "PadTrack": {
+  "class": "Playback.PadTrack",
+  "parent": "$null",
+  "props": {
+   "abbreviation": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "keyID": {
+    "type": 100,
+    "default": 0
+   },
+   "partID": {
+    "type": 100,
+    "default": 0
+   },
+   "order": {
+    "type": 100,
+    "default": 0
+   },
+   "stemID": {
+    "type": 200,
+    "default": 0
+   },
+   "muted": {
+    "type": 800,
+    "default": false
+   },
+   "title": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "volume": {
+    "type": 500,
+    "default": 0.0
+   },
+   "pad": {
+    "optional": true,
+    "toMany": 1
+   },
+   "included": {
+    "type": 800,
+    "default": true
+   }
+  }
+ },
+ "AutomationCue": {
+  "class": "Playback.AutomationCue",
+  "parent": "$null",
+  "props": {
+   "storedItems": {
+    "toMany": 0
+   },
+   "details": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "transitionBeats": {
+    "type": 100,
+    "default": 0
+   },
+   "storedSampleTimecode": {
+    "type": 500,
+    "default": 0.0
+   },
+   "storedUUID": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "storedSequenceTimecode": {
+    "type": 500,
+    "default": 0.0
+   },
+   "applyTransitionLengthCorrection": {
+    "type": 800,
+    "default": false
+   },
+   "name": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   },
+   "songSection": {
+    "optional": true,
+    "toMany": 1
+   }
+  }
+ },
+ "OutputChannel": {
+  "class": "Playback.OutputChannel",
+  "parent": "$null",
+  "props": {
+   "audioDevice": {
+    "optional": true,
+    "toMany": 1
+   },
+   "number": {
+    "type": 100,
+    "optional": true,
+    "default": 0
+   },
+   "isPair": {
+    "type": 800,
+    "optional": true,
+    "default": "$null"
+   },
+   "name": {
+    "type": 700,
+    "optional": true,
+    "default": "$null"
+   }
+  }
+ }
+}

@@ -12,6 +12,7 @@ import '../services/time_pitch_service.dart';
 import '../services/midi_preferences_store.dart';
 import '../models/automation_cue.dart';
 import '../models/timecode_settings.dart';
+import '../models/tempo_change.dart';
 import '../models/time_pitch_settings.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
@@ -201,6 +202,16 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         if (!engine.configureClick(track.clickSettings)) {
           engine.unloadTrack();
           state = null;
+          return false;
+        }
+        if (!engine.setClickTempoChanges(track.tempoChanges)) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
+        await _syncPresetLoops(engine, track.sections, force: true);
+        if (_disposed || generation != _generation) {
+          if (!_disposed) engine.unloadTrack();
           return false;
         }
         if (!engine.configureCues(track.automationCues)) {
@@ -454,8 +465,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       try {
         if (_disposed || generation != _generation) return false;
         final engine = ref.read(engineProvider);
-        final ok = queue ? await engine.enqueueLoopAsync(section.startSeconds, section.endSeconds)
-          : await engine.setLoopAsync(section.startSeconds, section.endSeconds, true);
+        final ok = queue ? await engine.enqueueLoopAsync(section.startSeconds, section.endSeconds, repeats: section.loopCount)
+          : await engine.setLoopAsync(section.startSeconds, section.endSeconds, true, repeats: section.loopCount);
         if (_disposed || generation != _generation || request != _loopRequest) {
           if (!_disposed) {
             engine.setLoop(0, 0, false);
@@ -474,6 +485,28 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     return operation;
   }
 
+  List<String> _presetSignature = const [];
+
+  /// Keeps the engine's preset (auto-engaging) loops in line with the sections. Failures are logged: the song still plays,
+  /// only the automatic vamp loop is missing.
+  Future<bool> _syncPresetLoops(WTracksEngine engine, List<SongSection> sections, {bool force = false}) async {
+    final presets = [for (final s in sections) if (s.presetInfiniteLoop) s];
+    final signature = [for (final s in presets) '${s.id}:${s.startSeconds}:${s.endSeconds}'];
+    if (!force && listEquals(signature, _presetSignature)) return true;
+    try {
+      final ok = await engine.configurePresetLoopsAsync(presets);
+      if (ok) {
+        _presetSignature = signature;
+      } else {
+        debugPrint('Laços predefinidos indisponíveis: ${engine.lastError}');
+      }
+      return ok;
+    } catch (e) {
+      debugPrint('Falha nos laços predefinidos: $e');
+      return false;
+    }
+  }
+
   bool updateSections(String trackId, List<SongSection> sections) {
     final track = state;
     if (track == null || track.id != trackId || loadingTrackId != null || _loopBusy || !SongSection.validSequence(sections)) return false;
@@ -489,6 +522,11 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     }
     ref.read(transportProvider.notifier).refresh();
     state = track.copyWith(sections: List.unmodifiable(sections));
+    final generation = _generation;
+    _pending = _pending.then((_) async {
+      if (_disposed || generation != _generation) return;
+      await _syncPresetLoops(engine, sections);
+    });
     return true;
   }
 
@@ -519,14 +557,29 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     return operation;
   }
 
+  /// Mudanças de andamento/compasso da música; o motor valida antes de o estado mudar.
+  bool updateTempoChanges(String trackId, List<TempoChange> changes) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null ||
+        !TempoChange.validSequence(changes, baseOffset: track.clickSettings.beatOffsetSeconds)) {
+      return false;
+    }
+    if (!ref.read(engineProvider).setClickTempoChanges(changes)) return false;
+    state = track.copyWith(tempoChanges: List.unmodifiable(changes));
+    return true;
+  }
+
   bool updateClickSettings(ClickSettings settings) {
     final track = state;
     if (track == null || loadingTrackId != null || !settings.isValid) {
       return false;
     }
-    if (!ref.read(engineProvider).configureClick(settings)) return false;
-    state = track.copyWith(
-      clickSettings: settings);
+    final engine = ref.read(engineProvider);
+    if (!engine.configureClick(settings)) return false;
+    // The engine drops changes at or before the new click offset; mirror that so state and engine agree.
+    final keep = TempoChange.validSequence(track.tempoChanges, baseOffset: settings.beatOffsetSeconds);
+    state = track.copyWith(clickSettings: settings, tempoChanges: keep ? track.tempoChanges : const []);
+    if (!keep) engine.setClickTempoChanges(const []);
     return true;
   }
 
