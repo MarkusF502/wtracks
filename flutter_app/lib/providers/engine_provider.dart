@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import '../models/song_section.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
 import '../native/wtracks_bindings.dart';
@@ -198,6 +199,13 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null) return;
     state = track.copyWith(title: title);
+  }
+
+  bool updateSections(String trackId, List<SongSection> sections) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null || !SongSection.validSequence(sections)) return false;
+    state = track.copyWith(sections: List.unmodifiable(sections));
+    return true;
   }
 
   Future<bool> updateClickTimbre(String family) {

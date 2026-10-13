@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'song_section.dart';
 
 /// Representa um canal dentro de uma [Track] -- ex: "Click", "Bateria".
 /// [filePath] é sempre um caminho LOCAL (já copiado do content:// original
@@ -190,6 +191,9 @@ class ClickSettings {
 /// AudioEngine nativo em loadTrack().
 @immutable
 class Track {
+  static const currentSchemaVersion = 2;
+  final int schemaVersion;
+  final List<SongSection> sections;
   final String id;
   final String title;
   final List<ChannelInfo> channels;
@@ -198,6 +202,8 @@ class Track {
   final String? key; // tom musical, ex: "E", "B♭" -- string livre, sem enum
 
   const Track({
+    this.schemaVersion = currentSchemaVersion,
+    this.sections = const [],
     required this.id,
     required this.title,
     required this.channels,
@@ -207,6 +213,7 @@ class Track {
   });
 
   Track copyWith({
+    List<SongSection>? sections,
     String? title,
     List<ChannelInfo>? channels,
     ClickSettings? clickSettings,
@@ -214,6 +221,7 @@ class Track {
     String? key,
   }) {
     return Track(
+      sections: sections ?? this.sections,
       id: id,
       title: title ?? this.title,
       channels: channels ?? this.channels,
@@ -226,6 +234,8 @@ class Track {
   List<String> get channelFilePaths => channels.map((c) => c.filePath).toList();
 
   Map<String, dynamic> toJson() => {
+        'schemaVersion': currentSchemaVersion,
+        'sections': sections.map((s) => s.toJson()).toList(),
         'id': id,
         'title': title,
         'channels': channels.map((c) => c.toJson()).toList(),
@@ -237,6 +247,8 @@ class Track {
   // Campos ausentes no JSON (tracks salvas antes desta mudança) desserializam
   // como null sem quebrar -- não há chave 'artist'/'key' nesses arquivos.
   factory Track.fromJson(Map<String, dynamic> json) => Track(
+        schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
+        sections: SongSection.fromJsonList(json['sections'] as List? ?? const []),
         id: json['id'] as String,
         title: json['title'] as String,
         channels: (json['channels'] as List)

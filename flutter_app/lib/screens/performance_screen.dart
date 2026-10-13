@@ -8,6 +8,7 @@ import '../widgets/dialog_text_controller.dart';
 import '../providers/engine_provider.dart';
 import '../providers/waveform_provider.dart';
 import '../utils/tap_tempo.dart';
+import 'section_editor_screen.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -70,6 +71,9 @@ class PerformanceScreen extends ConsumerWidget {
           ),
         ),
         actions: [
+          IconButton(icon: const Icon(Icons.segment), tooltip: 'Seções',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => SectionEditorScreen(trackId: track.id)))),
           IconButton(
             icon: const Icon(Icons.save_outlined),
             tooltip: 'Salvar',
