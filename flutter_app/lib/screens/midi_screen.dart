@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/automation_cue.dart';
+import '../models/timecode_settings.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
 
@@ -33,6 +34,25 @@ class _MidiScreenState extends ConsumerState<MidiScreen> {
     } catch (_) {
       if (mounted) _toast('Falha ao salvar as automações.');
     }
+  }
+
+  Future<void> _applyTimecode(TimecodeSettings settings) async {
+    final ok = ref.read(currentTrackProvider.notifier).updateTimecode(widget.trackId, settings);
+    if (!ok) {
+      _toast('Não foi possível aplicar o timecode.');
+      return;
+    }
+    try {
+      await ref.read(trackLibraryProvider.notifier).saveCurrent();
+    } catch (_) {
+      if (mounted) _toast('Falha ao salvar o timecode.');
+    }
+  }
+
+  Future<void> _editTimecode(TimecodeSettings current) async {
+    final result = await showDialog<TimecodeSettings>(context: context, builder: (_) => _TimecodeDialog(settings: current));
+    if (!mounted || result == null) return;
+    await _applyTimecode(result);
   }
 
   Future<void> _edit([AutomationCue? cue]) async {
@@ -100,6 +120,25 @@ class _MidiScreenState extends ConsumerState<MidiScreen> {
                         Future.delayed(const Duration(milliseconds: 250), () => notifier.sendTest(const [0x80, 60, 0]));
                       }
                     },
+                  ),
+                ),
+                SwitchListTile(
+                  key: const Key('timecode-enabled'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Timecode (LTC)'),
+                  subtitle: Text(
+                      '${track.timecode.rate.label} fps · início ${TimecodeSettings.format(track.timecode.rateIndex, track.timecode.startFrame)} · '
+                      '${track.timecode.outputChannel == 0 ? 'saída esquerda' : 'saída direita'}'),
+                  value: track.timecode.enabled,
+                  onChanged: (v) => _applyTimecode(track.timecode.copyWith(enabled: v)),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('timecode-edit'),
+                    icon: const Icon(Icons.timer_outlined),
+                    label: const Text('Configurar timecode'),
+                    onPressed: () => _editTimecode(track.timecode),
                   ),
                 ),
                 if (fired != null) Text('Última automação: ${fired.label}', style: const TextStyle(color: kTextDim)),
@@ -254,4 +293,94 @@ class _CueDialogState extends State<_CueDialog> {
       ],
     );
   }
+}
+
+class _TimecodeDialog extends StatefulWidget {
+  final TimecodeSettings settings;
+  const _TimecodeDialog({required this.settings});
+  @override
+  State<_TimecodeDialog> createState() => _TimecodeDialogState();
+}
+
+class _TimecodeDialogState extends State<_TimecodeDialog> {
+  final _form = GlobalKey<FormState>();
+  late final _start = TextEditingController(text: TimecodeSettings.format(widget.settings.rateIndex, widget.settings.startFrame));
+  late final _onset = TextEditingController(text: widget.settings.onsetSeconds.toString());
+  late int _rate = widget.settings.rateIndex;
+  late int _output = widget.settings.outputChannel;
+  late double _gain = widget.settings.gain;
+
+  @override
+  void dispose() {
+    _start.dispose();
+    _onset.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: kPanelBg,
+        title: const Text('Timecode'),
+        content: SizedBox(
+          width: 350,
+          child: SingleChildScrollView(
+            child: Form(
+              key: _form,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                DropdownButtonFormField<int>(
+                  key: const Key('timecode-rate'),
+                  initialValue: _rate,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Quadros por segundo'),
+                  items: [for (var i = 0; i < TimecodeRate.all.length; i++) DropdownMenuItem(value: i, child: Text(TimecodeRate.all[i].label))],
+                  onChanged: (v) => setState(() => _rate = v ?? _rate),
+                ),
+                TextFormField(
+                  key: const Key('timecode-start'),
+                  controller: _start,
+                  decoration: const InputDecoration(labelText: 'Timecode inicial (hh:mm:ss:ff)'),
+                  validator: (s) => TimecodeSettings.parse(_rate, s ?? '') == null ? 'Timecode inválido para esta taxa' : null,
+                ),
+                TextFormField(
+                  key: const Key('timecode-onset'),
+                  controller: _onset,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Começa em (segundos da música)'),
+                  validator: (s) {
+                    final n = double.tryParse((s ?? '').replaceAll(',', '.'));
+                    return n == null || !n.isFinite || n < 0 || n > 86400 ? 'Informe um instante válido' : null;
+                  },
+                ),
+                DropdownButtonFormField<int>(
+                  initialValue: _output,
+                  decoration: const InputDecoration(labelText: 'Saída'),
+                  items: const [DropdownMenuItem(value: 0, child: Text('Esquerda')), DropdownMenuItem(value: 1, child: Text('Direita'))],
+                  onChanged: (v) => setState(() => _output = v ?? _output),
+                ),
+                Text('Nível: ${(_gain * 100).round()}%'),
+                Slider(value: _gain, onChanged: (v) => setState(() => _gain = v)),
+              ]),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              if (!_form.currentState!.validate()) return;
+              Navigator.pop(
+                context,
+                widget.settings.copyWith(
+                  rateIndex: _rate,
+                  startFrame: TimecodeSettings.parse(_rate, _start.text)!,
+                  onsetSeconds: double.parse(_onset.text.replaceAll(',', '.')),
+                  outputChannel: _output,
+                  gain: _gain,
+                ),
+              );
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      );
 }

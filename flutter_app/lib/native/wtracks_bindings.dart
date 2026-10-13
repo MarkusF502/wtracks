@@ -7,6 +7,7 @@ import '../models/engine_error.dart';
 import '../models/track.dart';
 import '../models/guide_cue.dart';
 import '../models/automation_cue.dart';
+import '../models/timecode_settings.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
 
@@ -125,6 +126,8 @@ typedef _ConfigureCuesNative = Bool Function(Pointer<Double>, Pointer<Uint8>, Po
 typedef _ConfigureCuesDart = bool Function(Pointer<Double>, Pointer<Uint8>, Pointer<Uint8>, int);
 typedef _PollCuesNative = Int32 Function(Pointer<Uint32>, Int32);
 typedef _PollCuesDart = int Function(Pointer<Uint32>, int);
+typedef _ConfigureTimecodeNative = Bool Function(Int32, Int64, Double, Int32, Float);
+typedef _ConfigureTimecodeDart = bool Function(int, int, double, int, double);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -195,6 +198,8 @@ class WTracksEngine {
   late final _SetTimeScaleDart _setTimeScale;
   late final _GetTimeScaleDart _getTimeScale;
   late final _CancelTimePitchDart _cancelTimePitch;
+  late final _ConfigureTimecodeDart _configureTimecode;
+  late final _SetClickEnabledDart _setTimecodeEnabled;
   late final _MidiListDart _midiList;
   late final _MidiOpenDart _midiOpen;
   late final _VoidFnDart _midiClose;
@@ -306,6 +311,8 @@ class WTracksEngine {
     _setTimeScale = _lib.lookupFunction<_SetTimeScaleNative, _SetTimeScaleDart>('wtracks_set_time_scale');
     _getTimeScale = _lib.lookupFunction<_GetTimeScaleNative, _GetTimeScaleDart>('wtracks_get_time_scale');
     _cancelTimePitch = _lib.lookupFunction<_CancelTimePitchNative, _CancelTimePitchDart>('wtracks_cancel_time_pitch');
+    _configureTimecode = _lib.lookupFunction<_ConfigureTimecodeNative, _ConfigureTimecodeDart>('wtracks_configure_timecode');
+    _setTimecodeEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_timecode_enabled');
     _midiList = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_outputs');
     _midiOpen = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('wtracks_midi_open_output');
     _midiClose = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_output');
@@ -468,6 +475,14 @@ class WTracksEngine {
   Future<bool> processTimePitchAsync(String input, String output, double timeFactor, double pitchFactor, bool complex, int token) =>
       Isolate.run(() => WTracksEngine().processTimePitch(input, output, timeFactor, pitchFactor, complex, token));
   void cancelTimePitch(int token) => _cancelTimePitch(token);
+
+  /// Configura e liga/desliga o timecode linear (a saída é validada no motor).
+  bool configureTimecode(TimecodeSettings settings) {
+    if (!settings.isValid) return false;
+    final ok = _configureTimecode(settings.rateIndex, settings.startFrame, settings.onsetSeconds, settings.outputChannel, settings.gain);
+    if (ok) _setTimecodeEnabled(settings.enabled);
+    return ok;
+  }
 
   /// Saídas MIDI do sistema (vazia sem hardware/ALSA).
   List<MidiDevice> listMidiOutputs() {

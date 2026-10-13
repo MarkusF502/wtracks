@@ -16,6 +16,7 @@ import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/services/persistence_service.dart';
 import 'package:flutter_app/models/guide_cue.dart';
 import 'package:flutter_app/models/automation_cue.dart';
+import 'package:flutter_app/models/timecode_settings.dart';
 
 /// Engine falso que grava cada chamada recebida, pra os testes conferirem
 /// o que a UI/providers mandaram pro motor nativo.
@@ -108,6 +109,14 @@ class FakeEngine implements WTracksEngine {
   }
   @override
   void cancelTimePitch(int token) => cancelledTokens.add(token);
+  TimecodeSettings? configuredTimecode;
+  bool failTimecode = false;
+  @override
+  bool configureTimecode(TimecodeSettings settings) {
+    if (failTimecode || !settings.isValid) return false;
+    configuredTimecode = settings;
+    return true;
+  }
   List<MidiDevice> midiDevices = const [];
   String? openedMidi;
   bool failMidiOpen = false;

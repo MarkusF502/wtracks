@@ -21,10 +21,8 @@ class MidiPreferencesStore {
       final json = jsonDecode(await file.readAsString());
       final id = json is Map ? json['outputId'] : null;
       return id is String && id.isNotEmpty ? id : null;
-    } on FormatException {
-      return null;
-    } on FileSystemException {
-      return null;
+    } on Exception {
+      return null; // corrupt file or storage unavailable: behave as if nothing was saved
     }
   }
 

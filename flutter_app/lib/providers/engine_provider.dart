@@ -11,6 +11,7 @@ import '../services/guide_resource_service.dart';
 import '../services/time_pitch_service.dart';
 import '../services/midi_preferences_store.dart';
 import '../models/automation_cue.dart';
+import '../models/timecode_settings.dart';
 import '../models/time_pitch_settings.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
@@ -60,7 +61,13 @@ class MidiController extends Notifier<MidiState> {
       return false;
     }
     state = state.copyWith(selectedId: id, connected: true, error: null);
-    if (previous != id) await ref.read(midiPreferencesProvider).saveOutputId(id);
+    if (previous != id) {
+      try {
+        await ref.read(midiPreferencesProvider).saveOutputId(id);
+      } on Exception catch (e) {
+        debugPrint('Não foi possível memorizar a saída MIDI: $e');
+      }
+    }
     return true;
   }
 
@@ -202,6 +209,11 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           return false;
         }
         engine.setMidiClockEnabled(track.midiClockEnabled);
+        if (!engine.configureTimecode(track.timecode)) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
         if (track.midiClockEnabled || track.automationCues.any((c) => c.midiBytes.isNotEmpty)) {
           await ref.read(midiControllerProvider.notifier).ensureOpen(); // best effort: the song plays without MIDI
         }
@@ -386,6 +398,15 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     if (!engine.configureCues(cues)) return false;
     engine.setMidiClockEnabled(clockEnabled);
     state = track.copyWith(automationCues: List.unmodifiable(cues), midiClockEnabled: clockEnabled);
+    return true;
+  }
+
+  /// Aplica o timecode; o motor valida antes de o estado mudar.
+  bool updateTimecode(String trackId, TimecodeSettings settings) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null || !settings.isValid) return false;
+    if (!ref.read(engineProvider).configureTimecode(settings)) return false;
+    state = track.copyWith(timecode: settings);
     return true;
   }
 
