@@ -36,6 +36,18 @@ public:
             expectWithinAbsoluteError(engine.getCurrentPositionSeconds(), (1137 + 600) / rate, 1.0 / rate);
         }
 
+        beginTest("Loop pass counter: 1-based pass and the repeat count, also for infinite loops");
+        {
+            AudioEngine engine; engine.prepareToPlay(64, rate); expect(engine.loadTrack("counted", {file}));
+            int pass = -1, repeats = -1; engine.getLoopPass(&pass, &repeats); expect(pass == 0 && repeats == 0);
+            expect(engine.setLoop(1000 / rate, 1137 / rate, true, 3)); engine.seekToSeconds(1000 / rate); engine.play();
+            engine.getLoopPass(&pass, &repeats); expect(pass == 1 && repeats == 3);
+            render(engine, 137 + 10, 64); engine.getLoopPass(&pass, &repeats); expect(pass == 2 && repeats == 3);
+            render(engine, 137 * 2, 64); engine.getLoopPass(&pass, &repeats); expect(pass == 0 && repeats == 0);  // released
+            expect(engine.setLoop(1000 / rate, 1137 / rate, true)); engine.seekToSeconds(1000 / rate); render(engine, 137 * 4 + 10, 64);
+            engine.getLoopPass(&pass, &repeats); expect(pass == 5 && repeats == 0);
+        }
+
         beginTest("Infinite loops are unchanged; invalid counts are rejected without touching the loop");
         {
             AudioEngine engine; engine.prepareToPlay(256, rate); expect(engine.loadTrack("counted", {file}));

@@ -303,6 +303,15 @@ bool wtracks_midi_input_open() { return engine ? engine->isMidiInputOpen() : fal
 int wtracks_poll_midi_input(uint32_t* out, int maxCount) { return engine ? engine->pollMidiInput(out,maxCount) : 0; }
 bool wtracks_inject_midi_input(const uint8_t* bytes, int size) { return engine ? engine->injectMidiInput(bytes,size) : false; }
 
+void wtracks_get_loop_pass(int32_t* pass, int32_t* repeats) { if (engine) engine->getLoopPass(pass,repeats); else { if (pass) *pass=0; if (repeats) *repeats=0; } }
+bool wtracks_configure_skips(const double* starts, const double* ends, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureSkips(starts,ends,count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Trim preparation failed"); return false; }
+}
+
 bool wtracks_configure_buses(int count) { return engine ? engine->configureBuses(count) : false; }
 bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono) { return engine ? engine->setBus(index,volume,muted,outputBase,mono) : false; }
 void wtracks_set_bus_solo_muted(int index, bool muted) { if (engine) engine->setBusSoloMuted(index,muted); }

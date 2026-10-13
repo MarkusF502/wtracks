@@ -82,9 +82,16 @@ public:
     // Prepared like any loop cache (<= 16 sections, 128 MiB in total); replaces the previous set, kept across stop/seek,
     // dropped with the song. Disabling the loop mid-section does not re-trigger it until the playhead reaches the start again.
     bool configurePresetLoops(const double* starts, const double* ends, const int* repeats, int count);
+    // Trimmed song-map areas (Playback SongSection.storedStart/EndTimeTrimOffset; "Cues contained within a trimmed area
+    // will not fire during playback"): playback jumps over each [start, end) (song time) sample-exactly, outside loops; a
+    // decoded bridge of up to 3 s after each area plays while the streams re-position. <= 32 areas; replaces the previous
+    // set; dropped with the song and the time scale. Seeking into an area lands at its end.
+    bool configureSkips(const double* starts, const double* ends, int count);
     void clearQueuedLoop();
     bool getLoopEnabled() const;
     void getLoopState(double* out6) const;
+    // Pass of the active loop (1-based) and its repeat count (0 = until released); {0,0} without a loop.
+    void getLoopPass(int* pass, int* repeats) const;
     bool getQueuedLoopEnabled() const;
     double getLoopStart() const;
     double getLoopEnd() const;
@@ -221,6 +228,10 @@ private:
     std::shared_ptr<LoopCache> prepareLoop(double startSeconds, double endSeconds);
     int loopPasses=0;
     std::vector<std::shared_ptr<LoopCache>> presetLoops;
+    struct Skip { double start = 0, end = 0; std::shared_ptr<LoopCache> bridge; };
+    std::vector<Skip> skips;
+    std::shared_ptr<LoopCache> bridge;  // audio right after the last jump, while the streams refill
+    void applySkipJump() noexcept;
     void parkStreamsAt(double seconds);
     std::vector<Channel> channels;
     mutable juce::SpinLock channelsLock;

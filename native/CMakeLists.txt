@@ -63,6 +63,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         tests/MeterTests.cpp
         tests/BusTests.cpp
         tests/MidiEventTests.cpp
+        tests/TrimTests.cpp
         tests/TimePitchTests.cpp
         tests/TimeScaleTests.cpp
         tests/MidiTests.cpp

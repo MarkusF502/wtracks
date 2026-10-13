@@ -86,7 +86,7 @@ void AudioEngine::shutdown()
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
     mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
     fadeOut.cancel(); endFadeSeconds=0;
-    busCount=0; buses={};
+    busCount=0; buses={}; skips.clear(); bridge.reset();
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -170,6 +170,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
     // pertencia à música anterior e é descartada fora do lock.
     GuideTimeline staleGuides; CueTimeline staleCues; std::vector<std::shared_ptr<LoopCache>> stalePresets;
     decltype(preroll.counts) staleCounts; std::vector<double> staleStarts; MixerAutomation staleAutomation;
+    std::vector<Skip> staleSkips; std::shared_ptr<LoopCache> staleBridge;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
@@ -180,6 +181,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
         std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0); resetAutomationBases();
         fadeOut.cancel(); endFadeSeconds=0; transportEvents=0; busCount=0; buses={};
+        staleSkips.swap(skips); staleBridge.swap(bridge);
         for (auto& meter : channelMeters) meter.take();
     }
 
@@ -199,7 +201,7 @@ void AudioEngine::unloadCurrentTrack()
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
     mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
     fadeOut.cancel(); endFadeSeconds=0;
-    busCount=0; buses={};
+    busCount=0; buses={}; skips.clear(); bridge.reset();
 }
 
 juce::String AudioEngine::getLastError() const
@@ -352,6 +354,8 @@ void AudioEngine::seekToSeconds(double seconds)
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         seconds = channels.empty() ? 0.0 : juce::jmin(seconds * timeScale, channels.front().readerSource->getTotalLength() / channels.front().fileSampleRate);
         if (loopEnabled && activeLoop && (seconds < activeLoop->start || seconds >= activeLoop->end)) seconds=activeLoop->start;
+        if (!loopEnabled) for (const auto& skip : skips) if (seconds >= skip.start && seconds < skip.end) { seconds=skip.end; break; }
+        bridge.reset();
         currentSamplePosition = static_cast<int64_t>(std::llround(seconds * currentSampleRate));
         for (auto& channel : channels) if (channel.bufferedSource) {
             // A counted loop plays from its cache; the streams wait at the loop end for the continuation.
@@ -448,7 +452,7 @@ bool AudioEngine::setLoop(double start, double end, bool enabled, int repeats)
     bank->repeats=repeats;
     if (repeats > 0) parkStreamsAt(bank->end);  // the continuation after the last pass reads ahead while the cache plays
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true; loopPasses=0; loopWraps=0;
+    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true; loopPasses=0; loopWraps=0; bridge.reset();
     const double seconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
     if (seconds < start || seconds >= end) currentSamplePosition=static_cast<int64_t>(std::llround(start*currentSampleRate));
     clickTimeline.reset(); guideTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
@@ -472,6 +476,56 @@ bool AudioEngine::configurePresetLoops(const double* starts, const double* ends,
     std::vector<std::shared_ptr<LoopCache>> stale;
     { const juce::SpinLock::ScopedLockType lock(channelsLock); stale.swap(presetLoops); presetLoops=std::move(prepared); }
     setLastError(EngineErrorCode::None,""); return true;
+}
+
+bool AudioEngine::configureSkips(const double* starts, const double* ends, int count)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    if (count < 0 || count > 32 || (count && (!starts || !ends))) { setLastError(EngineErrorCode::FormatMismatch,"Invalid trim areas"); return false; }
+    double total=0;
+    { const juce::SpinLock::ScopedLockType lock(channelsLock);
+      if (count && channels.empty()) { setLastError(EngineErrorCode::FormatMismatch,"No song loaded"); return false; }
+      if (!channels.empty()) total=channels.front().readerSource->getTotalLength()/channels.front().fileSampleRate; }
+    std::vector<Skip> prepared; double previous=-1; uint64_t bytes=0;
+    for (int i=0;i<count;++i) {
+        double a=starts[i], b=ends[i];
+        if (!std::isfinite(a) || !std::isfinite(b) || a < 0 || b <= a || a < previous) { setLastError(EngineErrorCode::FormatMismatch,"Invalid trim areas"); return false; }
+        previous=b; loopToFileTime(a,b);
+        if (b > total+1e-6) { setLastError(EngineErrorCode::FormatMismatch,"Trim area beyond the song"); return false; }
+        Skip skip; skip.start=a; skip.end=juce::jmin(b,total);
+        const double bridgeEnd=juce::jmin(skip.end+3.0,total);
+        if (bridgeEnd-skip.end >= 1.0/8000) {
+            skip.bridge=prepareLoop(skip.end,bridgeEnd); if (!skip.bridge) return false;
+            for (const auto& stem : skip.bridge->stems) bytes+=static_cast<uint64_t>(stem.getNumSamples())*2*sizeof(float);
+            if (bytes > 128ULL*1024*1024) { setLastError(EngineErrorCode::FormatMismatch,"Trim bridges exceed 128 MiB"); return false; }
+        }
+        prepared.push_back(std::move(skip));
+    }
+    std::vector<Skip> stale; std::shared_ptr<LoopCache> staleBridge;
+    { const juce::SpinLock::ScopedLockType lock(channelsLock); stale.swap(skips); skips=std::move(prepared); staleBridge.swap(bridge); }
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
+void AudioEngine::applySkipJump() noexcept
+{
+    // Audio thread, channelsLock held, no loop active. Jumps over a trimmed area the playhead has reached.
+    const int64_t position=currentSamplePosition.load();
+    if (bridge) {
+        const auto first=static_cast<int64_t>(std::llround(bridge->start*currentSampleRate)), last=static_cast<int64_t>(std::llround(bridge->end*currentSampleRate));
+        if (position < first || position >= last) bridge.reset();  // shared with `skips`: never frees here
+    }
+    for (const auto& skip : skips) {
+        const auto a=static_cast<int64_t>(std::llround(skip.start*currentSampleRate)), b=static_cast<int64_t>(std::llround(skip.end*currentSampleRate));
+        if (position < a || position >= b) continue;
+        currentSamplePosition=b; bridge=skip.bridge;
+        const double streamAt=bridge ? bridge->end : skip.end;
+        for (auto& channel : channels) if (channel.bufferedSource) {
+            channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(streamAt*channel.fileSampleRate)));
+            channel.resampler->flushBuffers();
+        }
+        clickTimeline.reset(); guideTimeline.reset();
+        return;
+    }
 }
 
 bool AudioEngine::enqueueLoop(double start, double end, int repeats)
@@ -502,6 +556,14 @@ void AudioEngine::getLoopState(double* out6) const
     out6[4]=queuedLoopEnabled && queuedLoop ? queuedLoop->start/timeScale : 0;
     out6[5]=queuedLoopEnabled && queuedLoop ? queuedLoop->end/timeScale : 0;
 }
+void AudioEngine::getLoopPass(int* pass, int* repeats) const
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    const bool active=loopEnabled && activeLoop;
+    if (pass) *pass=active ? (activeLoop->repeats > 0 ? loopPasses+1 : loopWraps+1) : 0;
+    if (repeats) *repeats=active ? activeLoop->repeats : 0;
+}
+
 void AudioEngine::parkStreamsAt(double seconds)
 {
     // Control thread, loop mode: the streams are idle, so point them at the loop end and let read-ahead fill.
@@ -791,6 +853,7 @@ bool AudioEngine::setTimeScale(double scale)
     if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0) { setLastError(EngineErrorCode::FormatMismatch,"Invalid time scale"); return false; }
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); presetLoops.clear();  // caches were cut for the old scale
+    skips.clear(); bridge.reset();
     applyClickScale(); guideTimeline.setTimeScale(scale); cueTimeline.setTimeScale(scale); preroll.cancel(); mixerAutomation.setTimeScale(scale);
     setLastError(EngineErrorCode::None,""); return true;
 }
@@ -1208,6 +1271,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             written+=count; continue;
         }
         normalizeLoopPosition();
+        if (!loopEnabled && !skips.empty()) applySkipJump();
         const int64_t position=currentSamplePosition.load();
         // Preset loops: engage when the playhead is exactly on a preset section start; never mid-section.
         if (!loopEnabled && !presetLoops.empty())
@@ -1223,11 +1287,17 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                 }
         const int64_t boundary=loopEnabled && activeLoop ? static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate)) : end;
         int64_t room=boundary-position;
-        if (!loopEnabled)
+        if (!loopEnabled) {
             for (const auto& preset : presetLoops) {  // stop the streaming chunk exactly at the next preset start
                 const auto at=static_cast<int64_t>(std::llround(preset->start*currentSampleRate));
                 if (at > position && at-position < room) room=at-position;
             }
+            for (const auto& skip : skips) {  // ... and at the next trimmed area
+                const auto at=static_cast<int64_t>(std::llround(skip.start*currentSampleRate));
+                if (at > position && at-position < room) room=at-position;
+            }
+            if (bridge) room=juce::jmin(room,static_cast<int64_t>(std::llround(bridge->end*currentSampleRate))-position);
+        }
         // End fade (Playback Sequencer: arrangement.endFade starts the transport fade once the playhead passes the
         // channel group's fadeStartTimecode, and the fade button lights up): the chunk stops at that point.
         const int64_t endFadeLength=endFadeSeconds > 0 ? static_cast<int64_t>(std::llround(endFadeSeconds*currentSampleRate)) : 0;
@@ -1239,7 +1309,8 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         if (fadeOut.active()) room=juce::jmin(room,fadeOut.remaining);  // the fade ends exactly at a chunk end
         const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),room));
         if (count <= 0) { currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); releaseHeldNotesRealtime(blockHostMs,written); break; }
-        if (!loopEnabled && !channelsReady(count,0)) { ++underrunCount; break; }
+        const auto* source=loopEnabled && activeLoop ? activeLoop.get() : (!loopEnabled ? bridge.get() : nullptr);
+        if (!source && !channelsReady(count,0)) { ++underrunCount; break; }
         const bool fading=fadeOut.active();
         if (fading)
             for (int i=0;i<count;++i) fadeGains[static_cast<size_t>(i)]=fadeOut.gain(i);
@@ -1248,12 +1319,12 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         if (busCount > 0) for (int c=0;c<2*busCount;++c) juce::FloatVectorOperations::clear(busScratch.getWritePointer(c),count);
         for (size_t index=0;index<channels.size();++index) {
             auto& channel=channels[index]; scratchBuffer.clear();
-            if (loopEnabled && activeLoop) {
-                const auto& data=activeLoop->stems[index];
+            if (source) {  // loop cache or trim bridge
+                const auto& data=source->stems[index];
                 for (int sample=0;sample<count;++sample) {
-                    const double source=(position+sample)/currentSampleRate*channel.fileSampleRate-activeLoop->firstFrames[index];
-                    const int a=juce::jlimit(0,data.getNumSamples()-1,static_cast<int>(source));
-                    const int b=juce::jmin(a+1,data.getNumSamples()-1); const float alpha=static_cast<float>(source-std::floor(source));
+                    const double at=(position+sample)/currentSampleRate*channel.fileSampleRate-source->firstFrames[index];
+                    const int a=juce::jlimit(0,data.getNumSamples()-1,static_cast<int>(at));
+                    const int b=juce::jmin(a+1,data.getNumSamples()-1); const float alpha=static_cast<float>(at-std::floor(at));
                     for (int ch=0;ch<2;++ch) scratchBuffer.setSample(ch,sample,data.getSample(ch,a)+alpha*(data.getSample(ch,b)-data.getSample(ch,a)));
                 }
             } else { juce::AudioSourceChannelInfo source(&scratchBuffer,0,count); channel.resampler->getNextAudioBlock(source); }

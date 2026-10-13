@@ -129,6 +129,9 @@ WTRACKS_API void wtracks_midi_close_input();
 WTRACKS_API bool wtracks_midi_input_open();
 WTRACKS_API int wtracks_poll_midi_input(uint32_t* out, int maxCount);
 WTRACKS_API bool wtracks_inject_midi_input(const uint8_t* bytes, int size);
+WTRACKS_API void wtracks_get_loop_pass(int32_t* pass, int32_t* repeats);
+// Trimmed areas [start, end) in song time (<= 32): playback jumps over them.
+WTRACKS_API bool wtracks_configure_skips(const double* starts, const double* ends, int count);
 WTRACKS_API bool wtracks_configure_buses(int count);
 WTRACKS_API bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono);
 WTRACKS_API void wtracks_set_bus_solo_muted(int index, bool muted);
