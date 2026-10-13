@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
 import 'guide_settings_sheet.dart';
+import 'remote_screen.dart';
 import '../widgets/dialog_text_controller.dart';
 
 /// Configurações do app.
@@ -44,6 +45,12 @@ class SettingsScreen extends ConsumerWidget {
           help: 'Arquivos guidecue-section|count-<idioma>-<gênero>-<nome>.wav',
           value: settings.customGuidesDirectory,
           onChanged: (path) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(customGuidesDirectory: path)),
+        ),
+        ListTile(
+          leading: const Icon(Icons.settings_remote_outlined),
+          title: const Text('Controle remoto'),
+          subtitle: const Text('Permitir conexões remotas pela rede local'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RemoteScreen())),
         ),
         ListTile(
           leading: const Icon(Icons.record_voice_over_outlined),
