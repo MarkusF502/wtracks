@@ -56,6 +56,10 @@ WTRACKS_API void wtracks_set_channel_volume(int channelIndex, float volume);
 WTRACKS_API void wtracks_set_channel_muted(int channelIndex, bool muted);
 WTRACKS_API int wtracks_get_channel_count();
 
+// Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
+WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
+WTRACKS_API void wtracks_set_guides_enabled(bool enabled);
+
 // Click track
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.
 WTRACKS_API bool wtracks_configure_click(double bpm, int numerator, int denominator, int bpmUnit, double offset, double accent, double quarter, double eighth, double sixteenth);

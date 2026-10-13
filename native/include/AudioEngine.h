@@ -6,6 +6,7 @@
 #include <juce_core/juce_core.h>
 #include <atomic>
 #include "ClickTimeline.h"
+#include "GuideTimeline.h"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -77,6 +78,8 @@ public:
     bool loadClickSound(int voice, const juce::String& path);
     bool loadClickBank(const std::array<juce::String,4>& paths);
     void setClickGain(float gain);
+    bool configureGuides(const double* times, const char** paths, const float* gains, int count);
+    void setGuidesEnabled(bool enabled);
 
     // Tratamento de Erros Blindado
     juce::String getLastError() const;
@@ -117,6 +120,9 @@ private:
     int preparedBlockSize = 0;
     double preparedSampleRate = 44100.0;
 
+    GuideTimeline guideTimeline;
+    juce::AudioBuffer<float> guideScratch;
+    std::atomic<bool> guidesEnabled { false };
     ClickTimeline clickTimeline;
     std::atomic<bool> clickEnabled { false };
     double currentSampleRate = 44100.0;

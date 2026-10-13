@@ -121,6 +121,15 @@ int wtracks_get_channel_count()
     return engine ? engine->getChannelCount() : 0;
 }
 
+bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureGuides(times,paths,gains,count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Guide preparation failed"); return false; }
+}
+void wtracks_set_guides_enabled(bool enabled) { if (engine) engine->setGuidesEnabled(enabled); }
+
 bool wtracks_set_loop(double start, double end, bool enabled)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);

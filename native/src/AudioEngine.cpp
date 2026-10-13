@@ -1,4 +1,5 @@
 #include "../include/AudioEngine.h"
+#include <map>
 
 namespace wtracks
 {
@@ -53,6 +54,7 @@ void AudioEngine::shutdown()
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
+    guideTimeline=GuideTimeline{};
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -132,14 +134,16 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
 
     DBG("C++ [loadTrack] Todos os arquivos lidos. Fazendo Swap Atomico (Lock)...");
     
-    // 2. Swap Atômico: Substitui as trilhas instantaneamente!
+    // 2. Swap Atômico: Substitui as trilhas instantaneamente! A agenda de guias
+    // pertencia à música anterior e é descartada fora do lock.
+    GuideTimeline staleGuides;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
         channels = std::move(newChannels);
         loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
-        clickTimeline.reset();
+        clickTimeline.reset(); std::swap(guideTimeline,staleGuides);
     }
 
     DBG("C++ [loadTrack] Swap concluido. Retornando SUCESSO para o Dart!");
@@ -152,6 +156,7 @@ void AudioEngine::unloadCurrentTrack()
     stop();
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
+    guideTimeline=GuideTimeline{};
 }
 
 juce::String AudioEngine::getLastError() const
@@ -211,7 +216,7 @@ void AudioEngine::seekToSeconds(double seconds)
             channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(seconds*channel.fileSampleRate)));
             channel.resampler->flushBuffers();
         }
-        clickTimeline.reset();
+        clickTimeline.reset(); guideTimeline.reset();
     }
     if (prefillChannels()) playing=resume;
 }
@@ -287,7 +292,7 @@ bool AudioEngine::setLoop(double start, double end, bool enabled)
     activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true;
     const double seconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
     if (seconds < start || seconds >= end) currentSamplePosition=static_cast<int64_t>(std::llround(start*currentSampleRate));
-    clickTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
+    clickTimeline.reset(); guideTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
 }
 
 bool AudioEngine::enqueueLoop(double start, double end)
@@ -330,7 +335,7 @@ void AudioEngine::normalizeLoopPosition()
     const auto nextStart=static_cast<int64_t>(std::llround(activeLoop->start*currentSampleRate));
     const auto nextEnd=static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate));
     currentSamplePosition=nextStart+overflow % juce::jmax<int64_t>(1,nextEnd-nextStart);
-    clickTimeline.reset();
+    clickTimeline.reset(); guideTimeline.reset();
 }
 bool AudioEngine::getLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled; }
 bool AudioEngine::getQueuedLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled; }
@@ -467,6 +472,58 @@ bool AudioEngine::loadClickBank(const std::array<juce::String,4>& paths)
     return true;
 }
 
+void AudioEngine::setGuidesEnabled(bool enabled) { guidesEnabled=enabled; }
+
+bool AudioEngine::configureGuides(const double* times, const char** paths, const float* gains, int count)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    const double length=getTotalLengthSeconds();
+    if (count < 0 || count > 4096 || (count && (!times || !paths || !gains || length <= 0))) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid guide schedule"); return false;
+    }
+    std::vector<GuideTimeline::Cue> cues; cues.reserve(count);
+    std::map<juce::String,std::shared_ptr<const GuideTimeline::Sound>> decoded;
+    uint64_t bytes=0; double previous=-1;
+    juce::AudioFormatManager loader; loader.registerBasicFormats();
+    for (int index=0;index<count;++index) {
+        if (!std::isfinite(times[index]) || times[index]<0 || times[index]>length || times[index]<previous
+            || !std::isfinite(gains[index]) || gains[index]<0 || gains[index]>2 || !paths[index] || !*paths[index]) {
+            setLastError(EngineErrorCode::FormatMismatch,"Invalid guide cue"); return false;
+        }
+        previous=times[index]; const auto path=juce::String::fromUTF8(paths[index]);
+        auto found=decoded.find(path);
+        if (found==decoded.end()) {
+            std::unique_ptr<juce::AudioFormatReader> reader(loader.createReaderFor(juce::File(path)));
+            if (!reader || !std::isfinite(reader->sampleRate) || reader->sampleRate<8000 || reader->sampleRate>192000
+                || reader->numChannels<1 || reader->numChannels>64 || reader->lengthInSamples<=0 || reader->lengthInSamples>reader->sampleRate*60) {
+                setLastError(EngineErrorCode::FileUnreadable,"Guide sound unavailable or exceeds 60 seconds"); return false;
+            }
+            const uint64_t added=static_cast<uint64_t>(reader->lengthInSamples)*sizeof(float);
+            if (added>64ULL*1024*1024-bytes) { setLastError(EngineErrorCode::FormatMismatch,"Guide PCM exceeds 64 MiB"); return false; }
+            bytes+=added;
+            auto sound=std::make_shared<GuideTimeline::Sound>(); sound->sourceRate=reader->sampleRate;
+            sound->mono.resize(static_cast<size_t>(reader->lengthInSamples)); juce::AudioBuffer<float> block(reader->numChannels,1024);
+            for(int64_t offset=0;offset<reader->lengthInSamples;offset+=1024) {
+                const int n=static_cast<int>(juce::jmin<int64_t>(1024,reader->lengthInSamples-offset));
+                if (!reader->read(block.getArrayOfWritePointers(),block.getNumChannels(),offset,n)) {
+                    setLastError(EngineErrorCode::FileUnreadable,"Guide decoding failed"); return false;
+                }
+                for(int frame=0;frame<n;++frame) { double sum=0; for(int ch=0;ch<block.getNumChannels();++ch) sum+=block.getSample(ch,frame);
+                    sound->mono[static_cast<size_t>(offset+frame)]=static_cast<float>(sum/block.getNumChannels()); }
+            }
+            found=decoded.emplace(path,std::move(sound)).first;
+        }
+        cues.push_back({times[index],gains[index],found->second});
+    }
+    GuideTimeline prepared;
+    if (!prepared.configure(std::move(cues))) { setLastError(EngineErrorCode::FormatMismatch,"Invalid guide PCM"); return false; }
+    {   // Swap under the lock; the previous PCM is freed after the audio thread is released.
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        std::swap(guideTimeline,prepared);
+    }
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
 void AudioEngine::generateClickBuffers(double sampleRate)
 {
     const int length = static_cast<int>(sampleRate*0.03);
@@ -491,7 +548,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
         const double positionSeconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
         currentSampleRate = sampleRate;
         currentSamplePosition=static_cast<int64_t>(std::llround(positionSeconds*sampleRate));
-        clickTimeline.reset();
+        clickTimeline.reset(); guideTimeline.reset();
         mixerSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
 
         generateClickBuffers(sampleRate);
@@ -501,6 +558,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
         isPrepared = true;
 
         scratchBuffer.setSize(2, samplesPerBlockExpected);
+        guideScratch.setSize(1,samplesPerBlockExpected);
 
         for (auto& channel : channels)
             if (channel.resampler != nullptr)
@@ -559,6 +617,9 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                 info.buffer->addFrom(output,info.startSample+written,scratchBuffer,juce::jmin(output,scratchBuffer.getNumChannels()-1),0,count,channel.volume);
         }
         clickTimeline.render(*info.buffer,info.startSample+written,count,position,currentSampleRate,clickEnabled.load());
+        guideScratch.clear(); guideTimeline.render(guideScratch.getWritePointer(0),count,position,currentSampleRate,guidesEnabled.load());
+        for(int output=0;output<info.buffer->getNumChannels();++output)
+            info.buffer->addFrom(output,info.startSample+written,guideScratch,0,0,count);
         currentSamplePosition=position+count; written+=count;
         normalizeLoopPosition();
         if (!loopEnabled && position+count >= end) { currentSamplePosition=end; playing=false; break; }
