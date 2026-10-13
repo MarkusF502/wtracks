@@ -7,6 +7,7 @@
 #include <atomic>
 #include "ClickTimeline.h"
 #include <memory>
+#include <mutex>
 #include <vector>
 
 namespace wtracks
@@ -18,6 +19,8 @@ struct Channel
 {
     juce::String name;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
+    std::unique_ptr<juce::BufferingAudioSource> bufferedSource;
+    int readAheadCapacity = 0;
     // Converte do sample rate do arquivo pro do device (AudioFormatReaderSource
     // sozinho nao faz resampling).
     std::unique_ptr<juce::ResamplingAudioSource> resampler;
@@ -46,6 +49,9 @@ public:
     double getCurrentPositionSeconds() const;
     double getTotalLengthSeconds() const;
     bool isPlaying() const;
+    uint64_t getUnderrunCount() const;
+    // Only control/offline threads may wait. The audio callback always uses timeout zero.
+    bool waitForReadAhead(int outputSamples, uint32_t timeoutMs);
 
     void setChannelVolume(int channelIndex, float volume);
     void setChannelMuted(int channelIndex, bool muted);
@@ -75,6 +81,9 @@ private:
     juce::AudioFormatManager formatManager;
     juce::MixerAudioSource mixerSource;
     juce::AudioSourcePlayer audioSourcePlayer;
+    juce::TimeSliceThread readAheadThread { "WTracks read ahead" };
+    mutable std::recursive_mutex controlMutex;
+    std::atomic<uint64_t> underrunCount { 0 };
 
     std::vector<Channel> channels;
     mutable juce::SpinLock channelsLock;
@@ -97,6 +106,8 @@ private:
     EngineErrorCode lastErrorCode = EngineErrorCode::None;
     mutable juce::SpinLock errorLock;
 
+    bool channelsReady(int outputSamples, uint32_t timeoutMs);
+    bool prefillChannels();
     bool decodeClickSound(const juce::String& path, juce::AudioBuffer<float>& decoded, double& rate);
     void generateClickBuffers(double sampleRate);
 

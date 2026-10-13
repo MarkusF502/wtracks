@@ -38,7 +38,7 @@ public:
         beginTest("Mute preserves phase and seek before/on/after an event");
         ClickTimeline click; impulse(click); click.soundRates.fill(48000); click.gains.fill(1);
         juce::AudioBuffer<float> out(1,64);
-        click.render(out,0,64,0,48000,false); expectEquals(out.getMagnitude(0,64),0.0f);
+        out.clear(); click.render(out,0,64,0,48000,false); expectEquals(out.getMagnitude(0,64),0.0f);
         out.clear(); click.render(out,0,64,24000,48000,true); expectEquals(out.getSample(0,0),2.0f);
         for (int delta : {-1,0,1}) {
             click.reset(); out.clear(); click.render(out,0,64,24000+delta,48000,true);

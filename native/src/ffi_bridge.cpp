@@ -121,6 +121,8 @@ int wtracks_get_channel_count()
     return engine ? engine->getChannelCount() : 0;
 }
 
+uint64_t wtracks_get_underrun_count() { return engine ? engine->getUnderrunCount() : 0; }
+
 bool wtracks_configure_click(double bpm, int numerator, int denominator, int unit, double offset, double accent, double quarter, double eighth, double sixteenth)
 {
     return engine && engine->configureClick(bpm,numerator,denominator,unit,offset,accent,quarter,eighth,sixteenth);

@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 // Esta é a API pública exposta para o Dart via FFI.
 // Regra de ouro: tudo aqui é extern "C" e usa apenas tipos simples
@@ -24,6 +25,9 @@ WTRACKS_API bool wtracks_load_track(const char* songId, const char** channelPath
 WTRACKS_API const char* wtracks_get_last_error();
 WTRACKS_API int wtracks_get_last_error_code();
 WTRACKS_API void wtracks_unload_track();
+
+// Cache misses are cumulative; the master clock holds while audio output is silent.
+WTRACKS_API uint64_t wtracks_get_underrun_count();
 
 // Transporte
 WTRACKS_API void wtracks_play();
