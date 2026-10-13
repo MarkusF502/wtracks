@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/engine_error.dart';
 import '../models/track.dart';
 import '../models/guide_cue.dart';
+import '../models/automation_cue.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
 
@@ -110,6 +111,20 @@ typedef _GetTimeScaleNative = Double Function();
 typedef _GetTimeScaleDart = double Function();
 typedef _CancelTimePitchNative = Void Function(Int64);
 typedef _CancelTimePitchDart = void Function(int);
+typedef _MidiListNative = Int32 Function(Pointer<Utf8>, Int32);
+typedef _MidiListDart = int Function(Pointer<Utf8>, int);
+typedef _MidiOpenNative = Bool Function(Pointer<Utf8>);
+typedef _MidiOpenDart = bool Function(Pointer<Utf8>);
+typedef _VoidFnNative = Void Function();
+typedef _VoidFnDart = void Function();
+typedef _BoolFnNative = Bool Function();
+typedef _BoolFnDart = bool Function();
+typedef _SendMidiNative = Bool Function(Pointer<Uint8>, Int32);
+typedef _SendMidiDart = bool Function(Pointer<Uint8>, int);
+typedef _ConfigureCuesNative = Bool Function(Pointer<Double>, Pointer<Uint8>, Pointer<Uint8>, Int32);
+typedef _ConfigureCuesDart = bool Function(Pointer<Double>, Pointer<Uint8>, Pointer<Uint8>, int);
+typedef _PollCuesNative = Int32 Function(Pointer<Uint32>, Int32);
+typedef _PollCuesDart = int Function(Pointer<Uint32>, int);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -180,6 +195,15 @@ class WTracksEngine {
   late final _SetTimeScaleDart _setTimeScale;
   late final _GetTimeScaleDart _getTimeScale;
   late final _CancelTimePitchDart _cancelTimePitch;
+  late final _MidiListDart _midiList;
+  late final _MidiOpenDart _midiOpen;
+  late final _VoidFnDart _midiClose;
+  late final _BoolFnDart _midiIsOpen;
+  late final _SetClickEnabledDart _setMidiClockEnabled;
+  late final _SendMidiDart _sendMidi;
+  late final _ConfigureCuesDart _configureCues;
+  late final _PollCuesDart _pollCues;
+  late final _GetCounterDart _midiDropped;
   late final _SetRouteDart _setChannelRoute;
   late final _ClickGainDart _setMasterVolume;
   late final _ConfigureGuidesDart _configureGuides;
@@ -282,6 +306,15 @@ class WTracksEngine {
     _setTimeScale = _lib.lookupFunction<_SetTimeScaleNative, _SetTimeScaleDart>('wtracks_set_time_scale');
     _getTimeScale = _lib.lookupFunction<_GetTimeScaleNative, _GetTimeScaleDart>('wtracks_get_time_scale');
     _cancelTimePitch = _lib.lookupFunction<_CancelTimePitchNative, _CancelTimePitchDart>('wtracks_cancel_time_pitch');
+    _midiList = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_outputs');
+    _midiOpen = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('wtracks_midi_open_output');
+    _midiClose = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_output');
+    _midiIsOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_midi_output_open');
+    _setMidiClockEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_midi_clock_enabled');
+    _sendMidi = _lib.lookupFunction<_SendMidiNative, _SendMidiDart>('wtracks_send_midi');
+    _configureCues = _lib.lookupFunction<_ConfigureCuesNative, _ConfigureCuesDart>('wtracks_configure_cues');
+    _pollCues = _lib.lookupFunction<_PollCuesNative, _PollCuesDart>('wtracks_poll_cues');
+    _midiDropped = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_midi_dropped');
     _setChannelRoute = _lib.lookupFunction<_SetRouteNative, _SetRouteDart>('wtracks_set_channel_route');
     _setMasterVolume = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>('wtracks_set_master_volume');
     _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('wtracks_configure_guides');
@@ -435,6 +468,87 @@ class WTracksEngine {
   Future<bool> processTimePitchAsync(String input, String output, double timeFactor, double pitchFactor, bool complex, int token) =>
       Isolate.run(() => WTracksEngine().processTimePitch(input, output, timeFactor, pitchFactor, complex, token));
   void cancelTimePitch(int token) => _cancelTimePitch(token);
+
+  /// Saídas MIDI do sistema (vazia sem hardware/ALSA).
+  List<MidiDevice> listMidiOutputs() {
+    var capacity = 1024;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final buffer = calloc<Uint8>(capacity);
+      try {
+        final needed = _midiList(buffer.cast<Utf8>(), capacity);
+        if (needed > capacity) {
+          capacity = needed;
+          continue;
+        }
+        final text = buffer.cast<Utf8>().toDartString();
+        return [
+          for (final line in text.split('\n'))
+            if (line.contains('\t')) MidiDevice(line.substring(0, line.indexOf('\t')), line.substring(line.indexOf('\t') + 1)),
+        ];
+      } finally {
+        calloc.free(buffer);
+      }
+    }
+    return const [];
+  }
+
+  bool openMidiOutput(String id) {
+    final ptr = id.toNativeUtf8();
+    try {
+      return _midiOpen(ptr);
+    } finally {
+      malloc.free(ptr);
+    }
+  }
+
+  void closeMidiOutput() => _midiClose();
+  bool get midiOutputOpen => _midiIsOpen();
+  void setMidiClockEnabled(bool enabled) => _setMidiClockEnabled(enabled);
+  int get midiDroppedCount => _midiDropped();
+
+  bool sendMidi(List<int> bytes) {
+    final ptr = calloc<Uint8>(bytes.isEmpty ? 1 : bytes.length);
+    try {
+      for (var i = 0; i < bytes.length; i++) {
+        ptr[i] = bytes[i];
+      }
+      return _sendMidi(ptr, bytes.length);
+    } finally {
+      calloc.free(ptr);
+    }
+  }
+
+  bool configureCues(List<AutomationCue> cues) {
+    if (!AutomationCue.validSequence(cues)) return false;
+    final slots = cues.isEmpty ? 1 : cues.length;
+    final times = calloc<Double>(slots), bytes = calloc<Uint8>(3 * slots), sizes = calloc<Uint8>(slots);
+    try {
+      for (var i = 0; i < cues.length; i++) {
+        times[i] = cues[i].timeSeconds;
+        final message = cues[i].midiBytes;
+        sizes[i] = message.length;
+        for (var b = 0; b < message.length; b++) {
+          bytes[3 * i + b] = message[b];
+        }
+      }
+      return _configureCues(times, bytes, sizes, cues.length);
+    } finally {
+      calloc.free(times);
+      calloc.free(bytes);
+      calloc.free(sizes);
+    }
+  }
+
+  /// Índices das automações disparadas desde a última consulta.
+  List<int> pollCues({int max = 64}) {
+    final out = calloc<Uint32>(max);
+    try {
+      final n = _pollCues(out, max);
+      return [for (var i = 0; i < n; i++) out[i]];
+    } finally {
+      calloc.free(out);
+    }
+  }
 
   bool setChannelRoute(int channelIndex, ChannelRoute route) =>
       _setChannelRoute(channelIndex, route.outputBase, route.mono);

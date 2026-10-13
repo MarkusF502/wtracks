@@ -11,6 +11,7 @@ import '../utils/tap_tempo.dart';
 import 'section_editor_screen.dart';
 import 'guide_editor_screen.dart';
 import 'time_pitch_sheet.dart';
+import 'midi_screen.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -73,6 +74,8 @@ class PerformanceScreen extends ConsumerWidget {
           ),
         ),
         actions: [
+          IconButton(icon: const Icon(Icons.piano), tooltip: 'MIDI e automações',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MidiScreen(trackId: track.id)))),
           IconButton(icon: const Icon(Icons.tune), tooltip: 'Tom e andamento',
             onPressed: () => showModalBottomSheet<void>(context: context, isScrollControlled: true,
               builder: (_) => TimePitchSheet(trackId: track.id))),

@@ -15,6 +15,7 @@ import 'package:flutter_app/models/track.dart';
 import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/services/persistence_service.dart';
 import 'package:flutter_app/models/guide_cue.dart';
+import 'package:flutter_app/models/automation_cue.dart';
 
 /// Engine falso que grava cada chamada recebida, pra os testes conferirem
 /// o que a UI/providers mandaram pro motor nativo.
@@ -107,6 +108,48 @@ class FakeEngine implements WTracksEngine {
   }
   @override
   void cancelTimePitch(int token) => cancelledTokens.add(token);
+  List<MidiDevice> midiDevices = const [];
+  String? openedMidi;
+  bool failMidiOpen = false;
+  bool midiClock = false;
+  bool failCues = false;
+  List<AutomationCue> configuredCues = [];
+  final sentMidi = <List<int>>[];
+  final firedCues = <int>[];
+  @override
+  List<MidiDevice> listMidiOutputs() => midiDevices;
+  @override
+  bool openMidiOutput(String id) {
+    if (failMidiOpen) return false;
+    openedMidi = id;
+    return true;
+  }
+  @override
+  void closeMidiOutput() => openedMidi = null;
+  @override
+  bool get midiOutputOpen => openedMidi != null;
+  @override
+  void setMidiClockEnabled(bool enabled) => midiClock = enabled;
+  @override
+  int get midiDroppedCount => 0;
+  @override
+  bool sendMidi(List<int> bytes) {
+    if (openedMidi == null) return false;
+    sentMidi.add(bytes);
+    return true;
+  }
+  @override
+  bool configureCues(List<AutomationCue> cues) {
+    if (failCues) return false;
+    configuredCues = cues;
+    return true;
+  }
+  @override
+  List<int> pollCues({int max = 64}) {
+    final out = List<int>.of(firedCues);
+    firedCues.clear();
+    return out;
+  }
   final routes = <int, ChannelRoute>{};
   double masterVolume = 1;
   bool failRoute = false;

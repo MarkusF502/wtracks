@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'song_section.dart';
 import 'guide_cue.dart';
+import 'automation_cue.dart';
 import 'time_pitch_settings.dart';
 
 /// Saída do canal no mixer nativo (contrato BusChannelAU): estéreo usa a base
@@ -221,6 +222,8 @@ class Track {
   final bool guidesEnabled;
   final double masterVolume; // 0.0 - 2.0, ganho comum do mixer
   final TimePitchSettings timePitch;
+  final List<AutomationCue> automationCues;
+  final bool midiClockEnabled;
   final int schemaVersion;
   final List<SongSection> sections;
   final String id;
@@ -235,6 +238,8 @@ class Track {
     this.guidesEnabled = true,
     this.masterVolume = 1.0,
     this.timePitch = const TimePitchSettings(),
+    this.automationCues = const [],
+    this.midiClockEnabled = false,
     this.schemaVersion = currentSchemaVersion,
     this.sections = const [],
     required this.id,
@@ -250,6 +255,8 @@ class Track {
     bool? guidesEnabled,
     double? masterVolume,
     TimePitchSettings? timePitch,
+    List<AutomationCue>? automationCues,
+    bool? midiClockEnabled,
     List<SongSection>? sections,
     String? title,
     List<ChannelInfo>? channels,
@@ -262,6 +269,8 @@ class Track {
       guidesEnabled: guidesEnabled ?? this.guidesEnabled,
       masterVolume: masterVolume ?? this.masterVolume,
       timePitch: timePitch ?? this.timePitch,
+      automationCues: automationCues ?? this.automationCues,
+      midiClockEnabled: midiClockEnabled ?? this.midiClockEnabled,
       sections: sections ?? this.sections,
       id: id,
       title: title ?? this.title,
@@ -281,6 +290,8 @@ class Track {
         'guidesEnabled': guidesEnabled,
         'masterVolume': masterVolume,
         'timePitch': timePitch.toJson(),
+        'automationCues': automationCues.map((c) => c.toJson()).toList(),
+        'midiClockEnabled': midiClockEnabled,
         'id': id,
         'title': title,
         'channels': channels.map((c) => c.toJson()).toList(),
@@ -295,6 +306,8 @@ class Track {
         guideCues: GuideCue.fromJsonList(json['guideCues'] as List? ?? const []),
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
         timePitch: TimePitchSettings.fromJson(json['timePitch']),
+        automationCues: AutomationCue.fromJsonList(json['automationCues'] as List? ?? const []),
+        midiClockEnabled: json['midiClockEnabled'] as bool? ?? false,
         masterVolume: ((json['masterVolume'] as num?)?.toDouble() ?? 1.0).clamp(0.0, 2.0),
         schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
         sections: SongSection.fromJsonList(json['sections'] as List? ?? const []),

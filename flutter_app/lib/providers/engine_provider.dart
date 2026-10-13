@@ -9,6 +9,8 @@ import '../models/song_section.dart';
 import '../models/guide_cue.dart';
 import '../services/guide_resource_service.dart';
 import '../services/time_pitch_service.dart';
+import '../services/midi_preferences_store.dart';
+import '../models/automation_cue.dart';
 import '../models/time_pitch_settings.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
@@ -19,6 +21,75 @@ import '../services/click_resource_service.dart';
 final clickResourceServiceProvider = Provider<ClickResourceService>(
   (ref) => ClickResourceService(),
 );
+final midiPreferencesProvider = Provider<MidiPreferencesStore>((ref) => MidiPreferencesStore());
+
+@immutable
+class MidiState {
+  final List<MidiDevice> devices;
+  final String? selectedId; // saída escolhida (persistida)
+  final bool connected;
+  final String? error;
+  const MidiState({this.devices = const [], this.selectedId, this.connected = false, this.error});
+  MidiState copyWith({List<MidiDevice>? devices, Object? selectedId = _keep, bool? connected, Object? error = _keep}) => MidiState(
+        devices: devices ?? this.devices,
+        selectedId: identical(selectedId, _keep) ? this.selectedId : selectedId as String?,
+        connected: connected ?? this.connected,
+        error: identical(error, _keep) ? this.error : error as String?,
+      );
+  static const _keep = Object();
+}
+
+/// Escolha e conexão da saída MIDI. O motor guarda a conexão; aqui ficam a
+/// lista, a preferência persistida e a mensagem de erro para a interface.
+class MidiController extends Notifier<MidiState> {
+  @override
+  MidiState build() => const MidiState();
+
+  Future<void> refresh() async {
+    final engine = ref.read(engineProvider);
+    final saved = state.selectedId ?? await ref.read(midiPreferencesProvider).loadOutputId();
+    state = state.copyWith(devices: engine.listMidiOutputs(), selectedId: saved, connected: engine.midiOutputOpen);
+  }
+
+  /// Conecta à saída [id] e a memoriza; em falha mantém a conexão anterior.
+  Future<bool> select(String id) async {
+    final engine = ref.read(engineProvider);
+    final previous = state.selectedId;
+    if (!engine.openMidiOutput(id)) {
+      state = state.copyWith(error: 'Não foi possível abrir a saída MIDI.', connected: engine.midiOutputOpen);
+      return false;
+    }
+    state = state.copyWith(selectedId: id, connected: true, error: null);
+    if (previous != id) await ref.read(midiPreferencesProvider).saveOutputId(id);
+    return true;
+  }
+
+  void disconnect() {
+    ref.read(engineProvider).closeMidiOutput();
+    state = state.copyWith(connected: false, error: null);
+  }
+
+  /// Abre a saída preferida se necessário (melhor esforço, usado ao carregar músicas com MIDI).
+  Future<bool> ensureOpen() async {
+    final engine = ref.read(engineProvider);
+    if (engine.midiOutputOpen) return true;
+    final id = state.selectedId ?? await ref.read(midiPreferencesProvider).loadOutputId();
+    if (id == null) return false;
+    return select(id);
+  }
+
+  bool sendTest(List<int> bytes) {
+    final ok = ref.read(engineProvider).sendMidi(bytes);
+    if (!ok) state = state.copyWith(error: 'Conecte uma saída MIDI antes de testar.');
+    return ok;
+  }
+}
+
+final midiControllerProvider = NotifierProvider<MidiController, MidiState>(MidiController.new);
+
+/// Última automação entregue pelo motor (para a interface mostrar).
+final firedAutomationProvider = StateProvider<AutomationCue?>((ref) => null);
+
 final timePitchServiceProvider = Provider<TimePitchService>(
   (ref) => TimePitchService(),
 );
@@ -124,6 +195,15 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           engine.unloadTrack();
           state = null;
           return false;
+        }
+        if (!engine.configureCues(track.automationCues)) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
+        engine.setMidiClockEnabled(track.midiClockEnabled);
+        if (track.midiClockEnabled || track.automationCues.any((c) => c.midiBytes.isNotEmpty)) {
+          await ref.read(midiControllerProvider.notifier).ensureOpen(); // best effort: the song plays without MIDI
         }
         state = track;
         for (var i = 0; i < track.channels.length; i++) {
@@ -296,6 +376,17 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null) return;
     state = track.copyWith(title: title);
+  }
+
+  /// Troca automações e relógio MIDI; o motor valida antes de o estado mudar.
+  bool updateAutomation(String trackId, List<AutomationCue> cues, bool clockEnabled) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null || !AutomationCue.validSequence(cues)) return false;
+    final engine = ref.read(engineProvider);
+    if (!engine.configureCues(cues)) return false;
+    engine.setMidiClockEnabled(clockEnabled);
+    state = track.copyWith(automationCues: List.unmodifiable(cues), midiClockEnabled: clockEnabled);
+    return true;
   }
 
   Future<bool> updateGuides(String trackId, List<GuideCue> cues, bool enabled) {
@@ -573,6 +664,14 @@ class TransportNotifier extends Notifier<TransportState> {
         unawaited(_background('stop'));
       }
       if (next != state) state = next;
+      final cues = ref.read(currentTrackProvider)?.automationCues ?? const <AutomationCue>[];
+      if (cues.isNotEmpty) {
+        final fired = engine.pollCues();
+        if (fired.isNotEmpty) {
+          final last = fired.last;
+          if (last >= 0 && last < cues.length) ref.read(firedAutomationProvider.notifier).state = cues[last];
+        }
+      }
     });
     ref.onDispose(() {
       _timer?.cancel();
