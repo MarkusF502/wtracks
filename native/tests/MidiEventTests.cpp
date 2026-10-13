@@ -89,6 +89,26 @@ public:
             expect(std::find(sent.begin(), sent.end(), Msg{0xC2, 9}) == sent.end());
         }
 
+        beginTest("MUTE MIDI stops cues and the chase; held notes are released and later note-offs still pass");
+        {
+            AudioEngine engine; Recorder* raw = nullptr; start(engine, raw);
+            Cues c; c.add(0.05, {0x93, 50, 100}); c.add(0.1, {0xC3, 4}); c.add(0.2, {0x93, 52, 100}); c.add(0.3, {0x83, 52, 0});
+            c.add(0.4, {0x93, 53, 100}); c.add(0.6, {0x83, 53, 0}); expect(c.apply(engine));
+            engine.play(); render(engine, 7200); // 0.15 s: note 50 on, program 4
+            engine.setMidiCuesMuted(true); expect(engine.areMidiCuesMuted());
+            render(engine, 14400);               // to 0.45 s: 52 on/off and 53 on are muted
+            juce::Thread::sleep(50); auto sent = raw->take();
+            expect(std::find(sent.begin(), sent.end(), Msg{0x83, 50, 0}) != sent.end());   // released by muting
+            expect(std::find(sent.begin(), sent.end(), Msg{0x93, 52, 100}) == sent.end());
+            expect(std::find(sent.begin(), sent.end(), Msg{0x93, 53, 100}) == sent.end());
+            expect(std::find(sent.begin(), sent.end(), Msg{0x83, 52, 0}) == sent.end());    // not held: dropped
+            engine.setMidiCuesMuted(false); render(engine, 9600);  // to 0.65 s: 53 off passes (53 never sounded)
+            engine.pause(); engine.seekToSeconds(0.5); juce::Thread::sleep(50); raw->take();
+            engine.setMidiCuesMuted(true); engine.play(); juce::Thread::sleep(50);
+            expect(raw->take().empty());   // no chase of program 4 while muted
+            engine.pause();
+        }
+
         beginTest("MIDI input queue: channel voice messages only, packed, bounded");
         {
             AudioEngine engine;

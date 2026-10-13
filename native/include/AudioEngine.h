@@ -168,6 +168,10 @@ public:
     void closeMidiOutput();
     bool isMidiOutputOpen() const;
     void setMidiClockEnabled(bool enabled);
+    // Playback console "MUTE MIDI": temporarily stops sending MIDI cues (and the chase on play). Note-offs of notes that are
+    // already held still go out, and muting releases them at once, so nothing hangs. Clock and timecode are unaffected.
+    void setMidiCuesMuted(bool muted);
+    bool areMidiCuesMuted() const noexcept { return midiCuesMuted.load(); }
     bool sendMidiMessage(const uint8_t* bytes, int size);
     // Automation / MIDI cues in song time. Message bytes: midiSizes[i] (0 = none, else 2 or 3) bytes at midiBytes[3*i].
     bool configureCues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count);
@@ -276,7 +280,7 @@ private:
     MidiClockTimeline midiClock;
     CueTimeline cueTimeline;
     MidiRouter midiRouter;
-    std::atomic<bool> midiClockEnabled { false }, midiClockRunning { false };
+    std::atomic<bool> midiClockEnabled { false }, midiClockRunning { false }, midiCuesMuted { false };
     std::array<std::atomic<uint32_t>, 1024> cueQueue {};
     std::atomic<uint64_t> cueHead { 0 }, cueTail { 0 }, cueDropped { 0 };
     std::mutex cuePollMutex;

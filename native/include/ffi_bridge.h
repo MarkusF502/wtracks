@@ -77,6 +77,7 @@ WTRACKS_API bool wtracks_midi_open_output(const char* identifier);
 WTRACKS_API void wtracks_midi_close_output();
 WTRACKS_API bool wtracks_midi_output_open();
 WTRACKS_API void wtracks_set_midi_clock_enabled(bool enabled);
+WTRACKS_API void wtracks_set_midi_cues_muted(bool muted);   // console MUTE MIDI
 WTRACKS_API bool wtracks_send_midi(const uint8_t* bytes, int size);
 // Cues in song time; midiBytes holds 3 bytes per cue, midiSizes 0 (no message), 2 or 3. Cue indexes are polled.
 WTRACKS_API bool wtracks_configure_cues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count);

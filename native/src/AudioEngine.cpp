@@ -265,7 +265,7 @@ void AudioEngine::chaseCuesNow()
     // Playback sends "prerolled" MIDI events when playback starts mid-song (requestsMIDIEventOutputAtIndex:isPrerolled:,
     // deduplicating control and program changes); ours: the last program change of each channel and the last value of each
     // controller before the playhead, program changes first.
-    if (!midiRouter.isOpen()) return;
+    if (!midiRouter.isOpen() || midiCuesMuted.load()) return;
     std::array<int16_t,16> program; program.fill(-1);
     std::array<std::array<int16_t,128>,16> controllers; for (auto& c : controllers) c.fill(-1);
     {
@@ -1112,6 +1112,13 @@ void AudioEngine::closeMidiOutput()
 bool AudioEngine::isMidiOutputOpen() const { return midiRouter.isOpen(); }
 uint64_t AudioEngine::getMidiDroppedCount() const { return midiRouter.droppedEvents() + cueDropped.load(); }
 
+void AudioEngine::setMidiCuesMuted(bool muted)
+{
+    if (midiCuesMuted.exchange(muted) == muted || !muted) return;
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    releaseHeldNotesNow();
+}
+
 void AudioEngine::setMidiClockEnabled(bool enabled)
 {
     midiClockEnabled=enabled;
@@ -1397,6 +1404,11 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                 if (at >= activeLoop->start && at < activeLoop->end) return;  // repeat of a disableLoop cue
             }
             if (cue.midiSize && midiRouter.isOpen()) {
+                if (midiCuesMuted.load(std::memory_order_relaxed)) {
+                    const int kind=cue.midi[0] & 0xF0; const auto ch=static_cast<size_t>(cue.midi[0] & 0x0F);
+                    const bool noteOff=cue.midiSize == 3 && (kind == 0x80 || (kind == 0x90 && cue.midi[2] == 0));
+                    if (!noteOff || !heldNotes[ch][cue.midi[1]]) return;  // muted: only releases of held notes pass
+                }
                 midiRouter.push(blockHostMs,written+offset,currentSampleRate,cue.midi,cue.midiSize);
                 const int kind=cue.midi[0] & 0xF0; const auto ch=static_cast<size_t>(cue.midi[0] & 0x0F);
                 if (cue.midiSize == 3 && kind == 0x90 && cue.midi[2] > 0) heldNotes[ch].set(cue.midi[1]);

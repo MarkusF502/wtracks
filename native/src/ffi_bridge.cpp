@@ -181,6 +181,7 @@ void wtracks_midi_close_output()
 
 bool wtracks_midi_output_open() { return engine && engine->isMidiOutputOpen(); }
 void wtracks_set_midi_clock_enabled(bool enabled) { if (engine) engine->setMidiClockEnabled(enabled); }
+void wtracks_set_midi_cues_muted(bool muted) { if (engine) engine->setMidiCuesMuted(muted); }
 
 bool wtracks_send_midi(const uint8_t* bytes, int size)
 {
