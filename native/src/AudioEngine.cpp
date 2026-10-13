@@ -83,6 +83,7 @@ void AudioEngine::shutdown()
     channels.clear();
     guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
+    mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -165,7 +166,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
     // 2. Swap Atômico: Substitui as trilhas instantaneamente! A agenda de guias
     // pertencia à música anterior e é descartada fora do lock.
     GuideTimeline staleGuides; CueTimeline staleCues; std::vector<std::shared_ptr<LoopCache>> stalePresets;
-    decltype(preroll.counts) staleCounts; std::vector<double> staleStarts;
+    decltype(preroll.counts) staleCounts; std::vector<double> staleStarts; MixerAutomation staleAutomation;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
@@ -174,6 +175,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         currentSamplePosition = 0;
         timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
+        std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0); resetAutomationBases();
     }
 
     clearCueQueue();
@@ -189,6 +191,7 @@ void AudioEngine::unloadCurrentTrack()
     channels.clear();
     guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
+    mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
 }
 
 juce::String AudioEngine::getLastError() const
@@ -486,15 +489,74 @@ bool AudioEngine::prefillChannels()
 void AudioEngine::setChannelVolume(int channelIndex, float volume)
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    if (channelIndex >= 0 && channelIndex < static_cast<int>(channels.size()))
-        channels[static_cast<size_t>(channelIndex)].volume = juce::jlimit(0.0f, 1.0f, volume);
+    if (channelIndex >= 0 && channelIndex < static_cast<int>(channels.size())) {
+        auto& channel=channels[static_cast<size_t>(channelIndex)];
+        channel.volume = juce::jlimit(0.0f, 1.0f, std::isfinite(volume) ? volume : channel.volume);
+        if (channelIndex < MixerAutomation::kChannels) mixerAutomation.setBase(MixerAutomation::volume(channelIndex),channel.volume);
+    }
 }
 
 void AudioEngine::setChannelMuted(int channelIndex, bool muted)
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    if (channelIndex >= 0 && channelIndex < static_cast<int>(channels.size()))
+    if (channelIndex >= 0 && channelIndex < static_cast<int>(channels.size())) {
         channels[static_cast<size_t>(channelIndex)].muted = muted;
+        if (channelIndex < MixerAutomation::kChannels) mixerAutomation.setBase(MixerAutomation::mute(channelIndex),muted ? 1.0f : 0.0f);
+    }
+}
+
+void AudioEngine::setChannelSoloMuted(int channelIndex, bool muted)
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (channelIndex >= 0 && channelIndex < static_cast<int>(channels.size()))
+        channels[static_cast<size_t>(channelIndex)].soloMuted = muted;
+}
+
+void AudioEngine::resetAutomationBases()
+{
+    // Caller holds channelsLock. No allocation.
+    for (size_t index=0;index<channels.size() && index<static_cast<size_t>(MixerAutomation::kChannels);++index) {
+        mixerAutomation.setBase(MixerAutomation::volume(static_cast<int>(index)),channels[index].volume);
+        mixerAutomation.setBase(MixerAutomation::mute(static_cast<int>(index)),channels[index].muted ? 1.0f : 0.0f);
+    }
+    mixerAutomation.setBase(MixerAutomation::kMaster,masterVolume);
+}
+
+bool AudioEngine::configureMixerAutomation(const double* starts, const double* ends, const int* params, const float* values, int count)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    if (count < 0 || static_cast<size_t>(count) > MixerAutomation::kMaxPoints || (count && (!starts || !ends || !params || !values))) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid mixer automation"); return false;
+    }
+    std::vector<MixerAutomation::Point> points(static_cast<size_t>(count));
+    for (int i=0;i<count;++i) points[static_cast<size_t>(i)]={starts[i],ends[i],params[i],values[i]};
+    MixerAutomation prepared;
+    if (!prepared.configure(points)) { setLastError(EngineErrorCode::FormatMismatch,"Invalid mixer automation"); return false; }
+    {   // The previous points are released after the audio thread lets go of the lock.
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        prepared.setTimeScale(timeScale); std::swap(mixerAutomation,prepared); resetAutomationBases();
+    }
+    setLastError(EngineErrorCode::None,""); return true;
+}
+
+void AudioEngine::setAutomationEnabled(bool enabled) { automationEnabled=enabled; }
+bool AudioEngine::getAutomationEnabled() const { return automationEnabled.load(); }
+
+int AudioEngine::getMixState(float* volumes, uint8_t* mutes, int capacity, float* master) const
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    const bool automating=automationEnabled.load();
+    const int64_t position=currentSamplePosition.load();
+    const int count=static_cast<int>(channels.size());
+    for (int index=0;index<count && index<capacity;++index) {
+        const auto& channel=channels[static_cast<size_t>(index)];
+        const bool automated=automating && index<MixerAutomation::kChannels;
+        if (volumes) volumes[index]=automated ? mixerAutomation.value(MixerAutomation::volume(index),position,currentSampleRate) : channel.volume;
+        if (mutes) mutes[index]=automated ? (mixerAutomation.value(MixerAutomation::mute(index),position,currentSampleRate) >= 0.5f ? 1 : 0)
+                                          : (channel.muted ? 1 : 0);
+    }
+    if (master) *master=automating ? mixerAutomation.value(MixerAutomation::kMaster,position,currentSampleRate) : masterVolume;
+    return count;
 }
 
 bool AudioEngine::setChannelRoute(int channelIndex, int outputBase, bool mono)
@@ -511,6 +573,7 @@ void AudioEngine::setMasterVolume(float volume)
     if (!std::isfinite(volume)) return;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     masterVolume = juce::jlimit(0.0f, 2.0f, volume);
+    mixerAutomation.setBase(MixerAutomation::kMaster,masterVolume);
 }
 
 bool AudioEngine::setTimeScale(double scale)
@@ -519,7 +582,7 @@ bool AudioEngine::setTimeScale(double scale)
     if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0) { setLastError(EngineErrorCode::FormatMismatch,"Invalid time scale"); return false; }
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); presetLoops.clear();  // caches were cut for the old scale
-    applyClickScale(); guideTimeline.setTimeScale(scale); cueTimeline.setTimeScale(scale); preroll.cancel();
+    applyClickScale(); guideTimeline.setTimeScale(scale); cueTimeline.setTimeScale(scale); preroll.cancel(); mixerAutomation.setTimeScale(scale);
     setLastError(EngineErrorCode::None,""); return true;
 }
 
@@ -912,13 +975,15 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     const int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
     const float rampStep=GainRamp::stepFor(currentSampleRate);
     const double blockHostMs=juce::Time::getMillisecondCounterHiRes();
+    const bool automating=automationEnabled.load();
+    const bool masterAutomated=automating && mixerAutomation.has(MixerAutomation::kMaster);
     int written=0;
     while (written < info.numSamples) {
         if (preroll.active()) {  // count-in: the playhead (and stems, MIDI, timecode) wait at the section start
             const int count=static_cast<int>(juce::jmin<int64_t>(preroll.remaining(),juce::jmin(preparedBlockSize,info.numSamples-written)));
             preroll.render(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,
                            clickTimeline,currentSampleRate,clickEnabled.load(),guidesEnabled.load());
-            masterRamp.set(masterVolume);
+            masterRamp.set(masterAutomated ? mixerAutomation.value(MixerAutomation::kMaster,currentSamplePosition.load(),currentSampleRate) : masterVolume);
             applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
             written+=count; continue;
         }
@@ -957,7 +1022,18 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
                     for (int ch=0;ch<2;++ch) scratchBuffer.setSample(ch,sample,data.getSample(ch,a)+alpha*(data.getSample(ch,b)-data.getSample(ch,a)));
                 }
             } else { juce::AudioSourceChannelInfo source(&scratchBuffer,0,count); channel.resampler->getNextAudioBlock(source); }
-            channel.ramp.set(channel.muted ? 0.0f : channel.volume);
+            const int volumeParam=MixerAutomation::volume(static_cast<int>(index)), muteParam=MixerAutomation::mute(static_cast<int>(index));
+            if (automating && index < static_cast<size_t>(MixerAutomation::kChannels)
+                && (mixerAutomation.has(volumeParam) || mixerAutomation.has(muteParam))) {
+                mixStemTargets(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
+                               info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp,rampStep,[&](int i) {
+                    const int64_t sample=position+i;
+                    if (channel.soloMuted || mixerAutomation.value(muteParam,sample,currentSampleRate) >= 0.5f) return 0.0f;
+                    return mixerAutomation.value(volumeParam,sample,currentSampleRate);
+                });
+                continue;
+            }
+            channel.ramp.set((channel.muted || channel.soloMuted) ? 0.0f : channel.volume);
             if (channel.ramp.silent()) continue;
             mixStem(scratchBuffer.getReadPointer(0),scratchBuffer.getReadPointer(1),info.buffer->getArrayOfWritePointers(),
                     info.buffer->getNumChannels(),info.startSample+written,count,channel.route,channel.ramp,rampStep);
@@ -986,8 +1062,13 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             cueQueue[head % cueQueue.size()].store(static_cast<uint32_t>(index),std::memory_order_relaxed);
             cueHead.store(head+1,std::memory_order_release);
         });
-        masterRamp.set(masterVolume);
-        applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
+        if (masterAutomated)
+            applyGainTargets(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep,
+                             [&](int i) { return mixerAutomation.value(MixerAutomation::kMaster,position+i,currentSampleRate); });
+        else {
+            masterRamp.set(masterVolume);
+            applyGain(info.buffer->getArrayOfWritePointers(),info.buffer->getNumChannels(),info.startSample+written,count,masterRamp,rampStep);
+        }
         if (timecodeEnabled.load() && timecodeOutput < info.buffer->getNumChannels()) {  // after the master stage: timecode keeps its own level
             timecodeScratch.clear(); timecode.render(timecodeScratch.getWritePointer(0),count,position,currentSampleRate);
             info.buffer->addFrom(timecodeOutput,info.startSample+written,timecodeScratch,0,0,count);

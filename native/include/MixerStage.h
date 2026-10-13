@@ -50,3 +50,29 @@ inline void applyGain(float* const* out, int outputs, int start, int count, Gain
     }
 }
 }
+
+namespace wtracks {
+// Automated variants: target(i) gives the gain target of frame i; the de-click ramp follows it (a target moving slower
+// than the ramp step is reproduced exactly, faster changes take the 10 ms ramp).
+template <class Target>
+inline void mixStemTargets(const float* left, const float* right, float* const* out, int outputs, int start, int count,
+                           ChannelRoute route, GainRamp& ramp, float step, Target&& target) noexcept {
+    const bool routed = route.valid(outputs);
+    for (int i = 0; i < count; ++i) {
+        ramp.set(target(i));
+        const float gain = ramp.next(step);
+        if (!routed) continue;
+        if (route.mono) out[route.base][start + i] += gain * (left[i] + right[i]) * 0.5f;
+        else { out[route.base][start + i] += gain * left[i]; out[route.base + 1][start + i] += gain * right[i]; }
+    }
+}
+
+template <class Target>
+inline void applyGainTargets(float* const* out, int outputs, int start, int count, GainRamp& ramp, float step, Target&& target) noexcept {
+    for (int i = 0; i < count; ++i) {
+        ramp.set(target(i));
+        const float gain = ramp.next(step);
+        if (gain != 1.0f) for (int c = 0; c < outputs; ++c) out[c][start + i] *= gain;
+    }
+}
+}

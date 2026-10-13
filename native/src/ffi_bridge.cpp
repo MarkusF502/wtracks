@@ -249,6 +249,23 @@ bool wtracks_configure_preroll(bool enabled, const double* starts, int startCoun
 
 bool wtracks_is_prerolling() { return engine ? engine->isPrerolling() : false; }
 
+bool wtracks_configure_mixer_automation(const double* starts, const double* ends, const int* params, const float* values, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->configureMixerAutomation(starts,ends,params,values,count); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Mixer automation failed"); return false; }
+}
+
+void wtracks_set_automation_enabled(bool enabled) { if (engine) engine->setAutomationEnabled(enabled); }
+
+int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master)
+{
+    return engine ? engine->getMixState(volumes,mutes,capacity,master) : 0;
+}
+
+void wtracks_set_channel_solo_muted(int channelIndex, bool muted) { if (engine) engine->setChannelSoloMuted(channelIndex,muted); }
+
 bool wtracks_set_loop(double start, double end, bool enabled)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);

@@ -58,6 +58,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         tests/GuideEngineTests.cpp
         tests/DynamicGuideTests.cpp
         tests/MixerTests.cpp
+        tests/MixerAutomationTests.cpp
         tests/TimePitchTests.cpp
         tests/TimeScaleTests.cpp
         tests/MidiTests.cpp

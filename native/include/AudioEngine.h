@@ -10,6 +10,7 @@
 #include "GuideTimeline.h"
 #include "Preroll.h"
 #include "MixerStage.h"
+#include "MixerAutomation.h"
 #include "MidiClock.h"
 #include "CueTimeline.h"
 #include "MidiRouter.h"
@@ -36,6 +37,7 @@ struct Channel
     double fileSampleRate = 44100.0;
     float volume = 1.0f;
     bool muted = false;
+    bool soloMuted = false;  // silenced by another channel's solo; independent of the (automatable) mute
     GainRamp ramp;
     ChannelRoute route;
 };
@@ -82,6 +84,15 @@ public:
     void setChannelMuted(int channelIndex, bool muted);
     bool setChannelRoute(int channelIndex, int outputBase, bool mono);
     void setMasterVolume(float volume);
+    void setChannelSoloMuted(int channelIndex, bool muted);
+    // Mixer automation (own design, see MixerAutomation.h). Params: channel volume c, channel mute 64+c, master 128.
+    // Replaces the previous points; invalid input changes nothing. Points for channels the song lacks are ignored.
+    bool configureMixerAutomation(const double* starts, const double* ends, const int* params, const float* values, int count);
+    void setAutomationEnabled(bool enabled);
+    bool getAutomationEnabled() const;
+    // Effective mixer state at the playhead (automation when enabled, else the manual values). Returns the channel count;
+    // fills up to `capacity` channels. `master` may be null.
+    int getMixState(float* volumes, uint8_t* mutes, int capacity, float* master) const;
     int getChannelCount() const;
     // The loaded files are a time-stretched rendering of the song: processed length = song length * scale.
     // Every seconds-based API (position, length, seek, loops, click, guides) keeps using song time.
@@ -177,6 +188,9 @@ private:
     void applyClickScale();
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
+    MixerAutomation mixerAutomation;
+    std::atomic<bool> automationEnabled { true };
+    void resetAutomationBases();
     GainRamp masterRamp;
     TimecodeGenerator timecode;
     juce::AudioBuffer<float> timecodeScratch;

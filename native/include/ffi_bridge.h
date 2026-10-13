@@ -103,6 +103,12 @@ WTRACKS_API bool wtracks_configure_guides_ex(const double* times, const char** p
 // Song Section Pre-roll: one bar of click + spoken count before playing from one of `starts` (song time).
 WTRACKS_API bool wtracks_configure_preroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount);
 WTRACKS_API bool wtracks_is_prerolling();
+// Mixer automation: params = channel volume c (0..63), channel mute 64+c, master 128; song seconds.
+WTRACKS_API bool wtracks_configure_mixer_automation(const double* starts, const double* ends, const int* params, const float* values, int count);
+WTRACKS_API void wtracks_set_automation_enabled(bool enabled);
+// Effective mixer state at the playhead; returns the channel count, fills up to `capacity` entries.
+WTRACKS_API int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master);
+WTRACKS_API void wtracks_set_channel_solo_muted(int channelIndex, bool muted);
 
 // Click track
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.
