@@ -17,6 +17,7 @@ import 'package:flutter_app/services/persistence_service.dart';
 import 'package:flutter_app/models/guide_cue.dart';
 import 'package:flutter_app/services/dynamic_guides.dart';
 import 'package:flutter_app/models/automation_cue.dart';
+import 'package:flutter_app/models/mixer_automation.dart';
 import 'package:flutter_app/models/timecode_settings.dart';
 import 'package:flutter_app/models/tempo_change.dart';
 import 'package:flutter_app/models/song_section.dart';
@@ -84,6 +85,22 @@ class FakeEngine implements WTracksEngine {
       calls.add('volume($channelIndex,$volume)');
   @override
   void setChannelMuted(int channelIndex, bool muted) => calls.add('muted($channelIndex,$muted)');
+  @override
+  void setChannelSoloMuted(int channelIndex, bool muted) => calls.add('solo($channelIndex,$muted)');
+  List<AutomationPoint> automationPoints = [];
+  bool failMixerAutomation = false;
+  bool automationEnabled = true;
+  MixState mix = const MixState([], [], 1);
+  @override
+  bool configureMixerAutomation(List<AutomationPoint> points) {
+    if (failMixerAutomation) return false;
+    automationPoints = points;
+    return true;
+  }
+  @override
+  void setAutomationEnabled(bool enabled) => automationEnabled = enabled;
+  @override
+  MixState mixState() => mix;
   @override
   double timeScale = 1;
   bool failTimeScale = false;

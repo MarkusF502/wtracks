@@ -8,6 +8,7 @@ import '../models/track.dart';
 import '../models/guide_cue.dart';
 import '../services/dynamic_guides.dart';
 import '../models/automation_cue.dart';
+import '../models/mixer_automation.dart';
 import '../models/timecode_settings.dart';
 import '../models/tempo_change.dart';
 import '../models/song_section.dart';
@@ -107,6 +108,12 @@ typedef _ConfigureGuidesNative = Bool Function(Pointer<Double>, Pointer<Pointer<
 typedef _ConfigureGuidesDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, int);
 typedef _ConfigureGuidesExNative = Bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Pointer<Utf8>>, Pointer<Double>, Pointer<Float>, Int32);
 typedef _ConfigureGuidesExDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Pointer<Utf8>>, Pointer<Double>, Pointer<Float>, int);
+typedef _MixerAutomationNative = Bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Pointer<Float>, Int32);
+typedef _MixerAutomationDart = bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Pointer<Float>, int);
+typedef _MixStateNative = Int32 Function(Pointer<Float>, Pointer<Uint8>, Int32, Pointer<Float>);
+typedef _MixStateDart = int Function(Pointer<Float>, Pointer<Uint8>, int, Pointer<Float>);
+typedef _ChannelFlagNative = Void Function(Int32, Bool);
+typedef _ChannelFlagDart = void Function(int, bool);
 typedef _ConfigurePrerollNative = Bool Function(Bool, Pointer<Double>, Int32, Pointer<Pointer<Utf8>>, Int32);
 typedef _ConfigurePrerollDart = bool Function(bool, Pointer<Double>, int, Pointer<Pointer<Utf8>>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
@@ -165,6 +172,20 @@ typedef _GenerateWaveformDart = bool Function(
 /// Esta é a ÚNICA classe do app que sabe que FFI existe -- todo o
 /// resto do Flutter conversa com [WTracksEngine], nunca com ponteiros
 /// crus. Isso mantém o resto da UI limpo e testável.
+/// Valores efetivos do mixer lidos do motor.
+@immutable
+class MixState {
+  final List<double> volumes;
+  final List<bool> mutes;
+  final double master;
+  const MixState(this.volumes, this.mutes, this.master);
+  @override
+  bool operator ==(Object other) =>
+      other is MixState && listEquals(other.volumes, volumes) && listEquals(other.mutes, mutes) && other.master == master;
+  @override
+  int get hashCode => Object.hash(Object.hashAll(volumes), Object.hashAll(mutes), master);
+}
+
 class WTracksEngine {
   /// Número de buckets de amplitude gerados por [generateWaveformPeaksAsync]
   /// -- grande o suficiente para preencher telas largas em landscape sem
@@ -234,6 +255,10 @@ class WTracksEngine {
   late final _ConfigureGuidesExDart _configureGuidesEx;
   late final _ConfigurePrerollDart _configurePreroll;
   late final _IsPlayingDart _isPrerolling;
+  late final _MixerAutomationDart _configureMixerAutomation;
+  late final _SetClickEnabledDart _setAutomationEnabled;
+  late final _MixStateDart _getMixState;
+  late final _ChannelFlagDart _setChannelSoloMuted;
   late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
     _lib = _openLibrary();
@@ -354,6 +379,10 @@ class WTracksEngine {
     _configureGuidesEx = _lib.lookupFunction<_ConfigureGuidesExNative, _ConfigureGuidesExDart>('wtracks_configure_guides_ex');
     _configurePreroll = _lib.lookupFunction<_ConfigurePrerollNative, _ConfigurePrerollDart>('wtracks_configure_preroll');
     _isPrerolling = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_is_prerolling');
+    _configureMixerAutomation = _lib.lookupFunction<_MixerAutomationNative, _MixerAutomationDart>('wtracks_configure_mixer_automation');
+    _setAutomationEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_automation_enabled');
+    _getMixState = _lib.lookupFunction<_MixStateNative, _MixStateDart>('wtracks_get_mix_state');
+    _setChannelSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_channel_solo_muted');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
@@ -686,6 +715,46 @@ class WTracksEngine {
       Isolate.run(() => WTracksEngine().configurePreroll(enabled, starts, countPaths));
 
   bool get isPrerolling => _isPrerolling();
+
+  /// Pontos da automação do mixer (ver [automationPoints]). O motor valida antes de trocar.
+  bool configureMixerAutomation(List<AutomationPoint> points) {
+    if (points.length > 16384) return false;
+    final slots = points.isEmpty ? 1 : points.length;
+    final starts = calloc<Double>(slots), ends = calloc<Double>(slots), values = calloc<Float>(slots);
+    final params = calloc<Int32>(slots);
+    try {
+      for (var i = 0; i < points.length; i++) {
+        starts[i] = points[i].start;
+        ends[i] = points[i].end;
+        params[i] = points[i].param;
+        values[i] = points[i].value;
+      }
+      return _configureMixerAutomation(starts, ends, params, values, points.length);
+    } finally {
+      calloc.free(starts);
+      calloc.free(ends);
+      calloc.free(values);
+      calloc.free(params);
+    }
+  }
+
+  void setAutomationEnabled(bool enabled) => _setAutomationEnabled(enabled);
+  void setChannelSoloMuted(int channelIndex, bool muted) => _setChannelSoloMuted(channelIndex, muted);
+
+  /// Estado efetivo do mixer na posição atual (automação ligada) ou os valores manuais.
+  MixState mixState() {
+    const capacity = 64;
+    final volumes = calloc<Float>(capacity), master = calloc<Float>(1);
+    final mutes = calloc<Uint8>(capacity);
+    try {
+      final count = _getMixState(volumes, mutes, capacity, master).clamp(0, capacity);
+      return MixState([for (var i = 0; i < count; i++) volumes[i]], [for (var i = 0; i < count; i++) mutes[i] != 0], master.value);
+    } finally {
+      calloc.free(volumes);
+      calloc.free(master);
+      calloc.free(mutes);
+    }
+  }
 
   List<double> get loopState {
     final values = calloc<Double>(6);

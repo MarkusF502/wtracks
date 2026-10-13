@@ -14,6 +14,7 @@ import '../models/guide_settings.dart';
 import '../services/time_pitch_service.dart';
 import '../services/midi_preferences_store.dart';
 import '../models/automation_cue.dart';
+import '../models/mixer_automation.dart';
 import '../models/timecode_settings.dart';
 import '../models/tempo_change.dart';
 import '../models/time_pitch_settings.dart';
@@ -100,6 +101,9 @@ final midiControllerProvider = NotifierProvider<MidiController, MidiState>(MidiC
 
 /// Última automação entregue pelo motor (para a interface mostrar).
 final firedAutomationProvider = StateProvider<AutomationCue?>((ref) => null);
+
+/// Valores do mixer movidos pela automação na posição atual (null quando a automação não age na música).
+final automatedMixProvider = StateProvider<MixState?>((ref) => null);
 
 final timePitchServiceProvider = Provider<TimePitchService>(
   (ref) => TimePitchService(),
@@ -278,6 +282,12 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           state = null;
           return false;
         }
+        if (!engine.configureMixerAutomation(_automationPointsFor(track))) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
+        engine.setAutomationEnabled(track.automationEnabled);
         engine.setMidiClockEnabled(track.midiClockEnabled);
         if (!engine.configureTimecode(track.timecode)) {
           engine.unloadTrack();
@@ -436,10 +446,11 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final engine = ref.read(engineProvider);
     final anySoloed = track.channels.any((c) => c.soloed);
 
+    // O solo tem sua própria porta no motor: um mute automatizado não pode desfazê-lo.
     for (var i = 0; i < track.channels.length; i++) {
       final channel = track.channels[i];
-      final effectiveMuted = channel.muted || (anySoloed && !channel.soloed);
-      engine.setChannelMuted(i, effectiveMuted);
+      engine.setChannelMuted(i, channel.muted);
+      engine.setChannelSoloMuted(i, anySoloed && !channel.soloed);
     }
   }
 
@@ -469,6 +480,35 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     engine.setMidiClockEnabled(clockEnabled);
     state = track.copyWith(automationCues: List.unmodifiable(cues), midiClockEnabled: clockEnabled);
     return true;
+  }
+
+  List<AutomationPoint> _automationPointsFor(Track track) =>
+      automationPoints(track.mixerAutomation, track.clickSettings, track.tempoChanges, channelCount: track.channels.length);
+
+  /// Troca a automação do mixer; o motor valida antes de o estado mudar.
+  bool updateMixerAutomation(String trackId, List<MixerAutomationCue> cues) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null || !MixerAutomationCue.validSequence(cues)) return false;
+    final updated = track.copyWith(mixerAutomation: List.unmodifiable(cues));
+    if (!ref.read(engineProvider).configureMixerAutomation(_automationPointsFor(updated))) return false;
+    state = updated;
+    return true;
+  }
+
+  /// Botão de transporte "Automação": desligado, valem os faders manuais.
+  void setAutomationEnabled(bool enabled) {
+    final track = state;
+    if (track == null) return;
+    ref.read(engineProvider).setAutomationEnabled(enabled);
+    state = track.copyWith(automationEnabled: enabled);
+  }
+
+  /// A duração das transições é medida em tempos: mudanças de andamento movem o início das rampas.
+  void _resendMixerAutomation(Track track) {
+    if (track.mixerAutomation.isEmpty) return;
+    if (!ref.read(engineProvider).configureMixerAutomation(_automationPointsFor(track))) {
+      debugPrint('Automação do mixer recusada: ${ref.read(engineProvider).lastError}');
+    }
   }
 
   /// Aplica o timecode; o motor valida antes de o estado mudar.
@@ -694,6 +734,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     }
     if (!ref.read(engineProvider).setClickTempoChanges(changes)) return false;
     state = track.copyWith(tempoChanges: List.unmodifiable(changes));
+    _resendMixerAutomation(state!);
     refreshGuides();
     return true;
   }
@@ -709,6 +750,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final keep = TempoChange.validSequence(track.tempoChanges, baseOffset: settings.beatOffsetSeconds);
     state = track.copyWith(clickSettings: settings, tempoChanges: keep ? track.tempoChanges : const []);
     if (!keep) engine.setClickTempoChanges(const []);
+    _resendMixerAutomation(state!);
     refreshGuides(); // the bar before each section moved with the grid
     return true;
   }
@@ -872,7 +914,11 @@ class TransportNotifier extends Notifier<TransportState> {
         unawaited(_background('stop'));
       }
       if (next != state) state = next;
-      final cues = ref.read(currentTrackProvider)?.automationCues ?? const <AutomationCue>[];
+      final track = ref.read(currentTrackProvider);
+      final automated = track != null && track.automationEnabled && track.mixerAutomation.isNotEmpty;
+      final mix = automated ? engine.mixState() : null;
+      if (mix != ref.read(automatedMixProvider)) ref.read(automatedMixProvider.notifier).state = mix;
+      final cues = track?.automationCues ?? const <AutomationCue>[];
       if (cues.isNotEmpty) {
         final fired = engine.pollCues();
         if (fired.isNotEmpty) {

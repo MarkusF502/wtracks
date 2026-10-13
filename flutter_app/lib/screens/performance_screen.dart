@@ -13,6 +13,7 @@ import 'guide_editor_screen.dart';
 import 'time_pitch_sheet.dart';
 import 'midi_screen.dart';
 import 'tempo_map_screen.dart';
+import 'mixer_automation_screen.dart';
 
 const _bg = Color(0xFF07070E);
 const _panelBg = Color(0xFF111119);
@@ -88,12 +89,15 @@ class PerformanceScreen extends ConsumerWidget {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)));
                 case 'tempo':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TempoMapScreen(trackId: track.id)));
+                case 'automation':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MixerAutomationScreen(trackId: track.id)));
               }
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'tempo', child: Text('Mapa de andamento')),
               PopupMenuItem(value: 'pitch', child: Text('Tom e andamento')),
               PopupMenuItem(value: 'guides', child: Text('Guias')),
+              PopupMenuItem(value: 'automation', child: Text('Automação do mixer')),
               PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
             ],
           ),
@@ -906,6 +910,9 @@ class _Mixer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(currentTrackProvider.notifier);
+    // Com a automação agindo, os faders mostram os valores que o motor está aplicando.
+    final mix = ref.watch(automatedMixProvider);
+    final masterVolume = mix?.master ?? track.masterVolume;
 
     return Container(
       color: _mixerBg,
@@ -923,6 +930,16 @@ class _Mixer extends ConsumerWidget {
                     style: TextStyle(
                         color: _textFaint, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 const Spacer(),
+                if (track.mixerAutomation.isNotEmpty)
+                  TextButton(
+                    key: const Key('transport-automation'),
+                    onPressed: () => notifier.setAutomationEnabled(!track.automationEnabled),
+                    child: Text('AUTO',
+                        style: TextStyle(
+                            color: track.automationEnabled ? const Color(0xFF00FF88) : _textFaint,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ),
                 const Text('MASTER', style: TextStyle(color: _textFaint, fontSize: 10)),
                 SizedBox(
                   width: 140,
@@ -930,13 +947,13 @@ class _Mixer extends ConsumerWidget {
                     data: SliderTheme.of(context).copyWith(trackHeight: 2, overlayShape: SliderComponentShape.noOverlay),
                     child: Slider(
                       key: const Key('master-volume'),
-                      value: track.masterVolume.clamp(0.0, 2.0),
+                      value: masterVolume.clamp(0.0, 2.0),
                       max: 2,
                       onChanged: notifier.setMasterVolume,
                     ),
                   ),
                 ),
-                Text('${(track.masterVolume * 100).round()}%',
+                Text('${(masterVolume * 100).round()}%',
                     style: const TextStyle(color: _textFaint, fontSize: 10)),
               ],
             ),
@@ -951,8 +968,8 @@ class _Mixer extends ConsumerWidget {
                 return _MixerChannelStrip(
                   label: channel.label,
                   color: _colorForChannel(index),
-                  volume: channel.volume,
-                  muted: channel.muted,
+                  volume: mix != null && index < mix.volumes.length ? mix.volumes[index] : channel.volume,
+                  muted: mix != null && index < mix.mutes.length ? mix.mutes[index] : channel.muted,
                   soloed: channel.soloed,
                   route: channel.route,
                   onRouteToggled: () => notifier.setChannelRoute(

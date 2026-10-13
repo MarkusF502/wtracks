@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'song_section.dart';
 import 'guide_cue.dart';
 import 'automation_cue.dart';
+import 'mixer_automation.dart';
 import 'timecode_settings.dart';
 import 'tempo_change.dart';
 import 'time_pitch_settings.dart';
@@ -225,6 +226,9 @@ class Track {
   final double masterVolume; // 0.0 - 2.0, ganho comum do mixer
   final TimePitchSettings timePitch;
   final List<AutomationCue> automationCues;
+  /// Automação do mixer (pontos que movem faders/mute/master) e o botão de transporte que a liga.
+  final List<MixerAutomationCue> mixerAutomation;
+  final bool automationEnabled;
   final bool midiClockEnabled;
   final TimecodeSettings timecode;
   final List<TempoChange> tempoChanges;
@@ -243,6 +247,8 @@ class Track {
     this.masterVolume = 1.0,
     this.timePitch = const TimePitchSettings(),
     this.automationCues = const [],
+    this.mixerAutomation = const [],
+    this.automationEnabled = true,
     this.midiClockEnabled = false,
     this.timecode = const TimecodeSettings(),
     this.tempoChanges = const [],
@@ -262,6 +268,8 @@ class Track {
     double? masterVolume,
     TimePitchSettings? timePitch,
     List<AutomationCue>? automationCues,
+    List<MixerAutomationCue>? mixerAutomation,
+    bool? automationEnabled,
     bool? midiClockEnabled,
     TimecodeSettings? timecode,
     List<TempoChange>? tempoChanges,
@@ -278,6 +286,8 @@ class Track {
       masterVolume: masterVolume ?? this.masterVolume,
       timePitch: timePitch ?? this.timePitch,
       automationCues: automationCues ?? this.automationCues,
+      mixerAutomation: mixerAutomation ?? this.mixerAutomation,
+      automationEnabled: automationEnabled ?? this.automationEnabled,
       midiClockEnabled: midiClockEnabled ?? this.midiClockEnabled,
       timecode: timecode ?? this.timecode,
       tempoChanges: tempoChanges ?? this.tempoChanges,
@@ -301,6 +311,8 @@ class Track {
         'masterVolume': masterVolume,
         'timePitch': timePitch.toJson(),
         'automationCues': automationCues.map((c) => c.toJson()).toList(),
+        'mixerAutomation': mixerAutomation.map((c) => c.toJson()).toList(),
+        'automationEnabled': automationEnabled,
         'midiClockEnabled': midiClockEnabled,
         'timecode': timecode.toJson(),
         'tempoChanges': tempoChanges.map((c) => c.toJson()).toList(),
@@ -319,6 +331,8 @@ class Track {
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
         timePitch: TimePitchSettings.fromJson(json['timePitch']),
         automationCues: AutomationCue.fromJsonList(json['automationCues'] as List? ?? const []),
+        mixerAutomation: MixerAutomationCue.fromJsonList(json['mixerAutomation'] as List? ?? const []),
+        automationEnabled: json['automationEnabled'] as bool? ?? true,
         midiClockEnabled: json['midiClockEnabled'] as bool? ?? false,
         timecode: TimecodeSettings.fromJson(json['timecode']),
         tempoChanges: TempoChange.fromJsonList(json['tempoChanges'] as List? ?? const []),
