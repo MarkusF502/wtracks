@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import '../models/engine_error.dart';
+import '../models/track.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
 
@@ -62,6 +63,35 @@ typedef _SetClickTimeSignatureDart =
 typedef _SetClickOffsetNative = Void Function(Double offsetSeconds);
 typedef _SetClickOffsetDart = void Function(double offsetSeconds);
 
+typedef _ConfigureClickNative =
+    Bool Function(
+      Double,
+      Int32,
+      Int32,
+      Int32,
+      Double,
+      Double,
+      Double,
+      Double,
+      Double,
+    );
+typedef _ConfigureClickDart =
+    bool Function(
+      double,
+      int,
+      int,
+      int,
+      double,
+      double,
+      double,
+      double,
+      double,
+    );
+typedef _LoadClickSoundNative = Bool Function(Int32, Pointer<Utf8>);
+typedef _LoadClickSoundDart = bool Function(int, Pointer<Utf8>);
+typedef _ClickGainNative = Void Function(Float);
+typedef _ClickGainDart = void Function(double);
+
 typedef _GenerateWaveformNative = Bool Function(
   Pointer<Pointer<Utf8>> channelPaths,
   Int32 channelCount,
@@ -108,6 +138,9 @@ class WTracksEngine {
   late final _SetClickBpmDart _setClickBpm;
   late final _SetClickTimeSignatureDart _setClickTimeSignature;
   late final _SetClickOffsetDart _setClickOffset;
+  late final _ConfigureClickDart _configureClick;
+  late final _LoadClickSoundDart _loadClickSound;
+  late final _ClickGainDart _setClickGain;
   late final _GenerateWaveformDart _generateWaveformPeaks;
 
   WTracksEngine() {
@@ -126,7 +159,8 @@ class WTracksEngine {
         .lookup<NativeFunction<_GetLastErrorNative>>('wtracks_get_last_error')
         .asFunction();
     _getLastErrorCode = _lib.lookupFunction<Int32 Function(), int Function()>(
-      'wtracks_get_last_error_code');
+      'wtracks_get_last_error_code',
+    );
     _unloadTrack = _lib
         .lookup<NativeFunction<_VoidNative>>('wtracks_unload_track')
         .asFunction();
@@ -184,6 +218,17 @@ class WTracksEngine {
           'wtracks_set_click_offset',
         )
         .asFunction();
+    _configureClick = _lib
+        .lookupFunction<_ConfigureClickNative, _ConfigureClickDart>(
+          'wtracks_configure_click',
+        );
+    _loadClickSound = _lib
+        .lookupFunction<_LoadClickSoundNative, _LoadClickSoundDart>(
+          'wtracks_load_click_sound',
+        );
+    _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
+      'wtracks_set_click_gain',
+    );
     _generateWaveformPeaks = _lib
         .lookup<NativeFunction<_GenerateWaveformNative>>(
           'wtracks_generate_waveform_peaks',
@@ -293,6 +338,35 @@ class WTracksEngine {
       _setChannelMuted(channelIndex, muted);
   int get channelCount => _getChannelCount();
 
+  bool configureClick(ClickSettings settings) {
+    if (!settings.isValid) return false;
+    final ok = _configureClick(
+      settings.bpm,
+      settings.timeSignatureNumerator,
+      settings.timeSignatureDenominator,
+      settings.bpmUnit,
+      settings.beatOffsetSeconds,
+      settings.accentGain,
+      settings.quarterGain,
+      settings.eighthGain,
+      settings.sixteenthGain,
+    );
+    if (ok) _setClickGain(settings.volume);
+    return ok;
+  }
+
+  Future<bool> loadClickSoundAsync(int voice, String? path) =>
+      Isolate.run(() => WTracksEngine().loadClickSound(voice, path));
+
+  bool loadClickSound(int voice, String? path) {
+    final pointer = path?.toNativeUtf8() ?? nullptr;
+    try {
+      return _loadClickSound(voice, pointer);
+    } finally {
+      if (pointer != nullptr) malloc.free(pointer);
+    }
+  }
+
   void setClickEnabled(bool enabled) => _setClickEnabled(enabled);
   void setClickBpm(double bpm) => _setClickBpm(bpm);
 
@@ -362,7 +436,8 @@ class WTracksEngine {
 
       try {
         final success =
-            fn(pathsArray, pathPointers.length, waveformBucketCount, outPeaks);
+            fn(pathsArray, pathPointers.length, waveformBucketCount, outPeaks,
+        );
         if (!success) return null;
         return List<double>.generate(
           waveformBucketCount,

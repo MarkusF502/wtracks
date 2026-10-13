@@ -73,6 +73,29 @@ class FakeEngine implements WTracksEngine {
   void setChannelMuted(int channelIndex, bool muted) => calls.add('muted($channelIndex,$muted)');
   @override
   int get channelCount => 0;
+  ClickSettings? configuredClick;
+  @override
+  bool configureClick(ClickSettings settings) {
+    if (!settings.isValid) return false;
+    configuredClick = settings;
+    setClickBpm(settings.bpm);
+    setClickTimeSignature(
+      settings.timeSignatureNumerator,
+      settings.timeSignatureDenominator,
+    );
+    setClickOffsetSeconds(settings.beatOffsetSeconds);
+    return true;
+  }
+
+  @override
+  Future<bool> loadClickSoundAsync(int voice, String? path) async =>
+      loadClickSound(voice, path);
+  @override
+  bool loadClickSound(int voice, String? path) {
+    calls.add('clickSound($voice,$path)');
+    return true;
+  }
+
   @override
   void setClickEnabled(bool enabled) => calls.add('clickEnabled($enabled)');
   @override

@@ -9,6 +9,14 @@ import 'setlist_provider.dart';
 import 'waveform_provider.dart';
 import '../native/wtracks_bindings.dart';
 import '../services/persistence_service.dart';
+import '../services/click_resource_service.dart';
+
+final clickResourceServiceProvider = Provider<ClickResourceService>(
+  (ref) => ClickResourceService(),
+);
+final clickFamiliesProvider = FutureProvider<List<String>>(
+  (ref) => ref.read(clickResourceServiceProvider).families(),
+);
 
 /// Instância única do engine nativo -- todo o app depende deste provider.
 /// keepAlive porque o engine precisa sobreviver enquanto o app estiver
@@ -56,7 +64,12 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       await transport.stop();
       if (_disposed || generation != _generation) return false;
       try {
-        final loaded = await engine.loadTrackAsync(track.id, track.channelFilePaths);
+        final clickPaths = await ref
+            .read(clickResourceServiceProvider)
+            .prepare(track.clickSettings.timbreFamily);
+        if (_disposed || generation != _generation) return false;
+        final loaded = await engine.loadTrackAsync(track.id, track.channelFilePaths,
+        );
         if (_disposed || generation != _generation) {
           if (!_disposed && loaded) {
             engine.unloadTrack();
@@ -68,9 +81,22 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           debugPrint('Falha ao carregar música: ${engine.lastError}');
           return false;
         }
-        engine.setClickBpm(track.clickSettings.bpm);
-        engine.setClickTimeSignature(track.clickSettings.timeSignatureNumerator, 4);
-        engine.setClickOffsetSeconds(track.clickSettings.beatOffsetSeconds);
+        for (var voice = 0; voice < 4; voice++) {
+          if (!await engine.loadClickSoundAsync(voice, clickPaths[voice])) {
+            engine.unloadTrack();
+            state = null;
+            return false;
+          }
+          if (_disposed || generation != _generation) {
+            if (!_disposed) engine.unloadTrack();
+            return false;
+          }
+        }
+        if (!engine.configureClick(track.clickSettings)) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
         state = track;
         for (var i = 0; i < track.channels.length; i++) {
           engine.setChannelVolume(i, track.channels[i].volume);
@@ -175,49 +201,76 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     state = track.copyWith(title: title);
   }
 
+  Future<bool> updateClickTimbre(String family) {
+    final track = state;
+    if (track == null || loadingTrackId != null) return Future.value(false);
+    final generation = _generation;
+    final operation = _pending.then((_) async {
+      try {
+        final paths = await ref
+            .read(clickResourceServiceProvider)
+            .prepare(family);
+        if (_disposed || generation != _generation || state?.id != track.id) {
+          return false;
+        }
+        final engine = ref.read(engineProvider);
+        for (var voice = 0; voice < 4; voice++) {
+          if (!await engine.loadClickSoundAsync(voice, paths[voice])) {
+            // A partial family must not be presented as successfully selected.
+            for (var clear = 0; clear < 4; clear++) {
+              await engine.loadClickSoundAsync(clear, null);
+            }
+            if (!_disposed && generation == _generation && state != null) {
+              state = state!.copyWith(
+      clickSettings: state!.clickSettings.copyWith(
+                  timbreFamily: 'synthetic',
+                ),
+    );
+  }
+            return false;
+          }
+          if (_disposed || generation != _generation) return false;
+        }
+        return updateClickSettings(
+          state!.clickSettings.copyWith(timbreFamily: family),
+        );
+      } catch (e) {
+        debugPrint('Falha no timbre: $e');
+        return false;
+      }
+    });
+    _pending = operation.then((_) {});
+    return operation;
+  }
+
+  bool updateClickSettings(ClickSettings settings) {
+    final track = state;
+    if (track == null || loadingTrackId != null || !settings.isValid) {
+      return false;
+    }
+    if (!ref.read(engineProvider).configureClick(settings)) return false;
+    state = track.copyWith(
+      clickSettings: settings);
+    return true;
+  }
+
   void updateBpm(double bpm) {
-    final track = state;
-    if (track == null) return;
-
-    // Atualiza o motor C++ em tempo real
-    ref.read(engineProvider).setClickBpm(bpm);
-
-    // Atualiza o estado da interface (Riverpod)
-    state = track.copyWith(
-      clickSettings: track.clickSettings.copyWith(bpm: bpm),
-    );
+    final settings = state?.clickSettings;
+    if (settings != null) updateClickSettings(settings.copyWith(bpm: bpm));
   }
 
-  /// Aplica [bpm] vindo de uma calibração real (tap tempo), marcando
-  /// clickSettings.calibrated = true -- diferente de updateBpm, que é
-  /// usado pelo slider manual e não implica que o valor foi calibrado de
-  /// verdade. Nota: se o usuário depois ajustar o BPM manualmente via
-  /// updateBpm, `calibrated` permanece true (não "descalibra"
-  /// automaticamente) -- é aceitável, não precisa mudar updateBpm pra
-  /// isso.
   void applyCalibratedBpm(double bpm) {
-    final track = state;
-    if (track == null) return;
-
-    ref.read(engineProvider).setClickBpm(bpm);
-    state = track.copyWith(
-      clickSettings: track.clickSettings.copyWith(bpm: bpm, calibrated: true),
-    );
+    final settings = state?.clickSettings;
+    if (settings != null) {
+      updateClickSettings(settings.copyWith(bpm: bpm, calibrated: true));
+  }
   }
 
-  /// Marca o offset de fase do click a partir da posição de playback atual
-  /// -- usado pelo botão "marcar 1º tempo" durante a reprodução (ver
-  /// PerformanceScreen). Diferente de applyCalibratedBpm, aqui não existe
-  /// um "calibrated" separado por offset -- clickSettings.calibrated
-  /// continua representando só a calibração de BPM.
   void applyClickOffset(double offsetSeconds) {
-    final track = state;
-    if (track == null) return;
-
-    ref.read(engineProvider).setClickOffsetSeconds(offsetSeconds);
-    state = track.copyWith(
-      clickSettings: track.clickSettings.copyWith(beatOffsetSeconds: offsetSeconds),
-    );
+    final settings = state?.clickSettings;
+    if (settings != null) {
+      updateClickSettings(settings.copyWith(beatOffsetSeconds: offsetSeconds));
+    }
   }
 }
 

@@ -425,18 +425,23 @@ class _Transport extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Ajustar BPM do Metrônomo', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  const Text(
+                      'Configurar metrônomo', style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      Text(tempBpm.round().toString(), style: const TextStyle(color: _accent, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text(tempBpm.round().toString(), style: const TextStyle(color: _accent, fontSize: 24, fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       if (calibrated) ...[
                         const SizedBox(width: 6),
-                        const Icon(Icons.check_circle, color: _accent, size: 18),
+                        const Icon(Icons.check_circle, color: _accent, size: 18,
+                          ),
                       ],
                       Expanded(
                         child: Slider(
-                          value: tempBpm,
+                          value: tempBpm.clamp(40, 240),
                           min: 40,
                           max: 240,
                           activeColor: _accent,
@@ -449,7 +454,8 @@ class _Transport extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text(tapHint, style: const TextStyle(color: _textFaint, fontSize: 13)),
+                  Text(tapHint, style: const TextStyle(color: _textFaint, fontSize: 13),
+                    ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -474,7 +480,9 @@ class _Transport extends ConsumerWidget {
                               }
                             });
                           },
-                          child: const Text('TAP', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          child: const Text('TAP', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                              ),
+                            ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -499,22 +507,195 @@ class _Transport extends ConsumerWidget {
                   const SizedBox(height: 20),
                   const Divider(color: _border),
                   const SizedBox(height: 8),
-                  const Text('Offset do click', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final settings =
+                            ref.watch(currentTrackProvider)?.clickSettings ??
+                            track.clickSettings;
+                        void apply(ClickSettings next) => ref
+                            .read(currentTrackProvider.notifier)
+                            .updateClickSettings(next);
+                        Widget choice(
+                          String label,
+                          int value,
+                          List<int> values,
+                          ValueChanged<int> change,
+                        ) => Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            DropdownButton<int>(
+                              value: value,
+                              items: values
+                                  .map(
+                                    (n) => DropdownMenuItem(
+                                      value: n,
+                                      child: Text('$n'),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (n) {
+                                if (n != null) change(n);
+                              },
+                            ),
+                          ],
+                        );
+                        Widget gain(
+                          String label,
+                          double value,
+                          ValueChanged<double> change,
+                        ) => Row(
+                          children: [
+                            SizedBox(
+                              width: 100,
+                              child: Text(
+                                label,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            Expanded(
+                              child: Slider(
+                                value: value,
+                                max: 2,
+                                onChanged: change,
+                              ),
+                            ),
+                            Text(
+                              '${(value * 100).round()}%',
+                              style: const TextStyle(color: _textFaint),
+                            ),
+                          ],
+                        );
+                        return Column(
+                          children: [
+                            choice(
+                              'Tempos por compasso',
+                              settings.timeSignatureNumerator,
+                              List.generate(64, (i) => i + 1),
+                              (n) => apply(
+                                settings.copyWith(timeSignatureNumerator: n),
+                              ),
+                            ),
+                            choice(
+                              'Unidade do compasso',
+                              settings.timeSignatureDenominator,
+                              const [1, 2, 4, 8, 16, 32, 64],
+                              (n) => apply(
+                                settings.copyWith(timeSignatureDenominator: n),
+                              ),
+                            ),
+                            choice(
+                              'Unidade do BPM',
+                              settings.bpmUnit,
+                              const [1, 2, 4, 8, 16, 32, 64],
+                              (n) => apply(settings.copyWith(bpmUnit: n)),
+                            ),
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Timbre',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                DropdownButton<String>(
+                                  value: settings.timbreFamily,
+                                  items:
+                                      {
+                                            'synthetic',
+                                            settings.timbreFamily,
+                                            ...?ref
+                                                .watch(clickFamiliesProvider)
+                                                .asData
+                                                ?.value,
+                                          }
+                                          .map(
+                                            (family) => DropdownMenuItem(
+                                              value: family,
+                                              child: Text(
+                                                family == 'synthetic'
+                                                    ? 'Sintético'
+                                                    : family,
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                  onChanged: (family) async {
+                                    if (family == null) return;
+                                    final ok = await ref
+                                        .read(currentTrackProvider.notifier)
+                                        .updateClickTimbre(family);
+                                    if (!ok && context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Não foi possível carregar o timbre',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                            gain(
+                              'Volume',
+                              settings.volume,
+                              (n) => apply(settings.copyWith(volume: n)),
+                            ),
+                            gain(
+                              'Acento',
+                              settings.accentGain,
+                              (n) => apply(settings.copyWith(accentGain: n)),
+                            ),
+                            gain(
+                              'Semínimas',
+                              settings.quarterGain,
+                              (n) => apply(settings.copyWith(quarterGain: n)),
+                            ),
+                            gain(
+                              'Colcheias',
+                              settings.eighthGain,
+                              (n) => apply(settings.copyWith(eighthGain: n)),
+                            ),
+                            gain(
+                              'Semicolcheias',
+                              settings.sixteenthGain,
+                              (n) => apply(settings.copyWith(sixteenthGain: n)),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        );
+                      },
+                    ),
+                    const Text('Offset do click', style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   const SizedBox(height: 8),
                   // Lê o offset do provider (não do `track` capturado ao abrir
                   // o diálogo), senão o valor exibido nunca atualiza.
                   Consumer(builder: (context, ref, _) {
                     final offset = ref.watch(currentTrackProvider
-                        .select((t) => t?.clickSettings.beatOffsetSeconds ?? 0.0));
+                        .select((t) => t?.clickSettings.beatOffsetSeconds ?? 0.0,
+                          ),
+                        );
                     return Text(
                       '${offset >= 0 ? '+' : ''}${offset.toStringAsFixed(2)}s',
-                      style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold,
+                          ),
                     );
-                  }),
+                  },
+                    ),
                   const SizedBox(height: 8),
                   if (!isPlaying)
                     const Text('Toque play e marque no primeiro tempo real',
-                        style: TextStyle(color: _textFaint, fontSize: 13)),
+                        style: TextStyle(color: _textFaint, fontSize: 13),
+                      ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -558,8 +739,9 @@ class _Transport extends ConsumerWidget {
                   ),
                 ],
               ),
-            ));
-          }
+            ),
+            );
+          },
         );
       },
     );

@@ -64,45 +64,126 @@ class ChannelInfo {
 /// pra UI decidir se avisa "esta música ainda não foi calibrada".
 @immutable
 class ClickSettings {
+  static const currentSchemaVersion = 2;
+  final int schemaVersion;
   final double bpm;
   final double beatOffsetSeconds;
   final int timeSignatureNumerator;
+  final int timeSignatureDenominator;
+  final int bpmUnit;
+  final double accentGain;
+  final double quarterGain;
+  final double eighthGain;
+  final double sixteenthGain;
+  final double volume;
+  final String timbreFamily;
   final bool calibrated;
 
   const ClickSettings({
+    this.schemaVersion = currentSchemaVersion,
     this.bpm = 120.0,
     this.beatOffsetSeconds = 0.0,
     this.timeSignatureNumerator = 4,
+    this.timeSignatureDenominator = 4,
+    this.bpmUnit = 4,
+    this.accentGain = 1.0,
+    this.quarterGain = 1.0,
+    this.eighthGain = 0.0,
+    this.sixteenthGain = 0.0,
+    this.volume = 1.0,
+    this.timbreFamily = 'synthetic',
     this.calibrated = false,
   });
+
+  bool get isValid {
+    bool unit(int n) => n >= 1 && n <= 64 && (n & (n - 1)) == 0;
+    bool gain(double n) => n.isFinite && n >= 0 && n <= 2;
+    return bpm.isFinite &&
+        bpm >= 1 &&
+        bpm <= 1000 &&
+        beatOffsetSeconds.isFinite &&
+        beatOffsetSeconds >= 0 && beatOffsetSeconds <= 86400 &&
+        timeSignatureNumerator >= 1 &&
+        timeSignatureNumerator <= 64 &&
+        unit(timeSignatureDenominator) &&
+        unit(bpmUnit) &&
+        [
+          accentGain,
+          quarterGain,
+          eighthGain,
+          sixteenthGain,
+          volume,
+        ].every(gain) &&
+        timbreFamily.isNotEmpty;
+  }
 
   ClickSettings copyWith({
     double? bpm,
     double? beatOffsetSeconds,
     int? timeSignatureNumerator,
+    int? timeSignatureDenominator,
+    int? bpmUnit,
+    double? accentGain,
+    double? quarterGain,
+    double? eighthGain,
+    double? sixteenthGain,
+    double? volume,
+    String? timbreFamily,
     bool? calibrated,
-  }) {
-    return ClickSettings(
+  }) => ClickSettings(
       bpm: bpm ?? this.bpm,
       beatOffsetSeconds: beatOffsetSeconds ?? this.beatOffsetSeconds,
       timeSignatureNumerator: timeSignatureNumerator ?? this.timeSignatureNumerator,
-      calibrated: calibrated ?? this.calibrated,
+    timeSignatureDenominator:
+        timeSignatureDenominator ?? this.timeSignatureDenominator,
+    bpmUnit: bpmUnit ?? this.bpmUnit,
+    accentGain: accentGain ?? this.accentGain,
+    quarterGain: quarterGain ?? this.quarterGain,
+    eighthGain: eighthGain ?? this.eighthGain,
+    sixteenthGain: sixteenthGain ?? this.sixteenthGain,
+    volume: volume ?? this.volume,
+    timbreFamily: timbreFamily ?? this.timbreFamily,
+    calibrated: calibrated ?? this.calibrated,
     );
-  }
 
   Map<String, dynamic> toJson() => {
-        'bpm': bpm,
+    'schemaVersion': currentSchemaVersion,
+    'bpm': bpm,
         'beatOffsetSeconds': beatOffsetSeconds,
         'timeSignatureNumerator': timeSignatureNumerator,
+    'timeSignatureDenominator': timeSignatureDenominator,
+    'bpmUnit': bpmUnit,
+    'accentGain': accentGain,
+    'quarterGain': quarterGain,
+    'eighthGain': eighthGain,
+    'sixteenthGain': sixteenthGain,
+    'volume': volume,
+    'timbreFamily': timbreFamily,
         'calibrated': calibrated,
       };
 
-  factory ClickSettings.fromJson(Map<String, dynamic> json) => ClickSettings(
-        bpm: (json['bpm'] as num?)?.toDouble() ?? 120.0,
-        beatOffsetSeconds: (json['beatOffsetSeconds'] as num?)?.toDouble() ?? 0.0,
+  factory ClickSettings.fromJson(Map<String, dynamic> json) {
+    final value = ClickSettings(
+      schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
+      bpm: (json['bpm'] as num?)?.toDouble() ?? 120,
+        beatOffsetSeconds: (json['beatOffsetSeconds'] as num?)?.toDouble() ?? 0,
         timeSignatureNumerator: (json['timeSignatureNumerator'] as num?)?.toInt() ?? 4,
-        calibrated: json['calibrated'] as bool? ?? false,
+      timeSignatureDenominator:
+          (json['timeSignatureDenominator'] as num?)?.toInt() ?? 4,
+      bpmUnit: (json['bpmUnit'] as num?)?.toInt() ?? 4,
+      accentGain: (json['accentGain'] as num?)?.toDouble() ?? 1,
+      quarterGain: (json['quarterGain'] as num?)?.toDouble() ?? 1,
+      eighthGain: (json['eighthGain'] as num?)?.toDouble() ?? 0,
+      sixteenthGain: (json['sixteenthGain'] as num?)?.toDouble() ?? 0,
+      volume: (json['volume'] as num?)?.toDouble() ?? 1,
+      timbreFamily: json['timbreFamily'] as String? ?? 'synthetic',
+      calibrated: json['calibrated'] as bool? ?? false,
       );
+    if (!value.isValid) {
+      throw const FormatException('Configuração de click inválida');
+    }
+    return value;
+  }
 }
 
 /// Uma música com seus canais mapeados. [id] é o songId passado pro
