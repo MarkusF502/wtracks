@@ -140,25 +140,33 @@ inline bool stretch(const std::vector<float>& in, double s, int frameSize, std::
 }
 
 // Windowed-sinc read at `ratio` input samples per output sample, producing exactly `outLen` samples.
+// The kernel is tabulated (kResolution points per input sample, linear interpolation) so no trigonometry runs per tap.
 inline bool resample(const std::vector<float>& in, double ratio, int64_t outLen, std::vector<float>& out, const std::atomic<bool>* cancel) {
-    constexpr int kZeroCrossings = 16;
+    constexpr int kZeroCrossings = 16, kResolution = 512;
     const double cutoff = std::min(1.0, 1.0 / ratio);
     const int half = static_cast<int>(std::ceil(kZeroCrossings / cutoff));
     const int64_t n = static_cast<int64_t>(in.size());
+    std::vector<double> table(static_cast<size_t>(half * kResolution + 2));
+    for (size_t i = 0; i < table.size(); ++i) {
+        const double distance = static_cast<double>(i) / kResolution;  // input samples from the read position
+        const double x = distance * cutoff;
+        const double sinc = x < 1e-12 ? 1.0 : std::sin(kPi * x) / (kPi * x);
+        const double u = distance / half;
+        const double blackman = u >= 1.0 ? 0.0 : 0.42 + 0.5 * std::cos(kPi * u) + 0.08 * std::cos(2.0 * kPi * u);
+        table[i] = sinc * cutoff * blackman;
+    }
     out.assign(static_cast<size_t>(outLen), 0.f);
     for (int64_t i = 0; i < outLen; ++i) {
         if ((i & 0xFFFF) == 0 && cancel && cancel->load(std::memory_order_relaxed)) return false;
         const double position = static_cast<double>(i) * ratio;
         const int64_t centre = static_cast<int64_t>(std::floor(position));
+        const int64_t first = std::max<int64_t>(centre - half + 1, 0), last = std::min<int64_t>(centre + half, n - 1);
         double sum = 0;
-        for (int m = -half + 1; m <= half; ++m) {
-            const int64_t index = centre + m;
-            if (index < 0 || index >= n) continue;
-            const double x = (static_cast<double>(index) - position) * cutoff;
-            const double sinc = std::fabs(x) < 1e-12 ? 1.0 : std::sin(kPi * x) / (kPi * x);
-            const double u = (static_cast<double>(index) - position) / half;
-            const double blackman = 0.42 + 0.5 * std::cos(kPi * u) + 0.08 * std::cos(2.0 * kPi * u);
-            sum += static_cast<double>(in[static_cast<size_t>(index)]) * sinc * cutoff * blackman;
+        for (int64_t index = first; index <= last; ++index) {
+            const double scaled = std::fabs(static_cast<double>(index) - position) * kResolution;
+            const auto slot = static_cast<size_t>(scaled);
+            const double fraction = scaled - static_cast<double>(slot);
+            sum += static_cast<double>(in[static_cast<size_t>(index)]) * (table[slot] + (table[slot + 1] - table[slot]) * fraction);
         }
         out[static_cast<size_t>(i)] = static_cast<float>(sum);
     }
