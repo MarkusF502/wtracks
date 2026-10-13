@@ -56,6 +56,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         src/TimePitchFile.cpp
         tests/GuideTimelineTests.cpp
         tests/GuideEngineTests.cpp
+        tests/DynamicGuideTests.cpp
         tests/MixerTests.cpp
         tests/TimePitchTests.cpp
         tests/TimeScaleTests.cpp

@@ -96,6 +96,13 @@ WTRACKS_API bool wtracks_configure_preset_loops(const double* starts, const doub
 // Atomic guide schedule: sorted cue seconds, source paths and gains. Zero clears.
 WTRACKS_API bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count);
 WTRACKS_API void wtracks_set_guides_enabled(bool enabled);
+// Dynamic guides: replacementPaths/targets may be null (no replacement, no target); paths[i] may be null/"" when
+// replacementPaths[i] is set (silent unless the active loop wraps before targets[i]).
+WTRACKS_API bool wtracks_configure_guides_ex(const double* times, const char** paths, const char** replacementPaths,
+                                             const double* targets, const float* gains, int count);
+// Song Section Pre-roll: one bar of click + spoken count before playing from one of `starts` (song time).
+WTRACKS_API bool wtracks_configure_preroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount);
+WTRACKS_API bool wtracks_is_prerolling();
 
 // Click track
 // Voice: 0 accent, 1 quarter, 2 eighth, 3 sixteenth. Empty path restores synthesis.

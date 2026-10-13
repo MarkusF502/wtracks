@@ -8,6 +8,7 @@
 #include <atomic>
 #include "ClickTimeline.h"
 #include "GuideTimeline.h"
+#include "Preroll.h"
 #include "MixerStage.h"
 #include "MidiClock.h"
 #include "CueTimeline.h"
@@ -116,6 +117,15 @@ public:
     bool configureTimecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain);
     void setTimecodeEnabled(bool enabled);
     bool configureGuides(const double* times, const char** paths, const float* gains, int count);
+    // Dynamic guides: per cue an optional normal path (nullptr/"" = silent unless replaced), an optional replacement path
+    // and the start (song time, -1 = none) of the section it announces. See GuideTimeline.h for the replacement rule.
+    bool configureGuides(const double* times, const char** paths, const char** replacementPaths, const double* targets,
+                         const float* gains, int count);
+    // Song Section Pre-roll (own design, see Preroll.h): when enabled, play() from a stopped/paused playhead lying on one
+    // of `starts` (song time, within 1 ms) first plays one bar of click + spoken count while the stems wait. countPaths[k]
+    // speaks "k+1" (<= 16, empty entries are silent). Kept across seeks; dropped with the song.
+    bool configurePreroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount);
+    bool isPrerolling() const;
     void setGuidesEnabled(bool enabled);
 
     // Tratamento de Erros Blindado
@@ -183,6 +193,11 @@ private:
     void stopMidiClock();
     void clearCueQueue();
     GuideTimeline guideTimeline;
+    Preroll preroll;
+    bool prerollEnabled = false;
+    std::vector<double> prerollStarts;
+    bool beginPreroll();
+    int64_t guideWrapSample() const;
     juce::AudioBuffer<float> guideScratch;
     std::atomic<bool> guidesEnabled { false };
     ClickTimeline clickTimeline;
