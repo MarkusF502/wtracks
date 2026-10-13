@@ -21,6 +21,14 @@ class SongSection {
   /// Contagem falada ao entrar na seção. Mapeia storedPlayCountIn.
   final bool playCountIn;
 
+  /// Trechos cortados no início e no fim (segundos); a reprodução pula por cima deles.
+  /// Mapeia storedStartTimeTrimOffset / storedEndTimeTrimOffset.
+  final double trimStartSeconds, trimEndSeconds;
+
+  /// Trecho que toca de fato (sem os cortes): laços, pré-roll e "tocar a partir da seção" usam estes limites.
+  double get playStart => startSeconds + trimStartSeconds;
+  double get playEnd => endSeconds - trimEndSeconds;
+
   static const maxLoopCount = 1000;
 
   const SongSection({
@@ -32,6 +40,8 @@ class SongSection {
     this.presetInfiniteLoop = false,
     this.playGuideCue = true,
     this.playCountIn = false,
+    this.trimStartSeconds = 0,
+    this.trimEndSeconds = 0,
   });
 
   SongSection copyWith({
@@ -42,6 +52,8 @@ class SongSection {
     bool? presetInfiniteLoop,
     bool? playGuideCue,
     bool? playCountIn,
+    double? trimStartSeconds,
+    double? trimEndSeconds,
   }) =>
       SongSection(
         id: id,
@@ -52,6 +64,8 @@ class SongSection {
         presetInfiniteLoop: presetInfiniteLoop ?? this.presetInfiniteLoop,
         playGuideCue: playGuideCue ?? this.playGuideCue,
         playCountIn: playCountIn ?? this.playCountIn,
+        trimStartSeconds: trimStartSeconds ?? this.trimStartSeconds,
+        trimEndSeconds: trimEndSeconds ?? this.trimEndSeconds,
       );
 
   bool get isValid =>
@@ -62,7 +76,12 @@ class SongSection {
       startSeconds >= 0 &&
       endSeconds > startSeconds &&
       loopCount >= 0 &&
-      loopCount <= maxLoopCount;
+      loopCount <= maxLoopCount &&
+      trimStartSeconds.isFinite &&
+      trimEndSeconds.isFinite &&
+      trimStartSeconds >= 0 &&
+      trimEndSeconds >= 0 &&
+      playEnd - playStart >= 0.01;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -73,6 +92,8 @@ class SongSection {
     'presetInfiniteLoop': presetInfiniteLoop,
     'playGuideCue': playGuideCue,
     'playCountIn': playCountIn,
+    if (trimStartSeconds > 0) 'trimStartSeconds': trimStartSeconds,
+    if (trimEndSeconds > 0) 'trimEndSeconds': trimEndSeconds,
   };
 
   factory SongSection.fromJson(Map<String, dynamic> json) {
@@ -85,6 +106,8 @@ class SongSection {
       presetInfiniteLoop: json['presetInfiniteLoop'] as bool? ?? false,
       playGuideCue: json['playGuideCue'] as bool? ?? true,
       playCountIn: json['playCountIn'] as bool? ?? false,
+      trimStartSeconds: (json['trimStartSeconds'] as num?)?.toDouble() ?? 0,
+      trimEndSeconds: (json['trimEndSeconds'] as num?)?.toDouble() ?? 0,
     );
     if (!section.isValid) throw const FormatException('Seção inválida');
     return section;
@@ -100,9 +123,31 @@ class SongSection {
       other.loopCount == loopCount &&
       other.presetInfiniteLoop == presetInfiniteLoop &&
       other.playGuideCue == playGuideCue &&
-      other.playCountIn == playCountIn;
+      other.playCountIn == playCountIn &&
+      other.trimStartSeconds == trimStartSeconds &&
+      other.trimEndSeconds == trimEndSeconds;
   @override
-  int get hashCode => Object.hash(id, name, startSeconds, endSeconds, loopCount, presetInfiniteLoop, playGuideCue, playCountIn);
+  int get hashCode => Object.hash(id, name, startSeconds, endSeconds, loopCount, presetInfiniteLoop, playGuideCue, playCountIn,
+      trimStartSeconds, trimEndSeconds);
+
+  /// Áreas cortadas da música, em ordem, com cortes vizinhos (fim de uma seção + início da seguinte) unidos.
+  static List<(double, double)> trimAreas(List<SongSection> sections) {
+    final areas = <(double, double)>[
+      for (final s in sections) ...[
+        if (s.trimStartSeconds > 0) (s.startSeconds, s.playStart),
+        if (s.trimEndSeconds > 0) (s.playEnd, s.endSeconds),
+      ],
+    ]..sort((a, b) => a.$1.compareTo(b.$1));
+    final merged = <(double, double)>[];
+    for (final area in areas) {
+      if (merged.isNotEmpty && area.$1 <= merged.last.$2 + 1e-9) {
+        merged[merged.length - 1] = (merged.last.$1, area.$2 > merged.last.$2 ? area.$2 : merged.last.$2);
+      } else {
+        merged.add(area);
+      }
+    }
+    return merged;
+  }
 
   static bool validSequence(List<SongSection> sections) {
     final ids = <String>{};

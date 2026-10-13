@@ -266,6 +266,18 @@ class _Header extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (transport.loopPass > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              key: const Key('loop-pass'),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(border: Border.all(color: _accent), borderRadius: BorderRadius.circular(4)),
+              child: Text(
+                transport.loopRepeats > 0 ? 'Laço ${transport.loopPass}/${transport.loopRepeats}' : 'Laço ${transport.loopPass}',
+                style: const TextStyle(color: _accent, fontSize: 11),
+              ),
+            ),
+          ],
           const SizedBox(width: 12),
           Text.rich(
             TextSpan(

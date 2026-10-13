@@ -143,12 +143,28 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     if (_touched || _disposed) return;
     state = saved;
     engine.setStereoSplit(saved.stereoSplit);
+    _applyCustomDirectories(saved);
+  }
+
+  /// As pastas personalizadas valem a partir do próximo catálogo lido.
+  void _applyCustomDirectories(AppSettings settings) {
+    ref.read(clickResourceServiceProvider).customDirectory = settings.customClicksDirectory;
+    ref.read(guideResourceServiceProvider).customDirectory = settings.customGuidesDirectory;
+    ref.invalidate(guideResourcesProvider);
+    ref.invalidate(clickFamiliesProvider);
   }
 
   Future<void> apply(AppSettings settings) async {
     _touched = true;
+    final directoriesChanged = settings.customClicksDirectory != state.customClicksDirectory ||
+        settings.customGuidesDirectory != state.customGuidesDirectory;
     state = settings;
     ref.read(engineProvider).setStereoSplit(settings.stereoSplit);
+    if (directoriesChanged) {
+      _applyCustomDirectories(settings);
+      ref.read(currentTrackProvider.notifier).invalidateGuideResources();
+      unawaited(ref.read(currentTrackProvider.notifier).refreshGuides());
+    }
     try {
       await ref.read(appPreferencesProvider).save(settings);
     } on Exception catch (e) {
@@ -300,6 +316,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           return false;
         }
         await _syncPresetLoops(engine, track.sections, force: true);
+        await _syncSkips(engine, track.sections, force: true);
         if (_disposed || generation != _generation) {
           if (!_disposed) engine.unloadTrack();
           return false;
@@ -739,7 +756,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       }
     }
     final counts = settings.sectionPreroll ? prerollCounts(catalog, settings) : const <String?>[];
-    final starts = settings.sectionPreroll ? [for (final s in track.sections) s.startSeconds] : const <double>[];
+    final starts = settings.sectionPreroll ? [for (final s in track.sections) s.playStart] : const <double>[];
     final signature = '${settings.sectionPreroll}|$starts|$counts';
     if (signature != _prerollSignature) {
       try {
@@ -755,6 +772,12 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       }
     }
     return true;
+  }
+
+  /// Os arquivos por trás dos nomes de recurso mudaram (pasta personalizada): a próxima sincronização envia tudo de novo.
+  void invalidateGuideResources() {
+    _guideSchedule = null;
+    _prerollSignature = null;
   }
 
   /// Refaz as guias da música carregada (seções, andamento ou preferências mudaram).
@@ -803,7 +826,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   Future<bool> setSectionLoop(SongSection section, {bool queue = false}) {
     final track = state;
     if (track == null || loadingTrackId != null || _loopBusy ||
-        !track.sections.any((s) => s.id == section.id && s.startSeconds == section.startSeconds && s.endSeconds == section.endSeconds)) {
+        !track.sections.any((s) => s.id == section.id && s.playStart == section.playStart && s.playEnd == section.playEnd)) {
       return Future.value(false);
     }
     final generation = _generation;
@@ -813,8 +836,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       try {
         if (_disposed || generation != _generation) return false;
         final engine = ref.read(engineProvider);
-        final ok = queue ? await engine.enqueueLoopAsync(section.startSeconds, section.endSeconds, repeats: section.loopCount)
-          : await engine.setLoopAsync(section.startSeconds, section.endSeconds, true, repeats: section.loopCount);
+        final ok = queue ? await engine.enqueueLoopAsync(section.playStart, section.playEnd, repeats: section.loopCount)
+          : await engine.setLoopAsync(section.playStart, section.playEnd, true, repeats: section.loopCount);
         if (_disposed || generation != _generation || request != _loopRequest) {
           if (!_disposed) {
             engine.setLoop(0, 0, false);
@@ -839,7 +862,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   /// only the automatic vamp loop is missing.
   Future<bool> _syncPresetLoops(WTracksEngine engine, List<SongSection> sections, {bool force = false}) async {
     final presets = [for (final s in sections) if (s.presetInfiniteLoop) s];
-    final signature = [for (final s in presets) '${s.id}:${s.startSeconds}:${s.endSeconds}'];
+    final signature = [for (final s in presets) '${s.id}:${s.playStart}:${s.playEnd}'];
     if (!force && listEquals(signature, _presetSignature)) return true;
     try {
       final ok = await engine.configurePresetLoopsAsync(presets);
@@ -855,13 +878,33 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     }
   }
 
+  List<(double, double)> _skipSignature = const [];
+
+  /// Áreas cortadas das seções no motor (falha só é registrada: a música toca sem pular).
+  Future<bool> _syncSkips(WTracksEngine engine, List<SongSection> sections, {bool force = false}) async {
+    final areas = SongSection.trimAreas(sections);
+    if (!force && listEquals(areas, _skipSignature)) return true;
+    try {
+      final ok = await engine.configureSkipsAsync(areas);
+      if (ok) {
+        _skipSignature = areas;
+      } else {
+        debugPrint('Cortes de seção indisponíveis: ${engine.lastError}');
+      }
+      return ok;
+    } catch (e) {
+      debugPrint('Falha nos cortes de seção: $e');
+      return false;
+    }
+  }
+
   bool updateSections(String trackId, List<SongSection> sections) {
     final track = state;
     if (track == null || track.id != trackId || loadingTrackId != null || _loopBusy || !SongSection.validSequence(sections)) return false;
     final engine = ref.read(engineProvider);
     final loop = engine.loopState;
     bool matches(SongSection s, double start, double end) =>
-      (s.startSeconds - start).abs() <= 0.001 && (s.endSeconds - end).abs() <= 0.001;
+      (s.playStart - start).abs() <= 0.001 && (s.playEnd - end).abs() <= 0.001;
     bool removed(double start, double end) => track.sections.any((s) => matches(s, start, end)) && !sections.any((s) => matches(s, start, end));
     if (loop[0] == 1 && removed(loop[1], loop[2])) {
       if (!engine.setLoop(0, 0, false)) return false;
@@ -874,6 +917,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     _pending = _pending.then((_) async {
       if (_disposed || generation != _generation) return;
       await _syncPresetLoops(engine, sections);
+      await _syncSkips(engine, sections);
     });
     refreshGuides();
     return true;
@@ -1080,20 +1124,22 @@ class TransportState {
   const TransportState({this.positionSeconds = 0, this.lengthSeconds = 0, this.isPlaying = false,
     this.loopEnabled = false, this.loopStart = 0, this.loopEnd = 0,
     this.queuedLoopEnabled = false, this.queuedLoopStart = 0, this.queuedLoopEnd = 0, this.underrunCount = 0,
-    this.prerolling = false, this.fading = false});
+    this.prerolling = false, this.fading = false, this.loopPass = 0, this.loopRepeats = 0});
+  /// Volta atual do laço (1..) e repetições (0 = até soltar).
+  final int loopPass, loopRepeats;
   bool activeSection(SongSection section) => loopEnabled &&
-      (loopStart - section.startSeconds).abs() <= 0.001 && (loopEnd - section.endSeconds).abs() <= 0.001;
+      (loopStart - section.playStart).abs() <= 0.001 && (loopEnd - section.playEnd).abs() <= 0.001;
   bool queuedSection(SongSection section) => queuedLoopEnabled &&
-      (queuedLoopStart - section.startSeconds).abs() <= 0.001 && (queuedLoopEnd - section.endSeconds).abs() <= 0.001;
+      (queuedLoopStart - section.playStart).abs() <= 0.001 && (queuedLoopEnd - section.playEnd).abs() <= 0.001;
   @override
   bool operator ==(Object other) => other is TransportState &&
       other.positionSeconds == positionSeconds && other.lengthSeconds == lengthSeconds && other.isPlaying == isPlaying &&
       other.loopEnabled == loopEnabled && other.loopStart == loopStart && other.loopEnd == loopEnd &&
       other.queuedLoopEnabled == queuedLoopEnabled && other.queuedLoopStart == queuedLoopStart && other.queuedLoopEnd == queuedLoopEnd && other.underrunCount == underrunCount &&
-      other.prerolling == prerolling && other.fading == fading;
+      other.prerolling == prerolling && other.fading == fading && other.loopPass == loopPass && other.loopRepeats == loopRepeats;
   @override
   int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying, loopEnabled, loopStart, loopEnd,
-      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling, fading);
+      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling, fading, loopPass, loopRepeats);
 }
 
 class TransportNotifier extends Notifier<TransportState> {
@@ -1137,11 +1183,13 @@ class TransportNotifier extends Notifier<TransportState> {
 
   TransportState _snapshot(WTracksEngine engine) {
     final loop = engine.loopState;
+    final pass = engine.loopPass;
     return TransportState(positionSeconds: engine.currentPositionSeconds,
       lengthSeconds: engine.totalLengthSeconds, isPlaying: engine.isPlaying,
       loopEnabled: loop[0] == 1, loopStart: loop[1], loopEnd: loop[2],
       queuedLoopEnabled: loop[3] == 1, queuedLoopStart: loop[4], queuedLoopEnd: loop[5],
-      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling, fading: engine.fadeGain >= 0);
+      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling, fading: engine.fadeGain >= 0,
+      loopPass: pass.$1, loopRepeats: pass.$2);
   }
   void refresh() { final next = _snapshot(ref.read(engineProvider)); if (next != state) state = next; }
   bool disableLoop() { final ok = ref.read(engineProvider).setLoop(0, 0, false); if (ok) refresh(); return ok; }

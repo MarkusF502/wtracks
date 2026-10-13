@@ -14,6 +14,31 @@ class ClickResourceService {
   }) : bundle = bundle ?? rootBundle,
        directoryResolver = directoryResolver ?? getApplicationSupportDirectory;
 
+  /// Pasta de clicks personalizados (Playback: "Custom Clicks Directory Path"); null = só os do pacote.
+  String? customDirectory;
+  static const customPrefix = 'custom:';
+  static const _voices = ['accents', 'quarter', 'eighth', 'sixteenth'];
+  static final _audio = RegExp(r'\.(wav|aif|aiff|flac)$', caseSensitive: false);
+
+  /// Famílias completas (as quatro vozes) da pasta personalizada: `<Família>-<voz>.<ext>`.
+  Map<String, Map<String, String>> customFamilies() {
+    final dir = customDirectory;
+    final result = <String, Map<String, String>>{};
+    if (dir == null || !Directory(dir).existsSync()) return result;
+    for (final entity in Directory(dir).listSync().whereType<File>()) {
+      final name = entity.uri.pathSegments.last;
+      if (!_audio.hasMatch(name)) continue;
+      final base = name.substring(0, name.lastIndexOf('.'));
+      final dash = base.lastIndexOf('-');
+      if (dash <= 0) continue;
+      final voice = base.substring(dash + 1);
+      if (!_voices.contains(voice)) continue;
+      (result[base.substring(0, dash)] ??= {})[voice] = entity.path;
+    }
+    result.removeWhere((_, voices) => voices.length != 4);
+    return result;
+  }
+
   Future<List<String>> families() async {
     final manifest =
         jsonDecode(
@@ -24,11 +49,17 @@ class ClickResourceService {
         .map((r) => r['family'] as String)
         .toSet()
         .toList()
-      ..sort();
+      ..sort()
+      ..addAll([for (final f in customFamilies().keys.toList()..sort()) '$customPrefix$f']);
   }
 
   Future<List<String?>> prepare(String family) async {
     if (family == 'synthetic') return List.filled(4, null);
+    if (family.startsWith(customPrefix)) {
+      final voices = customFamilies()[family.substring(customPrefix.length)];
+      if (voices == null) throw FormatException('Família personalizada indisponível: $family');
+      return [for (final v in _voices) voices[v]];
+    }
     final manifest =
         jsonDecode(
               await bundle.loadString('assets/playback/click/manifest.json'),

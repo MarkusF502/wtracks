@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
 import 'guide_settings_sheet.dart';
+import '../widgets/dialog_text_controller.dart';
 
 /// Configurações do app.
 class SettingsScreen extends ConsumerWidget {
@@ -29,6 +31,20 @@ class SettingsScreen extends ConsumerWidget {
           value: settings.stereoSplit,
           onChanged: (v) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(stereoSplit: v)),
         ),
+        _DirectoryTile(
+          key: const Key('custom-clicks'),
+          title: 'Pasta de clicks personalizados',
+          help: 'Arquivos <Família>-accents/quarter/eighth/sixteenth.wav',
+          value: settings.customClicksDirectory,
+          onChanged: (path) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(customClicksDirectory: path)),
+        ),
+        _DirectoryTile(
+          key: const Key('custom-guides'),
+          title: 'Pasta de guias personalizadas',
+          help: 'Arquivos guidecue-section|count-<idioma>-<gênero>-<nome>.wav',
+          value: settings.customGuidesDirectory,
+          onChanged: (path) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(customGuidesDirectory: path)),
+        ),
         ListTile(
           leading: const Icon(Icons.record_voice_over_outlined),
           title: const Text('Guias'),
@@ -39,4 +55,49 @@ class SettingsScreen extends ConsumerWidget {
       ]),
     );
   }
+}
+
+class _DirectoryTile extends StatelessWidget {
+  final String title, help;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  const _DirectoryTile({super.key, required this.title, required this.help, required this.value, required this.onChanged});
+
+  Future<void> _edit(BuildContext context) async {
+    final result = await showDialog<(bool, String?)>(
+      context: context,
+      builder: (ctx) => DialogTextController(
+        initialText: value ?? '',
+        builder: (controller) => AlertDialog(
+          backgroundColor: kPanelBg,
+          title: Text(title),
+          content: TextField(
+            key: const Key('directory-path'),
+            controller: controller,
+            decoration: InputDecoration(labelText: 'Caminho da pasta', helperText: help),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(ctx, (true, null)), child: const Text('Remover')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, (true, controller.text.trim())), child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
+    if (result == null || !context.mounted) return;
+    final path = result.$2;
+    if (path != null && path.isNotEmpty && !Directory(path).existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pasta não encontrada.')));
+      return;
+    }
+    onChanged(path == null || path.isEmpty ? null : path);
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        leading: const Icon(Icons.folder_outlined),
+        title: Text(title),
+        subtitle: Text(value ?? 'Nenhuma (somente os sons do pacote)'),
+        onTap: () => _edit(context),
+      );
 }

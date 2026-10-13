@@ -136,6 +136,10 @@ typedef _PollInputNative = Int32 Function(Pointer<Uint32>, Int32);
 typedef _PollInputDart = int Function(Pointer<Uint32>, int);
 typedef _InjectNative = Bool Function(Pointer<Uint8>, Int32);
 typedef _InjectDart = bool Function(Pointer<Uint8>, int);
+typedef _SkipsNative = Bool Function(Pointer<Double>, Pointer<Double>, Int32);
+typedef _SkipsDart = bool Function(Pointer<Double>, Pointer<Double>, int);
+typedef _LoopPassNative = Void Function(Pointer<Int32>, Pointer<Int32>);
+typedef _LoopPassDart = void Function(Pointer<Int32>, Pointer<Int32>);
 typedef _ConfigurePrerollNative = Bool Function(Bool, Pointer<Double>, Int32, Pointer<Pointer<Utf8>>, Int32);
 typedef _ConfigurePrerollDart = bool Function(bool, Pointer<Double>, int, Pointer<Pointer<Utf8>>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
@@ -304,6 +308,8 @@ class WTracksEngine {
   late final _BusStateDart _getBusState;
   late final _BusMetersDart _takeBusMeters;
   late final _CuesExDart _configureCuesEx;
+  late final _SkipsDart _configureSkips;
+  late final _LoopPassDart _getLoopPass;
   late final _MidiListDart _midiListInputs;
   late final _MidiOpenDart _midiOpenInput;
   late final _VoidFnDart _midiCloseInput;
@@ -449,6 +455,8 @@ class WTracksEngine {
     _getBusState = _lib.lookupFunction<_BusStateNative, _BusStateDart>('wtracks_get_bus_state');
     _takeBusMeters = _lib.lookupFunction<_BusMetersNative, _BusMetersDart>('wtracks_take_bus_meters');
     _configureCuesEx = _lib.lookupFunction<_CuesExNative, _CuesExDart>('wtracks_configure_cues_ex');
+    _configureSkips = _lib.lookupFunction<_SkipsNative, _SkipsDart>('wtracks_configure_skips');
+    _getLoopPass = _lib.lookupFunction<_LoopPassNative, _LoopPassDart>('wtracks_get_loop_pass');
     _midiListInputs = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_inputs');
     _midiOpenInput = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('wtracks_midi_open_input');
     _midiCloseInput = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_input');
@@ -826,6 +834,37 @@ class WTracksEngine {
   int pollTransportEvents() => _pollTransportEvents();
   static const transportEventEndReached = 1, transportEventFadeFinished = 2;
 
+  /// Áreas cortadas (segundos da música) que a reprodução pula; decodifica pontes de áudio — use a versão async.
+  bool configureSkips(List<(double, double)> areas) {
+    if (areas.length > 32) return false;
+    final slots = areas.isEmpty ? 1 : areas.length;
+    final starts = calloc<Double>(slots), ends = calloc<Double>(slots);
+    try {
+      for (var i = 0; i < areas.length; i++) {
+        starts[i] = areas[i].$1;
+        ends[i] = areas[i].$2;
+      }
+      return _configureSkips(starts, ends, areas.length);
+    } finally {
+      calloc.free(starts);
+      calloc.free(ends);
+    }
+  }
+
+  Future<bool> configureSkipsAsync(List<(double, double)> areas) => Isolate.run(() => WTracksEngine().configureSkips(areas));
+
+  /// Volta atual do laço ativo (1..) e o total de repetições (0 = até soltar); (0, 0) sem laço.
+  (int, int) get loopPass {
+    final pass = calloc<Int32>(), repeats = calloc<Int32>();
+    try {
+      _getLoopPass(pass, repeats);
+      return (pass.value, repeats.value);
+    } finally {
+      calloc.free(pass);
+      calloc.free(repeats);
+    }
+  }
+
   /// Agenda MIDI (ver [buildMidiSchedule]); o índice que pollCues devolve é a posição em [schedule].
   bool configureMidiSchedule(List<ScheduledMidi> schedule) {
     if (schedule.length > 4096) return false;
@@ -967,8 +1006,8 @@ class WTracksEngine {
     final starts = calloc<Double>(slots), ends = calloc<Double>(slots), repeats = calloc<Int32>(slots);
     try {
       for (var i = 0; i < sections.length; i++) {
-        starts[i] = sections[i].startSeconds;
-        ends[i] = sections[i].endSeconds;
+        starts[i] = sections[i].playStart;
+        ends[i] = sections[i].playEnd;
         repeats[i] = 0; // preset = loop until released
       }
       return _configurePresetLoops(starts, ends, repeats, sections.length);

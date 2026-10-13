@@ -202,6 +202,8 @@ class _SectionDialogState extends State<_SectionDialog> {
     text: (widget.section?.endSeconds ?? widget.initialStart + 10).toString(),
   );
   late final _loops = TextEditingController(text: (widget.section?.loopCount ?? 0).toString());
+  late final _trimStart = TextEditingController(text: (widget.section?.trimStartSeconds ?? 0).toString());
+  late final _trimEnd = TextEditingController(text: (widget.section?.trimEndSeconds ?? 0).toString());
   late bool _preset = widget.section?.presetInfiniteLoop ?? false;
   late bool _guide = widget.section?.playGuideCue ?? true;
   late bool _countIn = widget.section?.playCountIn ?? false;
@@ -213,6 +215,8 @@ class _SectionDialogState extends State<_SectionDialog> {
     _start.dispose();
     _end.dispose();
     _loops.dispose();
+    _trimStart.dispose();
+    _trimEnd.dispose();
     super.dispose();
   }
 
@@ -272,6 +276,31 @@ class _SectionDialogState extends State<_SectionDialog> {
                 return n == null || n < 0 || n > SongSection.maxLoopCount ? 'Use 0 a ${SongSection.maxLoopCount}' : null;
               },
             ),
+            TextFormField(
+              key: const Key('section-trim-start'),
+              controller: _trimStart,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Cortar do início (segundos)'),
+              validator: (text) {
+                final n = _number(text);
+                return n == null || !n.isFinite || n < 0 ? 'Informe um corte válido' : null;
+              },
+            ),
+            TextFormField(
+              key: const Key('section-trim-end'),
+              controller: _trimEnd,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Cortar do fim (segundos)',
+                helperText: 'Trechos cortados não tocam; cues neles não disparam.',
+              ),
+              validator: (text) {
+                final n = _number(text), a = _number(_trimStart.text), start = _number(_start.text), end = _number(_end.text);
+                if (n == null || !n.isFinite || n < 0) return 'Informe um corte válido';
+                if (a != null && start != null && end != null && end - start - a - n < 0.01) return 'Os cortes ocupam a seção inteira';
+                return null;
+              },
+            ),
             SwitchListTile(
               key: const Key('section-preset'),
               contentPadding: EdgeInsets.zero,
@@ -317,6 +346,8 @@ class _SectionDialogState extends State<_SectionDialog> {
               presetInfiniteLoop: _preset,
               playGuideCue: _guide,
               playCountIn: _countIn,
+              trimStartSeconds: _number(_trimStart.text)!,
+              trimEndSeconds: _number(_trimEnd.text)!,
             ),
           );
         },

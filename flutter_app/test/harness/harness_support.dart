@@ -200,6 +200,17 @@ class FakeEngine implements WTracksEngine {
     pendingInput.add(bytes);
     return true;
   }
+  List<(double, double)> skipAreas = [];
+  @override
+  bool configureSkips(List<(double, double)> areas) {
+    skipAreas = areas;
+    return true;
+  }
+  @override
+  Future<bool> configureSkipsAsync(List<(double, double)> areas) async => configureSkips(areas);
+  (int, int) pass = (0, 0);
+  @override
+  (int, int) get loopPass => pass;
   @override
   int pollTransportEvents() {
     final events = pendingEvents;
