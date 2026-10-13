@@ -100,6 +100,8 @@ typedef _LoopSnapshotNative = Void Function(Pointer<Double>);
 typedef _LoopSnapshotDart = void Function(Pointer<Double>);
 typedef _ConfigureGuidesNative = Bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, Int32);
 typedef _ConfigureGuidesDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, int);
+typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
+typedef _SetRouteDart = bool Function(int, int, bool);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -166,6 +168,8 @@ class WTracksEngine {
   late final _GetCounterDart _getUnderrunCount;
   late final _LoopSnapshotDart _getLoopState;
 
+  late final _SetRouteDart _setChannelRoute;
+  late final _ClickGainDart _setMasterVolume;
   late final _ConfigureGuidesDart _configureGuides;
   late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
@@ -262,6 +266,8 @@ class WTracksEngine {
     _getQueuedLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_start');
     _getQueuedLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_end');
     _getLoopState = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_loop_state');
+    _setChannelRoute = _lib.lookupFunction<_SetRouteNative, _SetRouteDart>('wtracks_set_channel_route');
+    _setMasterVolume = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>('wtracks_set_master_volume');
     _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('wtracks_configure_guides');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
@@ -394,6 +400,9 @@ class WTracksEngine {
     return ok;
   }
 
+  bool setChannelRoute(int channelIndex, ChannelRoute route) =>
+      _setChannelRoute(channelIndex, route.outputBase, route.mono);
+  void setMasterVolume(double volume) => _setMasterVolume(volume);
   void setGuidesEnabled(bool enabled) => _setGuidesEnabled(enabled);
   Future<bool> configureGuidesAsync(List<GuideCue> cues, List<String> paths) => Isolate.run(() => WTracksEngine().configureGuides(cues, paths));
   bool configureGuides(List<GuideCue> cues, List<String> paths) {

@@ -114,7 +114,9 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         state = track;
         for (var i = 0; i < track.channels.length; i++) {
           engine.setChannelVolume(i, track.channels[i].volume);
+          engine.setChannelRoute(i, track.channels[i].route);
         }
+        engine.setMasterVolume(track.masterVolume);
         _syncEffectiveMutes();
         return true;
       } catch (e) {
@@ -151,6 +153,25 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final updatedChannels = [...track.channels];
     updatedChannels[index] = updatedChannels[index].copyWith(volume: volume);
     state = track.copyWith(channels: updatedChannels);
+  }
+
+  /// Troca a saída do canal; o estado só muda se o motor aceitou a rota.
+  bool setChannelRoute(int index, ChannelRoute route) {
+    final track = state;
+    if (track == null || index < 0 || index >= track.channels.length) return false;
+    if (!ref.read(engineProvider).setChannelRoute(index, route)) return false;
+    final updatedChannels = [...track.channels];
+    updatedChannels[index] = updatedChannels[index].copyWith(route: route);
+    state = track.copyWith(channels: updatedChannels);
+    return true;
+  }
+
+  void setMasterVolume(double volume) {
+    final track = state;
+    if (track == null || !volume.isFinite) return;
+    final clamped = volume.clamp(0.0, 2.0).toDouble();
+    ref.read(engineProvider).setMasterVolume(clamped);
+    state = track.copyWith(masterVolume: clamped);
   }
 
   void setChannelMuted(int index, bool muted) {

@@ -73,6 +73,18 @@ class FakeEngine implements WTracksEngine {
       calls.add('volume($channelIndex,$volume)');
   @override
   void setChannelMuted(int channelIndex, bool muted) => calls.add('muted($channelIndex,$muted)');
+  final routes = <int, ChannelRoute>{};
+  double masterVolume = 1;
+  bool failRoute = false;
+  @override
+  bool setChannelRoute(int channelIndex, ChannelRoute route) {
+    calls.add('route($channelIndex,${route.name})');
+    if (failRoute) return false;
+    routes[channelIndex] = route;
+    return true;
+  }
+  @override
+  void setMasterVolume(double volume) { masterVolume = volume; calls.add('master($volume)'); }
   @override
   int get channelCount => 0;
   @override

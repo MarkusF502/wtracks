@@ -2,6 +2,23 @@ import 'package:flutter/foundation.dart';
 import 'song_section.dart';
 import 'guide_cue.dart';
 
+/// Saída do canal no mixer nativo (contrato BusChannelAU): estéreo usa a base
+/// e a seguinte; mono mistura (L+R)/2 numa única saída. Em um dispositivo
+/// estéreo, [left] e [right] permitem, por exemplo, click e banda separados.
+enum ChannelRoute {
+  stereo(0, false),
+  left(0, true),
+  right(1, true);
+
+  final int outputBase;
+  final bool mono;
+  const ChannelRoute(this.outputBase, this.mono);
+
+  /// Valores desconhecidos (arquivos de versões futuras) voltam ao estéreo.
+  static ChannelRoute parse(Object? name) =>
+      ChannelRoute.values.firstWhere((r) => r.name == name, orElse: () => ChannelRoute.stereo);
+}
+
 /// Representa um canal dentro de uma [Track] -- ex: "Click", "Bateria".
 /// [filePath] é sempre um caminho LOCAL (já copiado do content:// original
 /// pelo FileImportService) -- é isso que vai direto pro loadTrack() nativo.
@@ -12,6 +29,7 @@ class ChannelInfo {
   final double volume; // 0.0 - 1.0, espelha o estado no AudioEngine
   final bool muted; // intenção manual do usuário (botão M)
   final bool soloed; // conceito só do Dart -- o AudioEngine não tem solo nativo
+  final ChannelRoute route;
 
   const ChannelInfo({
     required this.label,
@@ -19,6 +37,7 @@ class ChannelInfo {
     this.volume = 1.0,
     this.muted = false,
     this.soloed = false,
+    this.route = ChannelRoute.stereo,
   });
 
   ChannelInfo copyWith({
@@ -27,6 +46,7 @@ class ChannelInfo {
     double? volume,
     bool? muted,
     bool? soloed,
+    ChannelRoute? route,
   }) {
     return ChannelInfo(
       label: label ?? this.label,
@@ -34,6 +54,7 @@ class ChannelInfo {
       volume: volume ?? this.volume,
       muted: muted ?? this.muted,
       soloed: soloed ?? this.soloed,
+      route: route ?? this.route,
     );
   }
 
@@ -43,6 +64,7 @@ class ChannelInfo {
         'volume': volume,
         'muted': muted,
         'soloed': soloed,
+        'route': route.name,
       };
 
   factory ChannelInfo.fromJson(Map<String, dynamic> json) => ChannelInfo(
@@ -51,6 +73,7 @@ class ChannelInfo {
         volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
         muted: json['muted'] as bool? ?? false,
         soloed: json['soloed'] as bool? ?? false,
+        route: ChannelRoute.parse(json['route']),
       );
 }
 
@@ -195,6 +218,7 @@ class Track {
   static const currentSchemaVersion = 3;
   final List<GuideCue> guideCues;
   final bool guidesEnabled;
+  final double masterVolume; // 0.0 - 2.0, ganho comum do mixer
   final int schemaVersion;
   final List<SongSection> sections;
   final String id;
@@ -207,6 +231,7 @@ class Track {
   const Track({
     this.guideCues = const [],
     this.guidesEnabled = true,
+    this.masterVolume = 1.0,
     this.schemaVersion = currentSchemaVersion,
     this.sections = const [],
     required this.id,
@@ -220,6 +245,7 @@ class Track {
   Track copyWith({
     List<GuideCue>? guideCues,
     bool? guidesEnabled,
+    double? masterVolume,
     List<SongSection>? sections,
     String? title,
     List<ChannelInfo>? channels,
@@ -230,6 +256,7 @@ class Track {
     return Track(
       guideCues: guideCues ?? this.guideCues,
       guidesEnabled: guidesEnabled ?? this.guidesEnabled,
+      masterVolume: masterVolume ?? this.masterVolume,
       sections: sections ?? this.sections,
       id: id,
       title: title ?? this.title,
@@ -247,6 +274,7 @@ class Track {
         'sections': sections.map((s) => s.toJson()).toList(),
         'guideCues': guideCues.map((c) => c.toJson()).toList(),
         'guidesEnabled': guidesEnabled,
+        'masterVolume': masterVolume,
         'id': id,
         'title': title,
         'channels': channels.map((c) => c.toJson()).toList(),
@@ -260,6 +288,7 @@ class Track {
   factory Track.fromJson(Map<String, dynamic> json) => Track(
         guideCues: GuideCue.fromJsonList(json['guideCues'] as List? ?? const []),
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
+        masterVolume: ((json['masterVolume'] as num?)?.toDouble() ?? 1.0).clamp(0.0, 2.0),
         schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
         sections: SongSection.fromJsonList(json['sections'] as List? ?? const []),
         id: json['id'] as String,

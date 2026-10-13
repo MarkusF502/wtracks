@@ -889,9 +889,29 @@ class _Mixer extends ConsumerWidget {
             alignment: Alignment.centerLeft,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
-            child: const Text('MIXER',
-                style: TextStyle(
-                    color: _textFaint, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            child: Row(
+              children: [
+                const Text('MIXER',
+                    style: TextStyle(
+                        color: _textFaint, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                const Spacer(),
+                const Text('MASTER', style: TextStyle(color: _textFaint, fontSize: 10)),
+                SizedBox(
+                  width: 140,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(trackHeight: 2, overlayShape: SliderComponentShape.noOverlay),
+                    child: Slider(
+                      key: const Key('master-volume'),
+                      value: track.masterVolume.clamp(0.0, 2.0),
+                      max: 2,
+                      onChanged: notifier.setMasterVolume,
+                    ),
+                  ),
+                ),
+                Text('${(track.masterVolume * 100).round()}%',
+                    style: const TextStyle(color: _textFaint, fontSize: 10)),
+              ],
+            ),
           ),
           Expanded(
             child: ListView.builder(
@@ -906,6 +926,9 @@ class _Mixer extends ConsumerWidget {
                   volume: channel.volume,
                   muted: channel.muted,
                   soloed: channel.soloed,
+                  route: channel.route,
+                  onRouteToggled: () => notifier.setChannelRoute(
+                      index, ChannelRoute.values[(channel.route.index + 1) % ChannelRoute.values.length]),
                   onVolumeChanged: (v) => notifier.setChannelVolume(index, v),
                   onMuteToggled: () => notifier.setChannelMuted(index, !channel.muted),
                   onSoloToggled: () => notifier.toggleChannelSolo(index),
@@ -938,6 +961,8 @@ class _MixerChannelStrip extends StatelessWidget {
   final double volume; // 0.0 - 1.0
   final bool muted;
   final bool soloed;
+  final ChannelRoute route;
+  final VoidCallback onRouteToggled;
   final ValueChanged<double> onVolumeChanged;
   final VoidCallback onMuteToggled;
   final VoidCallback onSoloToggled;
@@ -948,6 +973,8 @@ class _MixerChannelStrip extends StatelessWidget {
     required this.volume,
     required this.muted,
     required this.soloed,
+    required this.route,
+    required this.onRouteToggled,
     required this.onVolumeChanged,
     required this.onMuteToggled,
     required this.onSoloToggled,
@@ -1016,6 +1043,14 @@ class _MixerChannelStrip extends StatelessWidget {
             active: muted,
             activeColor: const Color(0xFFFF3B4E),
             onTap: onMuteToggled,
+          ),
+          const SizedBox(height: 4),
+          _MixerToggleButton(
+            label: switch (route) { ChannelRoute.stereo => 'ST', ChannelRoute.left => 'L', ChannelRoute.right => 'R' },
+            active: route != ChannelRoute.stereo,
+            activeColor: const Color(0xFF5B7CF5),
+            onTap: onRouteToggled,
+            height: 22,
           ),
           const SizedBox(height: 4),
           _MixerToggleButton(
