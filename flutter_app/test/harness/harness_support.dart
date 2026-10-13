@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/models/track.dart';
 import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/services/persistence_service.dart';
+import 'package:flutter_app/models/guide_cue.dart';
 
 /// Engine falso que grava cada chamada recebida, pra os testes conferirem
 /// o que a UI/providers mandaram pro motor nativo.
@@ -110,6 +111,15 @@ class FakeEngine implements WTracksEngine {
   Future<bool> enqueueLoopAsync(double start, double end) async => enqueueLoop(start, end);
   @override
   void clearQueuedLoop() { queuedLoopEnabled = false; queuedLoopStart = 0; queuedLoopEnd = 0; }
+  List<GuideCue> configuredGuides = [];
+  bool guidesEnabled = true;
+  bool failGuides = false;
+  @override
+  void setGuidesEnabled(bool enabled) { guidesEnabled=enabled; }
+  @override
+  bool configureGuides(List<GuideCue> cues,List<String> paths) { if(failGuides) return false; configuredGuides=cues; return true; }
+  @override
+  Future<bool> configureGuidesAsync(List<GuideCue> cues,List<String> paths) async => configureGuides(cues,paths);
   ClickSettings? configuredClick;
   @override
   bool configureClick(ClickSettings settings) {

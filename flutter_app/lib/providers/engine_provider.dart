@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
 import '../models/song_section.dart';
+import '../models/guide_cue.dart';
+import '../services/guide_resource_service.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
 import '../native/wtracks_bindings.dart';
@@ -14,6 +16,12 @@ import '../services/click_resource_service.dart';
 
 final clickResourceServiceProvider = Provider<ClickResourceService>(
   (ref) => ClickResourceService(),
+);
+final guideResourceServiceProvider = Provider<GuideResourceService>(
+  (ref) => GuideResourceService(),
+);
+final guideResourcesProvider = FutureProvider<List<Map<String, dynamic>>>(
+  (ref) => ref.read(guideResourceServiceProvider).resources(),
 );
 final clickFamiliesProvider = FutureProvider<List<String>>(
   (ref) => ref.read(clickResourceServiceProvider).families(),
@@ -92,6 +100,12 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           state = null;
           return false;
         }
+        final guidePaths = await ref.read(guideResourceServiceProvider).prepare(track.guideCues.map((c)=>c.resourceName).toList());
+        if (_disposed || generation != _generation) { if (!_disposed) engine.unloadTrack(); return false; }
+        final guidesLoaded=await engine.configureGuidesAsync(track.guideCues,guidePaths);
+        if (_disposed || generation != _generation) { if (!_disposed) engine.unloadTrack(); return false; }
+        if (!guidesLoaded) { engine.unloadTrack(); state=null; return false; }
+        engine.setGuidesEnabled(track.guidesEnabled);
         if (!engine.configureClick(track.clickSettings)) {
           engine.unloadTrack();
           state = null;
@@ -199,6 +213,32 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null) return;
     state = track.copyWith(title: title);
+  }
+
+  Future<bool> updateGuides(String trackId, List<GuideCue> cues, bool enabled) {
+    if (state?.id != trackId || loadingTrackId != null || !GuideCue.validSequence(cues)) return Future.value(false);
+    final generation=_generation;
+    final operation=_pending.then((_) async {
+      try {
+        final engine=ref.read(engineProvider);
+        final current=state;
+        // Only the switch changed: keep the prepared native schedule instead of decoding again.
+        if (current != null && current.id == trackId && listEquals(current.guideCues, cues)) {
+          engine.setGuidesEnabled(enabled);
+          state=current.copyWith(guidesEnabled:enabled);
+          return true;
+        }
+        final paths=await ref.read(guideResourceServiceProvider).prepare(cues.map((c)=>c.resourceName).toList());
+        if (_disposed || generation != _generation || state?.id != trackId) return false;
+        final ok=await engine.configureGuidesAsync(cues,paths);
+        if (_disposed || generation != _generation || !ok) return false;
+        engine.setGuidesEnabled(enabled);
+        state=state!.copyWith(guideCues:List.unmodifiable(cues),guidesEnabled:enabled);
+        return true;
+      } catch(e) { debugPrint('Falha nas guias: $e'); return false; }
+    });
+    _pending=operation.then((_){});
+    return operation;
   }
 
   int _loopRequest = 0;

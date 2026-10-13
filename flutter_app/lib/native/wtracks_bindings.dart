@@ -5,6 +5,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import '../models/engine_error.dart';
 import '../models/track.dart';
+import '../models/guide_cue.dart';
 
 // ---- Assinaturas das funções nativas (espelham ffi_bridge.h) ----
 
@@ -97,6 +98,8 @@ typedef _EnqueueLoopNative = Bool Function(Double, Double);
 typedef _EnqueueLoopDart = bool Function(double, double);
 typedef _LoopSnapshotNative = Void Function(Pointer<Double>);
 typedef _LoopSnapshotDart = void Function(Pointer<Double>);
+typedef _ConfigureGuidesNative = Bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, Int32);
+typedef _ConfigureGuidesDart = bool Function(Pointer<Double>, Pointer<Pointer<Utf8>>, Pointer<Float>, int);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -163,6 +166,8 @@ class WTracksEngine {
   late final _GetCounterDart _getUnderrunCount;
   late final _LoopSnapshotDart _getLoopState;
 
+  late final _ConfigureGuidesDart _configureGuides;
+  late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
     _lib = _openLibrary();
 
@@ -257,6 +262,8 @@ class WTracksEngine {
     _getQueuedLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_start');
     _getQueuedLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_end');
     _getLoopState = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_loop_state');
+    _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('wtracks_configure_guides');
+    _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
       'wtracks_set_click_gain',
@@ -387,6 +394,20 @@ class WTracksEngine {
     return ok;
   }
 
+  void setGuidesEnabled(bool enabled) => _setGuidesEnabled(enabled);
+  Future<bool> configureGuidesAsync(List<GuideCue> cues, List<String> paths) => Isolate.run(() => WTracksEngine().configureGuides(cues, paths));
+  bool configureGuides(List<GuideCue> cues, List<String> paths) {
+    if (!GuideCue.validSequence(cues) || paths.length != cues.length) return false;
+    final count=cues.length;
+    final slots=count == 0 ? 1 : count;
+    final times=calloc<Double>(slots), gains=calloc<Float>(slots);
+    final strings=paths.map((p)=>p.toNativeUtf8()).toList();
+    final nativePaths=calloc<Pointer<Utf8>>(slots);
+    try {
+      for(var i=0;i<count;i++) { times[i]=cues[i].timeSeconds; gains[i]=cues[i].gain; nativePaths[i]=strings[i]; }
+      return _configureGuides(times,nativePaths,gains,count);
+    } finally { for(final p in strings) { malloc.free(p); } calloc.free(times); calloc.free(gains); calloc.free(nativePaths); }
+  }
   List<double> get loopState {
     final values = calloc<Double>(6);
     try { _getLoopState(values); return List.generate(6, (i) => values[i]); }
