@@ -108,6 +108,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
 
         Channel channel;
         channel.name = file.getFileNameWithoutExtension();
+        channel.file=file;
         channel.fileSampleRate = reader->sampleRate;
         channel.readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
         channel.readAheadCapacity=static_cast<int>(channel.fileSampleRate*4)+64;
@@ -136,6 +137,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
         channels = std::move(newChannels);
+        loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
         clickTimeline.reset();
     }
@@ -190,6 +192,8 @@ void AudioEngine::stop()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     playing=false;
+    { const juce::SpinLock::ScopedLockType lock(channelsLock);
+      loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); }
     seekToSeconds(0);
 }
 
@@ -201,6 +205,7 @@ void AudioEngine::seekToSeconds(double seconds)
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         seconds = channels.empty() ? 0.0 : juce::jmin(seconds, channels.front().readerSource->getTotalLength() / channels.front().fileSampleRate);
+        if (loopEnabled && activeLoop && (seconds < activeLoop->start || seconds >= activeLoop->end)) seconds=activeLoop->start;
         currentSamplePosition = static_cast<int64_t>(std::llround(seconds * currentSampleRate));
         for (auto& channel : channels) if (channel.bufferedSource) {
             channel.bufferedSource->setNextReadPosition(static_cast<juce::int64>(std::llround(seconds*channel.fileSampleRate)));
@@ -234,6 +239,105 @@ bool AudioEngine::isPlaying() const
 }
 
 uint64_t AudioEngine::getUnderrunCount() const { return underrunCount.load(); }
+
+std::shared_ptr<AudioEngine::LoopCache> AudioEngine::prepareLoop(double start, double end)
+{
+    // Caller holds controlMutex; file list and ownership cannot change while decoding.
+    if (channels.empty() || !std::isfinite(start) || !std::isfinite(end) || start < 0 || end-start < 1.0/8000
+        || end > channels.front().readerSource->getTotalLength()/channels.front().fileSampleRate) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid loop range"); return {};
+    }
+    constexpr uint64_t limit=128ULL*1024*1024;
+    uint64_t bytes=0;
+    for (const auto& channel : channels) {
+        const long double frames=std::ceil(static_cast<long double>(end-start)*channel.fileSampleRate)+3;
+        if (frames*2*sizeof(float) > limit-bytes) { setLastError(EngineErrorCode::FormatMismatch,"Loop cache exceeds 128 MiB"); return {}; }
+        bytes+=static_cast<uint64_t>(frames)*2*sizeof(float);
+    }
+    auto result=std::make_shared<LoopCache>(); result->start=start; result->end=end;
+    result->stems.resize(channels.size()); result->firstFrames.resize(channels.size());
+    juce::AudioFormatManager loader; loader.registerBasicFormats();
+    for (size_t index=0;index<channels.size();++index) {
+        const auto& channel=channels[index];
+        std::unique_ptr<juce::AudioFormatReader> reader(loader.createReaderFor(channel.file));
+        if (!reader || reader->sampleRate!=channel.fileSampleRate) { setLastError(EngineErrorCode::FileUnreadable,"Loop source unavailable"); return {}; }
+        const int64_t first=static_cast<int64_t>(std::floor(start*channel.fileSampleRate));
+        const int length=static_cast<int>(std::ceil(end*channel.fileSampleRate)-first)+2;
+        result->firstFrames[index]=first; auto& data=result->stems[index]; data.setSize(2,length); data.clear();
+        if (!reader->read(&data,0,length,first,true,true)) { setLastError(EngineErrorCode::FileUnreadable,"Loop decoding failed"); return {}; }
+        if (reader->numChannels==1) data.copyFrom(1,0,data,0,0,length);
+    }
+    return result;
+}
+
+bool AudioEngine::setLoop(double start, double end, bool enabled)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    if (!enabled) {
+        const bool resume=playing.exchange(false);
+        const double seconds=getCurrentPositionSeconds();
+        { const juce::SpinLock::ScopedLockType lock(channelsLock);
+          loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); }
+        seekToSeconds(seconds);
+        if (prefillChannels()) playing=resume;
+        return true;
+    }
+    auto bank=prepareLoop(start,end); if (!bank) return false;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true;
+    const double seconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
+    if (seconds < start || seconds >= end) currentSamplePosition=static_cast<int64_t>(std::llround(start*currentSampleRate));
+    clickTimeline.reset(); setLastError(EngineErrorCode::None,""); return true;
+}
+
+bool AudioEngine::enqueueLoop(double start, double end)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    { const juce::SpinLock::ScopedLockType lock(channelsLock);
+      if (!loopEnabled || !activeLoop) { setLastError(EngineErrorCode::FormatMismatch,"Enable a loop before enqueueing"); return false; } }
+    auto bank=prepareLoop(start,end); if (!bank) return false;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    queuedLoop=std::move(bank); queuedLoopEnabled=true; setLastError(EngineErrorCode::None,""); return true;
+}
+
+void AudioEngine::clearQueuedLoop()
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    queuedLoopEnabled=false; queuedLoop.reset();
+}
+void AudioEngine::getLoopState(double* out6) const
+{
+    if (!out6) return;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    out6[0]=loopEnabled ? 1 : 0; out6[1]=loopEnabled && activeLoop ? activeLoop->start : 0;
+    out6[2]=loopEnabled && activeLoop ? activeLoop->end : 0; out6[3]=queuedLoopEnabled ? 1 : 0;
+    out6[4]=queuedLoopEnabled && queuedLoop ? queuedLoop->start : 0;
+    out6[5]=queuedLoopEnabled && queuedLoop ? queuedLoop->end : 0;
+}
+void AudioEngine::normalizeLoopPosition()
+{
+    if (!loopEnabled || !activeLoop) return;
+    const int64_t position=currentSamplePosition.load();
+    const auto start=static_cast<int64_t>(std::llround(activeLoop->start*currentSampleRate));
+    const auto end=static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate));
+    if (position >= start && position < end) return;
+    const int64_t overflow=position >= end ? position-end : 0;
+    if (position >= end && queuedLoopEnabled && queuedLoop) {
+        // Retain the previous cache until a control-thread queue operation destroys it.
+        activeLoop.swap(queuedLoop); queuedLoopEnabled=false;
+    }
+    const auto nextStart=static_cast<int64_t>(std::llround(activeLoop->start*currentSampleRate));
+    const auto nextEnd=static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate));
+    currentSamplePosition=nextStart+overflow % juce::jmax<int64_t>(1,nextEnd-nextStart);
+    clickTimeline.reset();
+}
+bool AudioEngine::getLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled; }
+bool AudioEngine::getQueuedLoopEnabled() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled; }
+double AudioEngine::getLoopStart() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled && activeLoop ? activeLoop->start : 0; }
+double AudioEngine::getLoopEnd() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return loopEnabled && activeLoop ? activeLoop->end : 0; }
+double AudioEngine::getQueuedLoopStart() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled && queuedLoop ? queuedLoop->start : 0; }
+double AudioEngine::getQueuedLoopEnd() const { const juce::SpinLock::ScopedLockType lock(channelsLock); return queuedLoopEnabled && queuedLoop ? queuedLoop->end : 0; }
 
 bool AudioEngine::channelsReady(int outputSamples, uint32_t timeoutMs)
 {
@@ -428,30 +532,36 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     info.clearActiveBufferRegion();
     if (!playing.load() || info.buffer == nullptr || info.numSamples <= 0) return;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    if (channels.empty() || !isPrepared || preparedBlockSize <= 0) return;
+    if (!playing.load() || channels.empty() || !isPrepared || preparedBlockSize <= 0) return;
     const auto& first=channels.front();
     const int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
     int written=0;
     while (written < info.numSamples) {
+        normalizeLoopPosition();
         const int64_t position=currentSamplePosition.load();
-        const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),end-position));
+        const int64_t boundary=loopEnabled && activeLoop ? static_cast<int64_t>(std::llround(activeLoop->end*currentSampleRate)) : end;
+        const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),boundary-position));
         if (count <= 0) { currentSamplePosition=end; playing=false; break; }
-        if (!channelsReady(count,0)) {
-            // No stem or click advances on a cache miss. Remaining host output is already silent.
-            ++underrunCount; break;
-        }
-        for (auto& channel : channels) {
-            scratchBuffer.clear();
-            juce::AudioSourceChannelInfo source(&scratchBuffer,0,count);
-            channel.resampler->getNextAudioBlock(source);
+        if (!loopEnabled && !channelsReady(count,0)) { ++underrunCount; break; }
+        for (size_t index=0;index<channels.size();++index) {
+            auto& channel=channels[index]; scratchBuffer.clear();
+            if (loopEnabled && activeLoop) {
+                const auto& data=activeLoop->stems[index];
+                for (int sample=0;sample<count;++sample) {
+                    const double source=(position+sample)/currentSampleRate*channel.fileSampleRate-activeLoop->firstFrames[index];
+                    const int a=juce::jlimit(0,data.getNumSamples()-1,static_cast<int>(source));
+                    const int b=juce::jmin(a+1,data.getNumSamples()-1); const float alpha=static_cast<float>(source-std::floor(source));
+                    for (int ch=0;ch<2;++ch) scratchBuffer.setSample(ch,sample,data.getSample(ch,a)+alpha*(data.getSample(ch,b)-data.getSample(ch,a)));
+                }
+            } else { juce::AudioSourceChannelInfo source(&scratchBuffer,0,count); channel.resampler->getNextAudioBlock(source); }
             if (channel.muted || channel.volume <= 0) continue;
             for (int output=0;output<info.buffer->getNumChannels();++output)
                 info.buffer->addFrom(output,info.startSample+written,scratchBuffer,juce::jmin(output,scratchBuffer.getNumChannels()-1),0,count,channel.volume);
         }
         clickTimeline.render(*info.buffer,info.startSample+written,count,position,currentSampleRate,clickEnabled.load());
-        currentSamplePosition=position+count;
-        written+=count;
-        if (position+count >= end) { currentSamplePosition=end; playing=false; break; }
+        currentSamplePosition=position+count; written+=count;
+        normalizeLoopPosition();
+        if (!loopEnabled && position+count >= end) { currentSamplePosition=end; playing=false; break; }
     }
 }
 

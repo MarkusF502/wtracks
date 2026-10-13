@@ -121,6 +121,28 @@ int wtracks_get_channel_count()
     return engine ? engine->getChannelCount() : 0;
 }
 
+bool wtracks_set_loop(double start, double end, bool enabled)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->setLoop(start,end,enabled); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Loop preparation failed"); return false; }
+}
+bool wtracks_enqueue_loop(double start, double end)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!engine) return false;
+    try { return engine->enqueueLoop(start,end); }
+    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Queued loop preparation failed"); return false; }
+}
+void wtracks_clear_queued_loop() { if (engine) engine->clearQueuedLoop(); }
+void wtracks_get_loop_state(double* out6) { if (!out6) return; if (engine) engine->getLoopState(out6); else for (int i=0;i<6;++i) out6[i]=0; }
+bool wtracks_get_loop_enabled() { return engine && engine->getLoopEnabled(); }
+bool wtracks_get_queued_loop_enabled() { return engine && engine->getQueuedLoopEnabled(); }
+double wtracks_get_loop_start() { return engine ? engine->getLoopStart() : 0; }
+double wtracks_get_loop_end() { return engine ? engine->getLoopEnd() : 0; }
+double wtracks_get_queued_loop_start() { return engine ? engine->getQueuedLoopStart() : 0; }
+double wtracks_get_queued_loop_end() { return engine ? engine->getQueuedLoopEnd() : 0; }
 uint64_t wtracks_get_underrun_count() { return engine ? engine->getUnderrunCount() : 0; }
 
 bool wtracks_configure_click(double bpm, int numerator, int denominator, int unit, double offset, double accent, double quarter, double eighth, double sixteenth)

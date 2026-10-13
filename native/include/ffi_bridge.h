@@ -29,6 +29,19 @@ WTRACKS_API void wtracks_unload_track();
 // Cache misses are cumulative; the master clock holds while audio output is silent.
 WTRACKS_API uint64_t wtracks_get_underrun_count();
 
+// Prepared loop banks; invalid/oversize requests preserve the previous state.
+WTRACKS_API bool wtracks_set_loop(double startSeconds, double endSeconds, bool enabled);
+WTRACKS_API bool wtracks_enqueue_loop(double startSeconds, double endSeconds);
+WTRACKS_API void wtracks_clear_queued_loop();
+WTRACKS_API bool wtracks_get_loop_enabled();
+// Atomic snapshot: enabled,start,end,queued,queuedStart,queuedEnd. Caller owns six doubles.
+WTRACKS_API void wtracks_get_loop_state(double* out6);
+WTRACKS_API bool wtracks_get_queued_loop_enabled();
+WTRACKS_API double wtracks_get_loop_start();
+WTRACKS_API double wtracks_get_loop_end();
+WTRACKS_API double wtracks_get_queued_loop_start();
+WTRACKS_API double wtracks_get_queued_loop_end();
+
 // Transporte
 WTRACKS_API void wtracks_play();
 WTRACKS_API void wtracks_pause();

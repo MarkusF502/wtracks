@@ -21,6 +21,7 @@ struct Channel
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
     std::unique_ptr<juce::BufferingAudioSource> bufferedSource;
     int readAheadCapacity = 0;
+    juce::File file;
     // Converte do sample rate do arquivo pro do device (AudioFormatReaderSource
     // sozinho nao faz resampling).
     std::unique_ptr<juce::ResamplingAudioSource> resampler;
@@ -50,6 +51,16 @@ public:
     double getTotalLengthSeconds() const;
     bool isPlaying() const;
     uint64_t getUnderrunCount() const;
+    bool setLoop(double startSeconds, double endSeconds, bool enabled);
+    bool enqueueLoop(double startSeconds, double endSeconds);
+    void clearQueuedLoop();
+    bool getLoopEnabled() const;
+    void getLoopState(double* out6) const;
+    bool getQueuedLoopEnabled() const;
+    double getLoopStart() const;
+    double getLoopEnd() const;
+    double getQueuedLoopStart() const;
+    double getQueuedLoopEnd() const;
     // Only control/offline threads may wait. The audio callback always uses timeout zero.
     bool waitForReadAhead(int outputSamples, uint32_t timeoutMs);
 
@@ -85,6 +96,15 @@ private:
     mutable std::recursive_mutex controlMutex;
     std::atomic<uint64_t> underrunCount { 0 };
 
+    struct LoopCache {
+        double start=0, end=0;
+        std::vector<juce::AudioBuffer<float>> stems;
+        std::vector<int64_t> firstFrames;
+    };
+    std::shared_ptr<LoopCache> activeLoop, queuedLoop;
+    bool loopEnabled=false, queuedLoopEnabled=false;
+    void normalizeLoopPosition();
+    std::shared_ptr<LoopCache> prepareLoop(double startSeconds, double endSeconds);
     std::vector<Channel> channels;
     mutable juce::SpinLock channelsLock;
 
