@@ -166,6 +166,40 @@ class FakeEngine implements WTracksEngine {
   void setStereoSplit(bool enabled) => stereoSplit = enabled;
   @override
   List<double> takeBusMeters() => busPeaks;
+  List<ScheduledMidi> midiSchedule = [];
+  bool failMidiSchedule = false;
+  @override
+  bool configureMidiSchedule(List<ScheduledMidi> schedule) {
+    if (failMidiSchedule || failCues) return false;
+    midiSchedule = schedule;
+    return true;
+  }
+  List<MidiDevice> midiInputs = const [];
+  String? openInput;
+  final pendingInput = <List<int>>[];
+  @override
+  List<MidiDevice> listMidiInputs() => midiInputs;
+  @override
+  bool openMidiInput(String id) {
+    if (!midiInputs.any((d) => d.id == id)) return false;
+    openInput = id;
+    return true;
+  }
+  @override
+  void closeMidiInput() => openInput = null;
+  @override
+  bool get midiInputOpen => openInput != null;
+  @override
+  List<List<int>> pollMidiInput({int max = 128}) {
+    final taken = [...pendingInput];
+    pendingInput.clear();
+    return taken;
+  }
+  @override
+  bool injectMidiInput(List<int> bytes) {
+    pendingInput.add(bytes);
+    return true;
+  }
   @override
   int pollTransportEvents() {
     final events = pendingEvents;

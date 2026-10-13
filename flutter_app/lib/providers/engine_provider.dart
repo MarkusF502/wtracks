@@ -101,6 +101,9 @@ class MidiController extends Notifier<MidiState> {
 
 final midiControllerProvider = NotifierProvider<MidiController, MidiState>(MidiController.new);
 
+/// Click ligado no transporte (o motor guarda o estado; aqui fica a interface).
+final clickEnabledProvider = StateProvider<bool>((ref) => false);
+
 /// Última automação entregue pelo motor (para a interface mostrar).
 final firedAutomationProvider = StateProvider<AutomationCue?>((ref) => null);
 
@@ -314,7 +317,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           return false;
         }
         engine.setGuidesEnabled(track.guidesEnabled);
-        if (!engine.configureCues(track.automationCues)) {
+        if (!_sendMidiSchedule(engine, track)) {
           engine.unloadTrack();
           state = null;
           return false;
@@ -523,16 +526,49 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     state = track.copyWith(title: title);
   }
 
-  /// Troca automações e relógio MIDI; o motor valida antes de o estado mudar.
-  bool updateAutomation(String trackId, List<AutomationCue> cues, bool clockEnabled) {
-    final track = state;
-    if (track == null || track.id != trackId || loadingTrackId != null || !AutomationCue.validSequence(cues)) return false;
-    final engine = ref.read(engineProvider);
-    if (!engine.configureCues(cues)) return false;
-    engine.setMidiClockEnabled(clockEnabled);
-    state = track.copyWith(automationCues: List.unmodifiable(cues), midiClockEnabled: clockEnabled);
+  /// Agenda MIDI enviada ao motor (o índice disparado aponta para cá).
+  List<ScheduledMidi> midiSchedule = const [];
+
+  bool _sendMidiSchedule(WTracksEngine engine, Track track) {
+    final schedule = buildMidiSchedule(track.automationCues, track.midiBuses, track.activeMidiBankId);
+    if (!engine.configureMidiSchedule(schedule)) return false;
+    midiSchedule = schedule;
     return true;
   }
+
+  /// Troca o MIDI da música (cues, bancos, buses, banco ativo); o motor valida antes de o estado mudar.
+  bool updateMidi(String trackId, {List<AutomationCue>? cues, List<MidiBank>? banks, List<MidiBus>? buses, Object? activeBankId = _keepBank,
+      bool? clockEnabled}) {
+    final track = state;
+    if (track == null || track.id != trackId || loadingTrackId != null) return false;
+    final updated = track.copyWith(
+      automationCues: cues == null ? null : List.unmodifiable(cues),
+      midiBanks: banks == null ? null : List.unmodifiable(banks),
+      midiBuses: buses == null ? null : List.unmodifiable(buses),
+      activeMidiBankId: activeBankId,
+      midiClockEnabled: clockEnabled,
+    );
+    final bankIds = {for (final b in updated.midiBanks) b.id};
+    if (!AutomationCue.validSequence(updated.automationCues) ||
+        (updated.activeMidiBankId != null && !bankIds.contains(updated.activeMidiBankId)) ||
+        updated.midiBanks.length != bankIds.length ||
+        updated.midiBuses.map((b) => b.id).toSet().length != updated.midiBuses.length ||
+        !updated.midiBanks.every((b) => b.isValid) ||
+        !updated.midiBuses.every((b) => b.isValid)) {
+      return false;
+    }
+    final engine = ref.read(engineProvider);
+    if (!_sendMidiSchedule(engine, updated)) return false;
+    engine.setMidiClockEnabled(updated.midiClockEnabled);
+    state = updated;
+    return true;
+  }
+
+  static const _keepBank = Object();
+
+  /// Troca automações e relógio MIDI; o motor valida antes de o estado mudar.
+  bool updateAutomation(String trackId, List<AutomationCue> cues, bool clockEnabled) =>
+      updateMidi(trackId, cues: cues, clockEnabled: clockEnabled);
 
   List<AutomationPoint> _automationPointsFor(Track track) => automationPoints(
       track.mixerAutomation, track.clickSettings, track.tempoChanges,
@@ -1085,8 +1121,10 @@ class TransportNotifier extends Notifier<TransportState> {
       if (cues.isNotEmpty) {
         final fired = engine.pollCues();
         if (fired.isNotEmpty) {
+          final schedule = ref.read(currentTrackProvider.notifier).midiSchedule;
           final last = fired.last;
-          if (last >= 0 && last < cues.length) ref.read(firedAutomationProvider.notifier).state = cues[last];
+          final source = last >= 0 && last < schedule.length ? schedule[last].source : -1;
+          if (source >= 0 && source < cues.length) ref.read(firedAutomationProvider.notifier).state = cues[source];
         }
       }
     });

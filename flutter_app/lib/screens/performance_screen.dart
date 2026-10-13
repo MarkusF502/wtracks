@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
@@ -16,6 +17,8 @@ import 'tempo_map_screen.dart';
 import 'mixer_automation_screen.dart';
 import 'song_ending_sheet.dart';
 import 'buses_screen.dart';
+import 'control_mapping_screen.dart';
+import '../providers/control_provider.dart';
 import '../providers/meter_provider.dart';
 
 const _bg = Color(0xFF07070E);
@@ -34,7 +37,6 @@ String _formatTime(double seconds) {
 }
 
 // Provider local para gerenciar o estado do botão de Metrônomo (Click)
-final clickEnabledProvider = StateProvider<bool>((ref) => false);
 
 class PerformanceScreen extends ConsumerWidget {
   const PerformanceScreen({super.key});
@@ -50,6 +52,7 @@ class PerformanceScreen extends ConsumerWidget {
     // observa transportProvider por conta própria, então só eles são
     // reconstruídos a cada tick.
     final transportNotifier = ref.read(transportProvider.notifier);
+    ref.watch(controlProvider.select((c) => c.inputOpen)); // mantém a leitura da entrada MIDI mapeada
 
     // Detecta a orientação do celular
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
@@ -92,6 +95,8 @@ class PerformanceScreen extends ConsumerWidget {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => GuideEditorScreen(trackId: track.id)));
                 case 'tempo':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TempoMapScreen(trackId: track.id)));
+                case 'mapping':
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ControlMappingScreen()));
                 case 'buses':
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BusesScreen(trackId: track.id)));
                 case 'ending':
@@ -107,6 +112,7 @@ class PerformanceScreen extends ConsumerWidget {
               PopupMenuItem(value: 'automation', child: Text('Automação do mixer')),
               PopupMenuItem(value: 'ending', child: Text('Fim da música e fade')),
               PopupMenuItem(value: 'buses', child: Text('Buses e roteamento')),
+              PopupMenuItem(value: 'mapping', child: Text('Mapeamento MIDI e teclado')),
               PopupMenuItem(value: 'midi', child: Text('MIDI, automações e timecode')),
             ],
           ),
@@ -120,10 +126,19 @@ class PerformanceScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        child: isLandscape
-            ? _buildLandscapeLayout(track, transportNotifier, context, ref)
-            : _buildPortraitLayout(track, transportNotifier, context, ref),
+      // Atalhos de teclado (Keyboard Mapping) e entrada MIDI mapeada ficam ativos enquanto a performance está aberta.
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (_, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          final control = ref.read(controlProvider.notifier);
+          return control.handleKey(event.logicalKey.keyLabel) ? KeyEventResult.handled : KeyEventResult.ignored;
+        },
+        child: SafeArea(
+          child: isLandscape
+              ? _buildLandscapeLayout(track, transportNotifier, context, ref)
+              : _buildPortraitLayout(track, transportNotifier, context, ref),
+        ),
       ),
     );
   }

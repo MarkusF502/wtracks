@@ -5,6 +5,9 @@ import '../models/automation_cue.dart';
 import '../models/timecode_settings.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
+import '../models/track.dart';
+import '../models/song_section.dart';
+import '../widgets/dialog_text_controller.dart';
 
 /// MIDI: saída, relógio (0xF8 na grade do click) e automações com mensagem.
 class MidiScreen extends ConsumerStatefulWidget {
@@ -56,12 +59,73 @@ class _MidiScreenState extends ConsumerState<MidiScreen> {
   }
 
   Future<void> _edit([AutomationCue? cue]) async {
-    final result = await showDialog<AutomationCue>(context: context, builder: (_) => _CueDialog(cue: cue));
+    final current = ref.read(currentTrackProvider);
+    if (current == null) return;
+    final result = await showDialog<AutomationCue>(
+        context: context, builder: (_) => _CueDialog(cue: cue, buses: current.midiBuses, bankId: current.activeMidiBankId));
     if (!mounted || result == null) return;
     final track = ref.read(currentTrackProvider);
     if (track?.id != widget.trackId) return;
     final cues = [...track!.automationCues.where((c) => c.id != result.id), result]..sort((a, b) => a.timeSeconds.compareTo(b.timeSeconds));
     await _apply(cues, track.midiClockEnabled);
+  }
+
+  /// Bancos, buses MIDI, banco ativo ou cues; salva se aceito.
+  Future<void> _applyMidi({List<AutomationCue>? cues, List<MidiBank>? banks, List<MidiBus>? buses, Object? activeBankId = _keep}) async {
+    final ok = ref.read(currentTrackProvider.notifier).updateMidi(widget.trackId, cues: cues, banks: banks, buses: buses,
+        activeBankId: identical(activeBankId, _keep) ? ref.read(currentTrackProvider)?.activeMidiBankId : activeBankId);
+    if (!ok) {
+      _toast('Não foi possível aplicar o MIDI.');
+      return;
+    }
+    try {
+      await ref.read(trackLibraryProvider.notifier).saveCurrent();
+    } catch (_) {
+      if (mounted) _toast('Falha ao salvar o MIDI.');
+    }
+  }
+
+  static const _keep = Object();
+
+  Future<String?> _askText(String title, String label) => showDialog<String>(
+        context: context,
+        builder: (ctx) => DialogTextController(
+          builder: (controller) => AlertDialog(
+            backgroundColor: kPanelBg,
+            title: Text(title),
+            content: TextField(key: const Key('midi-name'), controller: controller, autofocus: true, decoration: InputDecoration(labelText: label)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Salvar')),
+            ],
+          ),
+        ),
+      );
+
+  List<AutomationCue>? _sectionClipboard;
+
+  Future<void> _pasteSection(Track track, SongSection section) async {
+    final copied = _sectionClipboard;
+    if (copied == null) return;
+    final bank = track.activeMidiBankId;
+    final existing = track.automationCues.where((c) => c.bankId == bank && c.timeSeconds >= section.startSeconds && c.timeSeconds < section.endSeconds);
+    if (existing.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: kPanelBg,
+          title: const Text('Substituir cues MIDI?'),
+          content: const Text('Os cues MIDI desta seção serão substituídos.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Substituir')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    await _applyMidi(
+        cues: pasteSectionCues(track.automationCues, copied, section.startSeconds, section.endSeconds, () => const Uuid().v4(), bankId: bank));
   }
 
   @override
@@ -143,13 +207,133 @@ class _MidiScreenState extends ConsumerState<MidiScreen> {
                 ),
                 if (fired != null) Text('Última automação: ${fired.label}', style: const TextStyle(color: kTextDim)),
                 const Divider(),
-                if (track.automationCues.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Adicione automações à música.'))),
-                for (final cue in track.automationCues)
+                Row(children: [
+                  const Text('Banco MIDI'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButton<String?>(
+                      key: const Key('midi-bank'),
+                      isExpanded: true,
+                      value: track.activeMidiBankId,
+                      items: [
+                        const DropdownMenuItem<String?>(value: null, child: Text('Padrão')),
+                        for (final b in track.midiBanks) DropdownMenuItem<String?>(value: b.id, child: Text(b.title)),
+                      ],
+                      onChanged: (id) => _applyMidi(activeBankId: id),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Novo banco MIDI',
+                    icon: const Icon(Icons.library_add_outlined),
+                    onPressed: () async {
+                      final title = await _askText('Novo banco MIDI', 'Nome do banco');
+                      if (title == null || title.isEmpty) return;
+                      final bank = MidiBank(id: const Uuid().v4(), title: title);
+                      await _applyMidi(banks: [...track.midiBanks, bank], activeBankId: bank.id);
+                    },
+                  ),
+                  if (track.activeMidiBankId != null)
+                    IconButton(
+                      tooltip: 'Excluir banco MIDI',
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      onPressed: () => _applyMidi(
+                        banks: track.midiBanks.where((b) => b.id != track.activeMidiBankId).toList(),
+                        cues: track.automationCues.where((c) => c.bankId != track.activeMidiBankId).toList(),
+                        activeBankId: null,
+                      ),
+                    ),
+                ]),
+                ExpansionTile(
+                  key: const Key('midi-buses'),
+                  tilePadding: EdgeInsets.zero,
+                  title: Text('Buses MIDI (${track.midiBuses.length})'),
+                  children: [
+                    for (final bus in track.midiBuses)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(bus.title),
+                        subtitle: Text(bus.allChannels ? 'Canal de cada cue' : 'Canal ${bus.channel}'),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          DropdownButton<int>(
+                            value: bus.allChannels ? 0 : bus.channel,
+                            items: [
+                              const DropdownMenuItem(value: 0, child: Text('Todos')),
+                              for (var c = 1; c <= 16; c++) DropdownMenuItem(value: c, child: Text('$c')),
+                            ],
+                            onChanged: (c) => c == null
+                                ? null
+                                : _applyMidi(buses: [
+                                    for (final b in track.midiBuses)
+                                      b.id == bus.id ? b.copyWith(allChannels: c == 0, channel: c == 0 ? b.channel : c) : b
+                                  ]),
+                          ),
+                          Switch(
+                            value: bus.enabled,
+                            onChanged: (v) => _applyMidi(buses: [for (final b in track.midiBuses) b.id == bus.id ? b.copyWith(enabled: v) : b]),
+                          ),
+                          IconButton(
+                            tooltip: 'Excluir bus MIDI',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _applyMidi(
+                              buses: track.midiBuses.where((b) => b.id != bus.id).toList(),
+                              cues: [for (final c in track.automationCues) c.busId == bus.id ? c.copyWith(busId: null) : c],
+                            ),
+                          ),
+                        ]),
+                      ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: const Key('add-midi-bus'),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Adicionar bus MIDI'),
+                        onPressed: () async {
+                          final title = await _askText('Novo bus MIDI', 'Nome do bus');
+                          if (title == null || title.isEmpty) return;
+                          await _applyMidi(buses: [...track.midiBuses, MidiBus(id: const Uuid().v4(), title: title)]);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                if (track.sections.isNotEmpty)
+                  ExpansionTile(
+                    key: const Key('section-cues'),
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text('Cues por seção'),
+                    subtitle: Text(_sectionClipboard == null ? 'Copie os cues de uma seção e cole em outra' : '${_sectionClipboard!.length} cues copiados'),
+                    children: [
+                      for (final section in track.sections)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(section.name),
+                          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                            IconButton(
+                              tooltip: 'Copiar cues: ${section.name}',
+                              icon: const Icon(Icons.copy),
+                              onPressed: () => setState(() => _sectionClipboard = copySectionCues(
+                                  track.automationCues, section.startSeconds, section.endSeconds, bankId: track.activeMidiBankId)),
+                            ),
+                            IconButton(
+                              tooltip: 'Colar cues: ${section.name}',
+                              icon: const Icon(Icons.paste),
+                              onPressed: _sectionClipboard == null ? null : () => _pasteSection(track, section),
+                            ),
+                          ]),
+                        ),
+                    ],
+                  ),
+                const Divider(),
+                if (!track.automationCues.any((c) => c.bankId == track.activeMidiBankId))
+                  const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Adicione automações à música.'))),
+                for (final cue in track.automationCues.where((c) => c.bankId == track.activeMidiBankId))
                   Card(
                     color: kPanelBg,
                     child: ListTile(
                       title: Text(cue.label),
-                      subtitle: Text('${cue.timeSeconds.toStringAsFixed(2)}s · ${_describe(cue)}'),
+                      subtitle: Text('${cue.timeSeconds.toStringAsFixed(2)}s · ${_describe(cue)}'
+                          '${cue.busId == null ? '' : ' · bus ${track.midiBuses.where((b) => b.id == cue.busId).firstOrNull?.title ?? '?'}'}'
+                          '${cue.durationSeconds > 0 ? ' · ${cue.durationSeconds}s' : ''}${cue.disableLoop ? ' · não repete no laço' : ''}'),
                       onTap: () => _edit(cue),
                       trailing: IconButton(
                         tooltip: 'Excluir automação',
@@ -173,7 +357,9 @@ class _MidiScreenState extends ConsumerState<MidiScreen> {
 
 class _CueDialog extends StatefulWidget {
   final AutomationCue? cue;
-  const _CueDialog({required this.cue});
+  final List<MidiBus> buses;
+  final String? bankId;
+  const _CueDialog({required this.cue, this.buses = const [], this.bankId});
   @override
   State<_CueDialog> createState() => _CueDialogState();
 }
@@ -186,6 +372,9 @@ class _CueDialogState extends State<_CueDialog> {
   late final _data2 = TextEditingController(text: (widget.cue?.data2 ?? 0).toString());
   late AutomationMessageKind _kind = widget.cue?.kind ?? AutomationMessageKind.none;
   late int _channel = widget.cue?.channel ?? 1;
+  late String? _busId = widget.buses.any((b) => b.id == widget.cue?.busId) ? widget.cue?.busId : null;
+  late final _duration = TextEditingController(text: (widget.cue?.durationSeconds ?? 0).toString());
+  late bool _disableLoop = widget.cue?.disableLoop ?? false;
 
   @override
   void dispose() {
@@ -193,6 +382,7 @@ class _CueDialogState extends State<_CueDialog> {
     _time.dispose();
     _data1.dispose();
     _data2.dispose();
+    _duration.dispose();
     super.dispose();
   }
 
@@ -265,6 +455,35 @@ class _CueDialogState extends State<_CueDialog> {
                     decoration: InputDecoration(labelText: _kind == AutomationMessageKind.controlChange ? 'Valor' : 'Velocidade'),
                     validator: _midiByte,
                   ),
+                if (_kind == AutomationMessageKind.noteOn)
+                  TextFormField(
+                    key: const Key('cue-duration'),
+                    controller: _duration,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Duração da nota (s, 0 = sem note-off)'),
+                    validator: (s) {
+                      final n = double.tryParse((s ?? '').replaceAll(',', '.'));
+                      return n == null || !n.isFinite || n < 0 || n > 3600 ? 'Informe uma duração válida' : null;
+                    },
+                  ),
+                if (widget.buses.isNotEmpty)
+                  DropdownButtonFormField<String?>(
+                    key: const Key('cue-bus'),
+                    initialValue: _busId,
+                    decoration: const InputDecoration(labelText: 'Bus MIDI'),
+                    items: [
+                      const DropdownMenuItem<String?>(value: null, child: Text('Nenhum (canal do cue)')),
+                      for (final b in widget.buses) DropdownMenuItem<String?>(value: b.id, child: Text(b.title)),
+                    ],
+                    onChanged: (id) => setState(() => _busId = id),
+                  ),
+                SwitchListTile(
+                  key: const Key('cue-disable-loop'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Não repetir em laços'),
+                  value: _disableLoop,
+                  onChanged: (v) => setState(() => _disableLoop = v),
+                ),
               ],
             ]),
           ),
@@ -285,6 +504,10 @@ class _CueDialogState extends State<_CueDialog> {
                 channel: _channel,
                 data1: hasMessage ? int.parse(_data1.text.trim()) : 0,
                 data2: hasValue ? int.parse(_data2.text.trim()) : 0,
+                bankId: widget.cue == null ? widget.bankId : widget.cue!.bankId,
+                busId: hasMessage ? _busId : null,
+                durationSeconds: _kind == AutomationMessageKind.noteOn ? double.parse(_duration.text.replaceAll(',', '.')) : 0,
+                disableLoop: hasMessage && _disableLoop,
               ),
             );
           },

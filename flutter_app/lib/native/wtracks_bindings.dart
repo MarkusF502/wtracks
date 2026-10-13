@@ -130,6 +130,12 @@ typedef _BusStateNative = Int32 Function(Pointer<Float>, Pointer<Uint8>, Int32);
 typedef _BusStateDart = int Function(Pointer<Float>, Pointer<Uint8>, int);
 typedef _BusMetersNative = Int32 Function(Pointer<Float>, Int32);
 typedef _BusMetersDart = int Function(Pointer<Float>, int);
+typedef _CuesExNative = Bool Function(Pointer<Double>, Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>, Int32);
+typedef _CuesExDart = bool Function(Pointer<Double>, Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>, int);
+typedef _PollInputNative = Int32 Function(Pointer<Uint32>, Int32);
+typedef _PollInputDart = int Function(Pointer<Uint32>, int);
+typedef _InjectNative = Bool Function(Pointer<Uint8>, Int32);
+typedef _InjectDart = bool Function(Pointer<Uint8>, int);
 typedef _ConfigurePrerollNative = Bool Function(Bool, Pointer<Double>, Int32, Pointer<Pointer<Utf8>>, Int32);
 typedef _ConfigurePrerollDart = bool Function(bool, Pointer<Double>, int, Pointer<Pointer<Utf8>>, int);
 typedef _SetRouteNative = Bool Function(Int32, Int32, Bool);
@@ -297,6 +303,13 @@ class WTracksEngine {
   late final _SetClickEnabledDart _setStereoSplit;
   late final _BusStateDart _getBusState;
   late final _BusMetersDart _takeBusMeters;
+  late final _CuesExDart _configureCuesEx;
+  late final _MidiListDart _midiListInputs;
+  late final _MidiOpenDart _midiOpenInput;
+  late final _VoidFnDart _midiCloseInput;
+  late final _BoolFnDart _midiInputOpen;
+  late final _PollInputDart _pollMidiInput;
+  late final _InjectDart _injectMidiInput;
   late final _SetClickEnabledDart _setGuidesEnabled;
   WTracksEngine() {
     _lib = _openLibrary();
@@ -435,6 +448,13 @@ class WTracksEngine {
     _setStereoSplit = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_stereo_split');
     _getBusState = _lib.lookupFunction<_BusStateNative, _BusStateDart>('wtracks_get_bus_state');
     _takeBusMeters = _lib.lookupFunction<_BusMetersNative, _BusMetersDart>('wtracks_take_bus_meters');
+    _configureCuesEx = _lib.lookupFunction<_CuesExNative, _CuesExDart>('wtracks_configure_cues_ex');
+    _midiListInputs = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_inputs');
+    _midiOpenInput = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('wtracks_midi_open_input');
+    _midiCloseInput = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_input');
+    _midiInputOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_midi_input_open');
+    _pollMidiInput = _lib.lookupFunction<_PollInputNative, _PollInputDart>('wtracks_poll_midi_input');
+    _injectMidiInput = _lib.lookupFunction<_InjectNative, _InjectDart>('wtracks_inject_midi_input');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
@@ -595,12 +615,14 @@ class WTracksEngine {
   }
 
   /// Saídas MIDI do sistema (vazia sem hardware/ALSA).
-  List<MidiDevice> listMidiOutputs() {
+  List<MidiDevice> listMidiOutputs() => _parseDevices(_midiList);
+
+  static List<MidiDevice> _parseDevices(int Function(Pointer<Utf8>, int) list) {
     var capacity = 1024;
     for (var attempt = 0; attempt < 3; attempt++) {
       final buffer = calloc<Uint8>(capacity);
       try {
-        final needed = _midiList(buffer.cast<Utf8>(), capacity);
+        final needed = list(buffer.cast<Utf8>(), capacity);
         if (needed > capacity) {
           capacity = needed;
           continue;
@@ -803,6 +825,70 @@ class WTracksEngine {
   /// Eventos desde a última leitura: [transportEventEndReached] | [transportEventFadeFinished].
   int pollTransportEvents() => _pollTransportEvents();
   static const transportEventEndReached = 1, transportEventFadeFinished = 2;
+
+  /// Agenda MIDI (ver [buildMidiSchedule]); o índice que pollCues devolve é a posição em [schedule].
+  bool configureMidiSchedule(List<ScheduledMidi> schedule) {
+    if (schedule.length > 4096) return false;
+    final slots = schedule.isEmpty ? 1 : schedule.length;
+    final times = calloc<Double>(slots), bytes = calloc<Uint8>(3 * slots), sizes = calloc<Uint8>(slots), flags = calloc<Uint8>(slots);
+    try {
+      for (var i = 0; i < schedule.length; i++) {
+        final m = schedule[i];
+        times[i] = m.timeSeconds;
+        sizes[i] = m.bytes.length;
+        flags[i] = m.disableLoop ? 1 : 0;
+        for (var b = 0; b < m.bytes.length && b < 3; b++) {
+          bytes[3 * i + b] = m.bytes[b];
+        }
+      }
+      return _configureCuesEx(times, bytes, sizes, flags, schedule.length);
+    } finally {
+      calloc.free(times);
+      calloc.free(bytes);
+      calloc.free(sizes);
+      calloc.free(flags);
+    }
+  }
+
+  /// Entradas MIDI para mapeamentos ("id\tnome").
+  List<MidiDevice> listMidiInputs() => _parseDevices(_midiListInputs);
+  bool openMidiInput(String id) {
+    final native = id.toNativeUtf8();
+    try {
+      return _midiOpenInput(native);
+    } finally {
+      malloc.free(native);
+    }
+  }
+
+  void closeMidiInput() => _midiCloseInput();
+  bool get midiInputOpen => _midiInputOpen();
+
+  /// Mensagens recebidas desde a última leitura, cada uma como lista de 1..3 bytes.
+  List<List<int>> pollMidiInput({int max = 128}) {
+    final out = calloc<Uint32>(max);
+    try {
+      final n = _pollMidiInput(out, max);
+      return [
+        for (var i = 0; i < n; i++) [for (var b = 0; b < (out[i] >> 24); b++) (out[i] >> (8 * b)) & 0xFF],
+      ];
+    } finally {
+      calloc.free(out);
+    }
+  }
+
+  /// Entrada simulada (testes; não há hardware MIDI aqui).
+  bool injectMidiInput(List<int> bytes) {
+    final native = calloc<Uint8>(bytes.isEmpty ? 1 : bytes.length);
+    try {
+      for (var i = 0; i < bytes.length; i++) {
+        native[i] = bytes[i];
+      }
+      return _injectMidiInput(native, bytes.length);
+    } finally {
+      calloc.free(native);
+    }
+  }
 
   /// Buses da música (até 16), na ordem de [Track.buses].
   bool configureBuses(int count) => _configureBuses(count);

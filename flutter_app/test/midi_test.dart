@@ -121,7 +121,7 @@ void main() {
       final c = _container(engine, dir);
       final n = c.read(currentTrackProvider.notifier)..setLoadedTrack(sampleTrack(id: 'song'));
       expect(n.updateAutomation('song', [_marker, _program], true), true);
-      expect(engine.configuredCues, [_marker, _program]);
+      expect(engine.midiSchedule, buildMidiSchedule([_marker, _program], const [], null));
       expect(engine.midiClock, true);
       expect(c.read(currentTrackProvider)!.automationCues, [_marker, _program]);
       engine.failCues = true;
@@ -143,7 +143,7 @@ void main() {
       expect(engine.openedMidi, isNull);
       final withMidi = sampleTrack(id: 'midi').copyWith(automationCues: [_marker, _program], midiClockEnabled: true);
       expect(await n.load(withMidi), true);
-      expect(engine.configuredCues, [_marker, _program]);
+      expect(engine.midiSchedule, buildMidiSchedule([_marker, _program], const [], null));
       expect(engine.midiClock, true);
       expect(engine.openedMidi, 'a');
       engine.failCues = true;
@@ -200,8 +200,8 @@ void main() {
       await tester.enterText(find.byKey(const Key('cue-data1')), '5');
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
-      expect(engine.configuredCues.single.midiBytes, [0xC0, 5]);
-      expect(engine.configuredCues.single.timeSeconds, 12.5);
+      expect(engine.midiSchedule.single.bytes, [0xC0, 5]);
+      expect(engine.midiSchedule.single.timeSeconds, 12.5);
       expect(find.textContaining('Program Change 5'), findsOneWidget);
 
       engine.failCues = true;

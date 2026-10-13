@@ -311,6 +311,9 @@ class Track {
   final double masterVolume; // 0.0 - 2.0, ganho comum do mixer
   final TimePitchSettings timePitch;
   final List<AutomationCue> automationCues;
+  final List<MidiBank> midiBanks;
+  final List<MidiBus> midiBuses;
+  final String? activeMidiBankId; // null = banco padrão
   /// Automação do mixer (pontos que movem faders/mute/master) e o botão de transporte que a liga.
   final List<MixerAutomationCue> mixerAutomation;
   final List<SongBus> buses;
@@ -337,6 +340,9 @@ class Track {
     this.masterVolume = 1.0,
     this.timePitch = const TimePitchSettings(),
     this.automationCues = const [],
+    this.midiBanks = const [],
+    this.midiBuses = const [],
+    this.activeMidiBankId,
     this.mixerAutomation = const [],
     this.buses = const [],
     this.automationEnabled = true,
@@ -361,6 +367,9 @@ class Track {
     double? masterVolume,
     TimePitchSettings? timePitch,
     List<AutomationCue>? automationCues,
+    List<MidiBank>? midiBanks,
+    List<MidiBus>? midiBuses,
+    Object? activeMidiBankId = _keepBank,
     List<MixerAutomationCue>? mixerAutomation,
     List<SongBus>? buses,
     bool? automationEnabled,
@@ -382,6 +391,9 @@ class Track {
       masterVolume: masterVolume ?? this.masterVolume,
       timePitch: timePitch ?? this.timePitch,
       automationCues: automationCues ?? this.automationCues,
+      midiBanks: midiBanks ?? this.midiBanks,
+      midiBuses: midiBuses ?? this.midiBuses,
+      activeMidiBankId: identical(activeMidiBankId, _keepBank) ? this.activeMidiBankId : activeMidiBankId as String?,
       mixerAutomation: mixerAutomation ?? this.mixerAutomation,
       buses: buses ?? this.buses,
       automationEnabled: automationEnabled ?? this.automationEnabled,
@@ -400,6 +412,8 @@ class Track {
     );
   }
 
+  static const _keepBank = Object();
+
   List<String> get channelFilePaths => channels.map((c) => c.filePath).toList();
 
   /// Índice do bus [id] (posição na lista) ou -1.
@@ -413,6 +427,9 @@ class Track {
         'masterVolume': masterVolume,
         'timePitch': timePitch.toJson(),
         'automationCues': automationCues.map((c) => c.toJson()).toList(),
+        'midiBanks': midiBanks.map((b) => b.toJson()).toList(),
+        'midiBuses': midiBuses.map((b) => b.toJson()).toList(),
+        if (activeMidiBankId != null) 'activeMidiBankId': activeMidiBankId,
         'mixerAutomation': mixerAutomation.map((c) => c.toJson()).toList(),
         'buses': buses.map((b) => b.toJson()).toList(),
         'automationEnabled': automationEnabled,
@@ -436,6 +453,9 @@ class Track {
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
         timePitch: TimePitchSettings.fromJson(json['timePitch']),
         automationCues: AutomationCue.fromJsonList(json['automationCues'] as List? ?? const []),
+        midiBanks: List.unmodifiable(((json['midiBanks'] as List?) ?? const []).map((v) => MidiBank.fromJson(v as Map<String, dynamic>))),
+        midiBuses: List.unmodifiable(((json['midiBuses'] as List?) ?? const []).map((v) => MidiBus.fromJson(v as Map<String, dynamic>))),
+        activeMidiBankId: json['activeMidiBankId'] as String?,
         mixerAutomation: MixerAutomationCue.fromJsonList(json['mixerAutomation'] as List? ?? const []),
         buses: SongBus.fromJsonList(json['buses'] as List? ?? const []),
         automationEnabled: json['automationEnabled'] as bool? ?? true,
