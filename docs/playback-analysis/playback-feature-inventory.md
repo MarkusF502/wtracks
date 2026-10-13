@@ -21,6 +21,7 @@ Status: DONE = implemented in WTracks with tests; PARTIAL; TODO. "Own" marks a d
 | Fade out (transport "5 Second Fade Out"), end fade, excludeFromFade | `SongArrangement.endFade`, `currentFadeVolume`, `Fadeable`, `FadersDisableForFade`, string "Transport Fade button" | DONE (`FadeOut` in `MixerStage.h`, transport button, "Fim da música e fade" sheet). Evidence (pseudocode/fade.c): SongTrack fade defaults to 5.0 s (`FUN_10002a5fc`); `endFade` makes the Sequencer start the same transport fade once the playhead passes `SongChannelGroup.fadeStartTimecode` and lights the fade button → WTracks does the same at end − 5 s. `excludeFromFade` belongs to `SongGenre` (track group) → per channel here. Own: linear amplitude curve (per-track stepping not recovered), pause + FadeFinished event at silence; internal click/guides fade with the song |
 | Setlist transitions: cue next song / stay in song, continue pad | `SongArrangement.storedTransition/transitionContinuePad`, `TransitionMenuViewController`, strings | DONE without pad (no pad audio): `SetlistSession` (setlist opened from the editor), engine EndReached/FadeFinished events; "Cue Next Song" loads the next song stopped at 0, "Stay In Song" stays; per-song transition editable in the setlist editor and the ending sheet. Numeric values of `storedTransition` not recovered (names are ours); `FUN_1002da058` shows at least values 3 (with live crossfade) and 4 (special-cased), not mapped |
 | MIDI out: banks, buses (port, channel), events (note, velocity, duration, type), copy/paste section cues | `MIDIBank`, `MIDIBus{channel,enabled,allChannels,storedPortID}`, `MIDIEvent`, callback `requestsMIDIEventOutputAtIndex:isPrerolled:isRewound:` | DONE: banks (active bank per song), MIDI buses (channel / all channels / enabled), events note (with duration → note-off) / CC / PC, `disableLoop`, copy/paste section cues with overwrite confirmation. Evidence (`FUN_1004a1188` behind requestsMIDIEventOutputAtIndex:isPrerolled:isRewound:): note on/off with `currentNoteOnEvents`, CC, PC → engine releases held notes on pause/seek/loop jumps/end and chases the last PC/CC before the playhead when starting mid-song (own selection rule). Per-bus output port (`storedPortID`) not reproduced: one MIDI output for all buses |
+| MIDI cue mute (console "MUTE MIDI") | user guide: "temporarily disables the overall sending of MIDI Cues" | DONE: `AudioEngine::setMidiCuesMuted` (cues and the chase on play stop; held notes are released and their note-offs still pass) |
 | MIDI clock | `MIDIClockAU`, `MIDIDevice.selectedMIDIClockEndpointIDs` | DONE |
 | MIDI in mapping + keyboard shortcuts | `ControlMapping{mappingID,mappingTypeID,intValue1..3,stringValue1}`, `MIDIDevice.selectedMIDIInEndpointIDs`, strings "MIDI Mapping 2.0", "Keyboard Mapping" | DONE: MIDI input (`MidiInput.h`, lock-free queue polled by the UI), learn mode, note/CC/PC mappings, keyboard keys on the performance screen, global persistence. Own: the action list (play/pause, stop, next/previous song and section, fade, click, guides, automation), type numbering, CC triggers at value >= 64, default keys. Tested with injected messages only (no MIDI hardware) |
 | SMPTE/LTC | `TimecodeAU`, `SongArrangement{smpteStartTime,storedSMPTETimelineLocation,storedSMPTEEnabled}`, "Follow Default Arrangement" | DONE (basic) |
@@ -32,15 +33,40 @@ Status: DONE = implemented in WTracks with tests; PARTIAL; TODO. "Own" marks a d
 
 ## Performance screen layout
 
-Evidence: Transport/Mixer/Waveform storyboards in `ui/view-trees` (classes TransportTempoTimeSignatureButton,
-TransportPlayPauseButton, TransportFadeButton, TransportEditButton, MixerTrackFaderCapView, MixerLoopButton,
-MixerMasterFader, MixerVUMeterView; colours #151618, #686868, #B8B8B8, #0EED0A, #FF9400, #5856D6, #5C96E3, #FFC444) and
-user-supplied screenshots of the iPad/iPhone app. Status: DONE (layout), screenshots in `docs/ui-performance/`.
-Implemented: top transport bar (tempo/meter box → metronome sheet, time box, play/pause, fade 5 s, edit → sections, menu),
-setlist card strip with key, transition arrow and current-song marker, waveform with coloured section regions, badges and a
-loop toggle per section (long press queues it), playhead and loop-pass chip, vertical-fader mixer with solo/mute/route,
-meters, bus strips, and a right column with AUTO, section loop, infinite loop and the Master fader.
-Own: CLICK toggle in the PAD slot (pad out of scope); the left button is stop/return-to-zero (song navigation sits in the
-setlist strip); section colours by the first letter of the name (no section type in our model); generated card colours
-(no artwork); "Loop" uses the section's own repeat count and "Inf Loop" repeats until released; two-row transport bar
-below 600 px; no MUTE MIDI or mixer/waveform mode button yet.
+Evidence: Transport/Mixer/Waveform storyboards in `ui/view-trees` and the MultiTracks user guide screenshots, GIFs and
+videos catalogued in `ui/helpcenter/README.md`, with colours measured on the iPad captures. Status: DONE (layout v2),
+screenshots in `docs/ui-performance/`.
+
+Implemented:
+- The performance screen is the app's home: a single window, with the library, setlists, song menu and settings opening over it.
+- Top bar: tempo and meter that follow the tempo map; time display (tap opens the song menu); CLICK in the PAD slot;
+  back to start; play/pause; 5 s fade; EDIT (tap toggles setlist edit, hold opens Setlist / MIDI cues / MIDI mapping /
+  song sections); Setlists popover; ≡ menu.
+- Setlist row: cards titled "Title (Key)", a transition badge (tap picks Cue Next / Stay), and a green ▷ on the current song.
+  Stopped, a tap selects a song; playing, a double tap does. Edit mode adds (−) remove, (…) song menu and (+) add-song popover.
+- Waveform: scrolls under a fixed playhead and stays draggable. Sections are rounded boxes tinted by section, each with a
+  badge (double tap jumps to the section) and a loop icon. A tap on the loop icon arms one repeat; in edit mode it toggles
+  the preset infinite loop, and (−)/(+) delete or add sections. Also shown: a bar grid (setting "Grade da waveform"),
+  orange MIDI-cue triangles and the loop-pass chip.
+- Mixer: S buttons, faders with ticks and a cap, drag-only. A tap on the name mutes; in edit mode it picks the output.
+  A metronome strip with ▶ opens the Accent / 1/4 / 1/8 / 1/16 faders.
+- Console: Tracks / Buses (/ Waveform on a phone in landscape), MUTE MIDI (native `setMidiCuesMuted`), Loop (one repeat
+  of the current section), Infinite Loop and AUTO; Master fader with L/R meters.
+
+Own:
+- No artwork: card colours derive from the title.
+- Section colours come from the name's first letter, because our model has no section type.
+- The metronome is a mixer strip, since the click is generated.
+- A double tap while playing switches songs (Playback crossfades).
+- A double tap on a badge jumps at once (Playback's Live ReOrder waits for the current section to end).
+- Adding a song outside a setlist replaces the open song.
+- The current song cannot be removed from the setlist.
+- About 45 s of waveform is visible.
+
+Divergences still open (from the guide):
+- The Fade button fades tracks out *and back in* while click, guide and pad keep playing. Ours ends in a pause.
+- AutoLink, Overlap and Crossfade transitions are missing. Values 3 and 4 seen in `FUN_1002da058` are likely Overlap and Crossfade.
+- Live crossfade between songs and Live ReOrder are missing.
+- Pad Player and arrangements are missing.
+- Settings are not yet a single tabbed panel (General / Tracks / Buses / MIDI / About).
+- The song menu still links to separate screens instead of editing in place.

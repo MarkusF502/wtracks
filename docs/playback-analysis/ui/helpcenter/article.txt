@@ -1,0 +1,504 @@
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303224285/b49cf2717187e6aa4503e4d1/Header.jpg
+## Conteúdo
+## 1. Introdução
+  Visão geral do aplicativo
+  Requisitos do usuário
+  Requisitos para Login Mac
+  Organizações e Usuários
+  Como acessar o conteúdo
+## 2. Abrindo o Playback
+  Visão Geral da Interface
+## 3. Construindo um Repertório
+  Adicionar Música
+  Menu Adicionar Música
+  Carregar um Repertório
+## 4. Personalize seu Repertório
+  Modos de edição do Playback
+  Editar Repertório
+  Menu Editar Música (enquanto estiver no modo Editar Repertório)
+  Gatilhos MIDI
+  Mapeamento MIDI
+  Marcadores de Seção para Músicas do Cloud
+  Configurações do Playback
+  5. DESEMPENHO: Configuração de Áudio, MIDI e Hardware
+  Escolhendo uma interface de áudio
+  Conectando uma interface MIDI
+  Buses e Endereçamento de tracks
+  Endereçamento MIDI Out
+  MIDI Clock
+  6. DESEMPENHO: Desempenho ao vivo
+  O Transporte: Iniciando e parando Músicas
+  Setlist: Navegando no setlist
+  O Waveform: Navegue pela Música da Corrente
+  Tracks/Buses mixer: Controle as tracks
+  Pad Player: Usando a interface
+  Navegação ao vivo: Os Botões do Console
+  Navegação ao vivo: Atalhos de Teclado
+  7. Salvar o Arranjo da Música
+  Introdução
+  Quem pode salvar um arranjo?
+  O que é Salvo em um Arranjo?
+  Gerenciando Arranjos de Músicas
+  Carregando Arranjo de Músicas
+  Salvar Arranjos de Músicas
+  Restaurar um arranjo
+  8. Conclusão + FAQ
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303228680/0cf087b11e588b0d0e6dec5c/1+Introduction.jpg
+VIDEO https://player.vimeo.com/video/202233533
+## Introdução
+  Do planejamento de seu setlist, ensaio com seu time, ao desempenho ao vivo, o app Playback fornece ferramentas poderosas para economizar seu tempo e para que você se foque no que realmente importa.
+  Este artigo abordará tudo o que você precisa saber sobre o uso do Playback como sua solução para disparar MultiTracks ao vivo: começando com o básico sobre como configurar o Playback em seu aparelho e caminhando através de cada funcionalidade para conduzir bem a adoração.
+## Visão Geral do aplicativo
+  Playback é um aplicativo da Apple disponível para download gratuito na iOS App Store para iPhone ou iPad rodando iOS 10 ou posterior, ou na Mac App Store para computadores Mac rodando MacOS 11 (Big Sur) ou posterior.
+  Procure por “Playback” na App Store ou clique nesse link
+  Visite essa página para informações atualizadas sobre quais dispositivos iOS são compatíveis com a versão mais recente da Playback.
+  Visite essa página  para informações atualizadas sobre a compatibilidade do Playback com a última atualização do software iOS
+## Requisitos do Usuário
+  Ao abrir Playback pela primeira vez, a tela de login aparecerá. Para entrar no Playback, é necessário ter uma conta no MultiTracks.com.br. A partir desta tela, você tem duas opções:
+  Inscrever-se para uma conta Playback demo. Uma conta demo de Playback é o primeiro passo para a construção de sua conta MultiTracks.com.br, mas não requer informações de pagamento. Isto permite que você explore os menus e os recursos gratuitos sem conteúdo pago.
+  Faça o Login utilizando sua conta de usuário MultiTracks.com.br.
+## Playback para Mac: Requisitos para Login
+  Para fazer login no Playback para Mac, é necessário uma assinatura Premium. Saiba mais sobre a Playback para Mac:
+  https://www.multitracks.com.br/products/mac
+## Organização e Usuário
+  Uma organização no ecossistema MultiTracks.com.br é o guarda-chuva sob o qual o conteúdo pode ser adquirido, usuários podem ser adicionados e as assinaturas podem ser compartilhadas. Quando você cria sua conta de usuário, também é criada uma organização na qual você pode comprar conteúdo ou assinaturas. Uma vez que você tenha criado sua conta MultiTracks.com.br e feito login no Playback, você é solicitado a selecionar em qual organização você deve fazer o login. Se você for um usuário pertencente apenas à organização criada quando você criou sua conta, então selecione essa organização. Entretanto, um usuário pode ser adicionado a outras organizações existentes e ter acesso ao conteúdo pertencente a essas organizações no Playback. Toda organização à qual seu usuário foi adicionado estará disponível para login nesta tela.
+## Permissões para o Conteúdo da Organização
+  Se você está logando em sua própria organização, então você está pronto para começar a baixar imediatamente o conteúdo adquirido ou os créditos de aluguel de sua organização. Ao entrar em outra organização, certas permissões de assinatura precisam ser adicionadas à sua conta para que você possa acessar as faixas compradas, fazer aluguéis ou salvar setlists, arranjos de músicas e Gatilhos MIDI em nosso Cloud.
+  Para mais informações sobre a administração dos membros da equipe de sua organização, assinaturas e permissões de conteúdo, confira estes artigos: https://app.intercom.com/a/apps/kabb4vin/articles/site/collections/2575707
+  Uma vez logado, você está pronto para começar a construir seu setlist!
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303228948/2f1550ed7b360ff4fed6643c/2+Opening+Playback.jpg
+## Visão Geral da interface
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336709557/3103c659ace5cbf9ddb1c264/IMG_0876.PNG
+  Ao abrir Playback pela primeira vez, você verá a tela sem nenhuma música adicionada.
+  O topo da interface do aplicativo é chamado de Barra Superior, e inclui as principais ações para usar Playback (da esquerda para a direita):
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336710205/9967e3c0f58cb80f504cf5c8/IMG_0876+copy.PNG
+  Exibição da fórmula de compasso/bpm da música selecionada (em branco, se nenhuma música estiver carregada)
+  Exibição do tempo, mostrando o tempo e os pontos de início/fim da música selecionada
+  Botão Liga/Desliga do Pad Player
+  Botão Voltar para ao início
+  Play/Pause
+  Botão de Fade. Abaixa ou levanta o volume das tracks lentamente.
+  Botão Editar (pressione e segure para vários modos de edição)
+  Menu de setlists
+  Mais Menu -> configurações de acesso, informações de login, e mais
+  A próxima seção abaixo é a seção Setlist, onde são mostradas todas as músicas adicionadas. Aqui é onde a ordem das músicas, transições e configurações específicas são gerenciadas.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336710575/9616219dbc406100d8878087/IMG_0876+copy+2.PNG
+  A seção inferior escura, é onde a Waveform da música selecionada é mostrada. O cursor se moverá sobre a Waveform enquanto as faixas estão tocando, mostrando o feedback em tempo real de onde você está em uma música. Interaja com a Waveform para editar a ordem da seção da música, ajustar os tempos de início/fim e mais
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336710800/692a773c997cfab258fe53c1/IMG_0876+copy+3.PNG
+  A seção final de Playback é a visão das Tracks, assim como a interface Pad Player quando aberta. Aqui é onde você pode editar os volumes de cada canal e bus em uma música selecionada, interagir com a interface do Pad Player ao vivo, e muito mais.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336711071/b3ef0f14540be4db7c67cf8c/IMG_0876.PNG
+  Cada uma destas áreas de Playback será coberta em detalhes nesse artigo.
+  A seguir, vamos construir nosso primeiro setlist.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303230484/009aa72cb911f1948d625842/3+Building+a+Setlist.jpg
+## Antes de começar
+  Uma variedade de produtos de tracks então disponíveis para mais de 15.000 músicas no catálogo da MultiTracks.com.br. As faixas compradas podem ser baixadas gratuitamente no Playback. Visite MultiTracks.com.br/Tracks para aprender sobre nossas opções de tracks e encontrar a melhor solução para suas necessidades.
+  Para mais informações
+  Qual é o produto certo para mim?
+  Playback Rentals, a solução mais simples para Tracks www.multitracks.com.br/rentals
+## Adicionar Música
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336711581/cee75f4f06becfd653c25685/IMG_0877.PNG
+  Toque em "Adicionar Música" na linha do Setlist para abrir o Menu Adicionar Música. Você tem algumas opções a partir daqui:
+  1. Buscar
+  Esta opção de busca rápida filtrará todas as músicas do catálogo MultiTracks.com.br e a biblioteca de músicas compradas e carregadas no Cloud de sua organização.
+  2. Todas as Músicas
+  Descubra novas músicas no catálogo da MultiTracks.com.br. Busque por Novos Lançamentos, Músicas Favoritas, e muito mais.
+  Por que eu não vejo isso? O catálogo Todas as Músicas em Playback está disponível para usuários com a assinatura de Playback Rentals ou Cloud Pro
+  Nota: Se sua organização tem uma assinatura Cloud Pro ou Playback Rentals, o Clique e a Guia de qualquer música do catálogo podem ser adicionados ao seu setlist.
+  3. Biblioteca
+  Todas as músicas com qualquer conteúdo comprado, aluguéis ativos e Músicas do Cloud estão todas incluídas em sua Biblioteca. Escolha por canções, artistas, temas, e muito mais.
+  4. Click & Pad
+  Adicione um Click & Pad ao seu setlist para criar momentos prolongados. Dê-lhe um nome, atribua um Pad Ambiente para o Pad Player tocar, e determine o tempo/fórmula de compasso.
+  5. Pads Ambiente
+  Você prefere adicionar um Pad Ambiente como se fosse uma música de seu setlist em vez de usar o Pad Player? Acrescente-o através deste menu.
+  6. Fundos Musicais
+  Gravações musicais de simples progressões de acordes criadas pelos principais produtores para ressaltar momentos com ambiência.
+## Menu Adicionar Música
+  Navegue até a canção que você gostaria de acrescentar à seu setlist. Para o propósito deste guia, estamos adicionando Champion da Bethel Music.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336712004/8eeb33800cb0d9cb1ae60162/IMG_0878.PNG
+  A tela final antes de adicionar uma música é onde os detalhes da canção podem ser escolhidos antes de pressionar "Adicionar:".
+  1. Escolher um Arranjo Salvo.
+  Salve as configurações de sua mix, a ordem das seções da música e muitas outras edições personalizadas. esse Arranjo pode ser escolhido e Carregado aqui. Saiba Mais.
+  2. Selecione seu Produto
+  Escolha o produto de track adquirida para carregar com a música. Esta pode ser uma opção ou múltipla, dependendo das compras de sua organização.
+  3. Canais
+  Veja todas as faixas de áudio disponíveis com o produto selecionado e desmarque quaisquer canais indesejados.
+  4. Tom/Andamento
+  Escolha entre os tons disponíveis antes de adicionar uma música.
+  Nota: Os tons disponíveis neste menu dependem de quais tons o produto de tracks selecionado está disponível.
+  Nota: Uma vez adicionada uma música, o tom pode ser alterado em até 12 tons e o Tempo em até 20 BPMs mais rápido ou mais lento do que o original.
+  5. Duração
+  Ajuste os pontos de início/fim da música ou ative um fadeout automático de 5 segundos.
+  6. Configurações do Pad Player
+  Determine o que você gostaria que o  Pad Player Ambiente fizesse durante esta música.
+  Inicie o Pad com Música: Ative para que o Pad Player se desvaneça automaticamente durante toda a música.
+  Seletor de Pads: Escolha qual Pad Ambiente o Pad Player deve usar durante esta música. Qualquer Pad Ambiente adquirido na conta de sua organização pode ser selecionado, assim como o Pad específico da canção, se disponível.
+  Somente Intro/Outro: Ative  para que o Pad desvaneça 5 segundos após a intro e depois volte no final da canção.
+  Toque em Adicionar no canto superior direito do menu, e a música começará a ser baixada em seu aparelho.
+  Adicione mais músicas ao seu setlist clicando em Editar e no ícone "+" no canto inferior direito de qualquer música ja adicionada ao Setlist.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336712379/c3406f859c7ed3bcc8fbd752/IMG_0880.PNG
+## Carregar um Setlist
+VIDEO https://player.vimeo.com/video/383397402
+  Setlists criadas a partir do MultiTracks.com.br, ChartBuilder, ou outro dispositivo Playback em sua organização podem ser abertos diretamente no Playback. Como mencionado anteriormente, o conteúdo e as permissões de usuário se aplicam ao abrir um setlist com faixas compradas ou alugadas.
+  Toque no ícone Setlists na Barra Superior do Playback, para abrir o Menu Principal de Setlists. O setlist atualmente aberto pode ser renomeada, salvo na nuvem e acessado de qualquer outra parte do ecossistema.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336712949/33aa50883a3a9ec3fdfaa409/IMG_0881.PNG
+  Para abrir um setlist previamente salvo, toque em Abrir Repertório e procure-o pelo nome ou selecionando por próximos ou passados dependendo da data do seu culto.
+  Ao tocar no Repertório que você gostaria de carregar, você terá visão geral de cada música, tom e comprimento da canção, bem como o arranjo salvo que está sendo usado. Toque em qualquer ícone de download para baixar faixas em seu dispositivo sem carregar um repertório, ou opte por carrega-lo por completo e automaticamente cada música será baixada.
+  Nota: Músicas já baixadas em seu dispositivo Playback através de outro Repertório, não serão mostradas com um ícone de download.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336713462/04977dfc83b6460724d48da1/IMG_0883.PNG
+  Uma vez adicionadas as músicas, é hora de começar a customizar seu repertório
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303232191/a6c5338b784de1a344540597/4+Customize+your+Setlist.jpg
+  Antes de Começar:
+  O Playback oferece ferramentas poderosas e simples para construir e ajustar repertórios para cada culto. Vamos começar com uma visão geral dos Modos de Edição do Playback..
+  Modos de Edição do Playback: Visão geral
+  O Playback foi construído para que tudo o que você vê seja útil na performance ao vivo. Para manter a personalização de eu repertório de fácil acesso, construímos 4 Modos de Edição com propósitos específicos. Toque e segure o botão Editar para entrar em um destes Modos de Edição.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336714242/cc1075d42752bc3b2365a259/IMG_0884.PNG
+  Repertório: O Modo de Edição principal que permite mudanças específicas nas músicas, ordem e edição das seções das músicas. Esse modo pode ser acessado por um toque rápido no botão Editar.
+  Gatilhos MIDI: Os clientes Playback Premium podem adicionar Gatilhos MIDI diretamente à linha de tempo de qualquer música para controlar os slides das letras das musicas, iluminação, e muito mais.
+  Mapeamento MIDI:  Clientes  do Playback Pro e Premium podem controlar a funcionalidade central do Playback, botões de mapeamento e faders com seu Controlador MIDI favorito
+  Edição das seções das musicas do Cloud: Adicione e edite os marcadores de seção em qualquer música do Cloud carregada no MultiTracks.com.br
+  Vamos explicar melhor como usar cada um destes modos e o que você pode fazer ao usá-los.
+## Modo de Edição do Repertório
+  Toque no botão Editar para entrar no modo de Edição do Repertório
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336714387/6f3beb045811831a1699da48/IMG_0885.PNG
+  Aqui está o que pode ser editado em cada seção da Playback:
+  A linha do Repertório
+  É aqui que as musicas e as transições são exibidas.
+  Apague uma música pressionando o botão vermelho "-" em cima da música
+  Adicione uma música pressionando o pequeno ícone "+" entre as músicas
+  Entre no Menu Editar Música de qualquer música pressionando o ícone "..." sobre a música
+  A Waveform
+  A linha do tempo mostra as seções da música + a waveform, Gatilhos MIDI e muito mais.
+  Edite seu arranjo (ferramenta disponivel a partir do Pro): Toque nos botões + ou - sobre cada seção da música para excluir ou adicionar uma nova seção em qualquer ponto.
+  Preset Loop infinito (ferramenta disponivel a partir do Pro): Você gostaria que uma seção da música repetisse automaticamente até essa função ser desativada? Toque no ícone Loop no canto superior direito de uma seção da música para ativar a pré-seleção de loop infinito, e quando o Playback chegar à seção, ele fará um loop até que o botão de loop infinito seja pressionado novamente.
+  As tracks/Buses
+  A seção inferior do Playback mostra as pistas, buses ou o Pad Player.
+  O que você pode mudar nas pistas / Buses enquanto estiver em editar repertório?
+  Saídas para Tracks (ferramenta disponível apenas em Premium): Toque no nome da pista para acessar rapidamente uma faixa para uma saída diferente do Playback Bus.
+  Saída de Bus (ferramenta disponível apenas em Premium):  Toque no nome do bus para direciona-lo rapidamente para uma saída diferente (mais sobre as saídas de áudio abaixo.
+## Transições
+  As transições podem ser personalizadas entre as músicas em um repertório. Há algumas opções para construir momentos perfeitos para se adequar ao seu culto
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336714736/ab632d82906c04c7110985b8/IMG_0887.PNG
+  Preparar Próxima Música: Quando a primeira música chega ao fim, a próxima é selecionada, mas não é iniciada. Quando o botão de alternância Continuar Pad estiver habilitado, o  Pad Ambiente fará a transição para a próxima música ajustando o tom e o pad selecionado.
+  Continuar na música: Quando a primeira música chega ao fim, ela continua selecionada. Quando o botão de alternância Continuar Pad estiver habilitado, o pad player continuará a tocar no Tom, a seleção do pad ambiente da primeira música depois que a mesma terminar.
+  AutoLink: Quando a primeira música termina, a próxima música começa a tocar instantaneamente.
+  Sobreposição: Durante os últimos 5 segundos da primeira música, a segunda música começa no volume total, enquanto a primeira música termina sem desvanecer.
+  Transição Cruzada: Durante os últimos 5 segundos da primeira canção, a segunda canção gradualemente começa enquanto a primeira canção se desvanece.
+  Dica: Combine transições com pontos iniciais e finais personalizados para construir transições específicas para seu repertório.
+## Menu Editar Música
+  Cada música em um repertório tem muitas opções de personalização. Toque nos três pontinhos sobre o centro de qualquer música, metrônomo, ou Pad para abrir o Menu Editar Música.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336715276/59a43392ab8617dd8a4c3368/IMG_0888.PNG
+  1. Arranjos
+  Salve o tom/tempo de uma música, mixagem, mapa e muito mais como um arranjo personalizado. Os arranjos personalizados de músicas podem ser carregados em qualquer outro repertório instantaneamente.
+  2. Conteúdo
+  Se um produto com várias tracks estiver sendo usado, toque na célula  da Tracks para selecionar ou desmarcar qualquer faixa disponível. As faixas desmarcadas não serão apresentadas como faders.
+  Metrônomo e Guia: Se apenas o click e guia de uma música for selecionado, (apenas para clientes Rentals ou Cloud Pro), a célula da Tracks é onde a música pode ser atualizada para um AppTrack usando um crédito Rental. Toque na célula da Tracks que diz "Desbloquear com Crédito de Aluguel" para acionar o processo de locação.
+  3. Alterar Tom/Tempo
+  Playback suporta mudança de tom/tempo offline para todos os usuários Playback. Toque no tom/tempo neste menu, escolha o novo valor e pressione Atualizar. O Playback levará as faixas aos valores desejados usando processamento de alta qualidade para manter a qualidade do áudio.
+  4. Ajuste o ponto inicial/terminal
+  Escolha um novo valor de ponto inicial ou final, ou escolha um Fadeout automático de 5 segundos que será acionado automaticamente quando a música se aproximar de seu final.
+  (Continua...)
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336715586/97b7ec1371aa015fae0e22e9/IMG_0890.PNG
+  5. Configurações do Pad Player
+  O Pad Player tocará automaticamente o pad ambiente padrão em cada música da seu repertório no tom correto. No entanto, você também pode personalizar certos comportamentos do Pad Player neste menu:
+  Inicie o Pad com Música: Habilitado (por padrão) para desvanecer automaticamente quando a música começar. Desativado para que o Pad Player desapareça automaticamente quando a música começa e permaneça desligado durante o tempo de duração da canção.
+  Pad Ambiente: Existe um Pad Ambiente particular que soa melhor com uma canção específica? Qualquer Pad Ambiente adquirido no MultiTracks.com.br pode ser atribuído a qualquer música da seu repertório. Quando esta canção começar, o pad player fará automaticamente a transição para qualquer outro Pad Ambiente que tenha sido designado.
+  Somente Intro/Outro: Talvez você só queira o Pad Ambiente no início e fim de uma música. Habilite a alternância "Somente Intro/Outro" para automaticamente desvanecer o pad player 5 segundos para dentro das faixas, e depois tocar 5 segundos antes de terminar.
+  6. MIDI Out
+  Cada música tem vários ajustes MIDI Out que podem ser usados para controlar a letra, as luzes e mais elementos de produção.
+  Bus de Letras: Gatilhos de produção são Gatilhos MIDI construídos sob medida para controlar nossos Templates ProPresenter e Patches específicos de músicas. Toque na célula do Bus de Letras para escolher quais templates  ProPresenter serão carregados . Se não houver gatilhos de produção disponíveis, tocar nesta célula solicitará gatilhos para a música. Nosso equipe fará o máximo construí-los o mais rápido possível.
+  Gatilhos da Playlist ProPresenter: slides de letras de música, sermão, e mais são organizados por Playlists e Itens da Playlist. No início de uma música, o Playback pode enviar automaticamente os gatilhos MIDI padrão para o ProPresenter através do Bus de Letra para selecionar a Playlist e o Item correto dos slides da música. Toque e designe um valor para qualquer item da Playlist/Playlist que você gostaria de acionar com o início de uma música.
+  Atualize os Gatilhos MIDI: Os Gatilhos MIDI foram trocados em uma música no site? Pressione "Atualizar MIDI Cues" para substituir os Gatilhos MIDI em seu dispositivo Playback pelos últimos salvos na nuvem para a música selecionada.
+## Modo de Edição dos Gatilhos MIDI
+VIDEO https://player.vimeo.com/video/444911315
+  Aprenda mais: https://intercom.help/multitracks/en/articles/4377847-how-do-i-edit-my-midi-cues-in-playback
+  Com uma assinatura de Playback Premium, os Gatilhos MIDI podem ser adicionados a qualquer música de seu repertório diretamente em Playback.
+  Toque e segure o botão Editar para abrir o menu do modo Editar. Selecione o modo de edição dos Gatilhos MIDI
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336716115/fffc894bcb3625f21d64ab1f/IMG_0891.PNG
+  Com a música selecionada, role para qualquer lugar na linha do tempo e toque no ícone + no cursor para adicionar um Gatilho MIDI a qualquer um dos 8 Bus MIDI disponíveis:
+  · Lyrics Bus
+  · Lights 1
+  · Lights 2
+  · Patches 1
+  · Patches 2
+  · Guitar
+  · Aux 1
+  · Aux 2
+## Menu Adicionar Gatilhos MIDI
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336716727/5a407a72ed6a2b35cdbdd436/IMG_0892.PNG
+  Há 3 tipos de mensagens MIDI que podem ser adicionadas à Playback:
+  Notas: o tipo mais comum de mensagem MIDI em apresentações ao vivo; notas são usadas para mudar slides, mudar cenas de iluminação, controlar software de instrumentos, e muito mais. Uma mensagem de nota MIDI inclui um valor de nota, Oitava, Velocity, e Descrição.
+  Mensagens de Control Change: usadas para realizar ações tais como mudar configurações em instrumentos de software, mudar sons de teclado ou controlar faders em uma mesa de som. Uma mensagem de Mudança de Controle inclui um valor CC#, e a intensidade desse valor.
+  Mensagens de Program Change: comumente usadas para mudar patches em hardware de música, como teclados, equipamentos de guitarra e dispositivos Kemper. Inclui simplesmente o número do Programa para o destino da mudança.
+  Nota: É útil determinar quais ações em seu software você deseja que o Playback controle antes de começar.
+  Desabilitar Loop: Habilite esta configuração se você quiser que um Gatilho MIDI dispare apenas uma vez, e depois seja ignorado em qualquer outro momento enquanto a seção de música estiver fazendo loop. Isto é útil para disparar loops de vídeo, mudanças na configuração do plugin ou outras ações MIDI "únicas"
+  Descrição: Use o campo de descrição opcional para deixar notas identificando um gatilho
+  Edição de Gatilhos MIDI
+  Há algumas maneiras de selecionar e editar os Gatilhos MIDI na Waveform.
+  Toque na etiqueta selecionada do gatilho MIDI para abrir rapidamente o menu de edição.
+  Toque nas setas esquerda e direita nos controles superiores esquerdos para percorrer rapidamente pelos gatilhos.
+  Toque nos 3 pontos no canto superior esquerdo para abrir um menu de acesso rápido para o Gatilho Midi selecionado.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336717456/bddb2e782a91b54d08adc4fb/IMG_0893.PNG
+  Este menu lhe dá algumas opções:
+  Editar: abre o menu de edição do Gatilho MIDI
+  Mover: Use as setas para empurrar o Gatilho MIDI selecionado ao longo da linha do tempo por incrementos de 1/16 de nota.
+  Excluir: Eliminar o Gatilho MIDI desta música
+## Copiar e Colar Gatilhos
+  Cada seção repetida na música, na maioria das vezes terá a mesma letra e ritmo. Ao invés de adicionar manualmente novos Gatilhos MIDI a cada seção repetida, basta construir os Gatilhos MIDI para uma seção e copiar para cada seção repetida.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336717813/4d763e33dad8712ac259f96d/IMG_0894.PNG
+  Toque na bolha da seção onde o Gatilho MiDI ja esta finalizado.
+  Escolha Copiar Gatilhos da Seção
+  Toque na bolha da seção destino
+  Colar Gatilhos da Seção, e imediatamente eles serão adicionados à Waveform da seção da música selecionada
+## Adicionar Gatilhos enquanto toca
+  Ao adicionar Gatilhos MIDI a uma canção que controla slides de letra, é importante acioná-los no momento exato que você precisa deles. Gatilhos MIDI podem ser adicionados ao Lyrics Bus enquanto as tracks estão tocando  em tempo real.
+  Pressione Play em uma música e toque no ícone + no cursor enquanto ele rola ao longo da forma Waveform
+  Cada toque deixará cair instantaneamente uma nota G-1 na Waveform e aumentará a velocidade em 1. Isto é projetado para funcionar com as configurações padrão de entrada MIDI do ProPresenter.
+  A velocidade de uma nota MIDI G-1 indica ao ProPresenter qual slide abrir. A velocidade 1 acionará o slide 1, a velocidade 5 acionará o slide 5, e assim por diante.
+  Salvando Gatilhos MIDI
+  Dependendo das assinaturas disponíveis em sua organização, há algumas opções ao sair do modo editar Gatilhos MIDI. Uma assinatura de Cloud Pro Intro ou superior, é necessária para salvar os Gatilhos para uso em outros repertórios e dispositivos.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336718066/0d306311c424690f0a9ead63/IMG_0895.PNG
+  Salvar no Cloud: Isto salvará todas as mudanças dos Gatilhos MIDI feitas no Playback em nosso nuvem, substituindo quaisquer Gatilhos atualmente naquela música online. Isto afetará todos os arranjos de músicas salvas.
+  Não Salvar no Cloud: Todas as mudanças nos Gatilhos serão apenas locais, afetando apenas aquele repertório e dispositivo.
+  Quem pode salvar os Gatilhos no Cloud?
+  Membros de uma organização com permissões de:  Org Admin, Campus Admin ou Líder de time são capazes de salvar as mudanças de uma música
+  Membros da equipe com uma assinatura Playback Premium podem criar e editar Gatilhos no Playback, mas estas mudanças serão apenas locais e não podem sobrescrever Gatilhos ja existentes atualmente na Biblioteca de sua organização.
+  NOTA: Para usuários que não possuem uma assinatura Cloud Pro Intro, Salvar Gatilhos MIDI localmente é a única opção.
+## Menu Editar Mapeamento MIDI
+  Use seu Controlador MIDI favorito para assumir o controle do Playback durante uma performance ao vivo, mapeando controles para o botão play/pause, faders, botões loop/loop infinito, e muito mais.
+  Mapeie seu Controlador MIDI para Playback
+  Toque e segure o botão Editar para ativar o Modo de Edição de Mapeamento MIDI. Enquanto estiver no modo Mapeamento MIDI, cada ação mapeável em Playback ficará azul.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336718237/1203b4c272f3993d1f6d43a7/IMG_0896.PNG
+  Toque em qualquer ação para selecioná-la
+  Enquanto selecionado, mova ou pressione o controle em seu Controlador MIDI conectado
+  Se bem sucedida, a mensagem MIDI enviada pelo controlador sobreporá a ação no Playback
+  Controles de ReOrder ao vivo
+  Enquanto uma música está tocando, um controlador MIDI pode navegar pelo arranjo e pular para qualquer outra seção da música ou entre as músicas de um repertório usando o Reordem Ao Vivo. Enquanto estiver no Modo de Edição de Mapeamento MIDI, os controles de Reordem ao Vivo (seta para a esquerda, seta para a direita, check) podem ser mapeados por qualquer botão em um controlador MIDI.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336718487/7e8300116c1dcee82b819c6f/IMG_0896+copy.PNG
+  Setas do meio direita e esquerda percorrerão os marcadores da seção da música enquanto as tracks estão tocando
+  As setas direita e esquerda "pularão" as canções em um repertório enquanto as tracks estão tocando
+  O Check selecionará qualquer seção ou música que tenha sido rolada. O Playback saltará para o marcador/seção de música selecionada assim que a seção que está tocando atualmente estiver concluída.
+  Assim que cada ação for mapeada, você pode pressionar EDITAR para sair do modo Mapeamento MIDI. Seu Controlador MIDI agora controlará as ações mapeadas no Playback.
+  Nota: O Mapeamento MIDI é por dispositivo e não pode ser salvo para uso em outros devices.
+## Modo Editar Sessões do Cloud
+VIDEO https://player.vimeo.com/video/491692487
+  Use uma assinatura Cloud Pro para fazer o upload de músicas originais e carregar faixas de áudio personalizadas em Playback. Uma vez que as faixas tenham sido carregadas no MultiTracks.com.br (saiba mais aqui), marcadores de seção da música podem ser adicionados diretamente no Playback. Os marcadores de seção da música desbloqueiam poderosos recursos , tais como guias dinâmicas, looping e ReOrdem Ao Vivo entre seções, arranjos personalizados, e muito mais.
+  Nota: Fazer alterações na seção de uma música do Cloud irá redefinir o mapa da música em quaisquer arranjos salvos existentes.
+  Adicionar marcadores de seção
+  Quando uma música do Cloud é aberta pela primeira vez em Playback, toda a Waveform será rotulada como uma  única seção: "Intro". Vá até qualquer barra e pressione o botão + para adicionar seções adicionais a musica.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336735669/477ddf43634368fa2935f32d/IMG_0897.PNG
+  Toque e segure EDITAR para acessar a opção Seções da Música do Cloud
+  Vá até qualquer barra e toque no botão + para adicionar uma seção.
+  Selecione o nome da seção e pressione Adicionar
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336736019/36d8c537027bc45bba412781/IMG_0898.PNG
+  Dica: Para utilizar a contagem regressiva do Playback para o início da música, mude a primeira seção da música para contagem e então adicione a primeira seção de música (sempre que a banda entrar) 1-2 compassos após a contagem regressiva.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336736584/c1b0034ba0ad0105731ce982/IMG_0900.PNG
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336736583/072dcf56f87b9356ed316e4f/IMG_0901.PNG
+  Mudando os marcadores de Seção
+  Toque na bolha do marcador da seção para abrir o menu Editar.
+  Toque na célula "Seção da Música" para escolher um novo nome para a seção.
+  Toque em Atualizar.
+  Movendo um Marcador de Seção
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336737119/e02d05eaa5e264638485e9d8/IMG_0902.PNG
+  Método 1: Movimentação rápida no menu
+  Enquanto o cursor estiver em cima de uma seção, toque no menu rápido de 3 pontos
+  Toque em Mover Seção da Música.
+  Use as setas esquerda e direita para mover o marcador da seção ao longo da Waveform.
+  Pressione a check para confirmar as mudanças
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336735066/06c66122f0ecf179472b61f7/5SecondsApp_642624916.726203.gif
+  Método 2: Usando o Menu Editar Marcador
+  Toque na bolha do marcador da seção para Editar Marcador da Seção
+  Toque nas células "Compasso" ou "Timecode" para mover a seção.
+  Timecode recomendado apenas para usuários avançados
+  Toque em Atualizar para confirmar mudanças
+  Salvando Marcadores de seção.
+  Como os marcadores de seção podem ser criados on-line em Playback e afetam cada arranjo de música salva, Escolher Salvar no Cloud substituirá as seções padrão armazenadas em sua biblioteca.
+  Não Salve na Nuvem: As alterações feitas nos marcadores das seções serão locais apenas no repertório atual.
+## Configuraç˜ões do Playback
+  Há muitas maneiras de personalizar sua experiência com Playback, desde roteamento de áudio até presets de clique/guia e muito mais.
+  Para abrir as configurações:
+  Toque nas linhas no canto superior direito para abrir o menu. Aqui você pode ver seu nome de usuário e organização logados, e também deslogar do aplicativo.
+  Toque em Ajustes
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336744443/c8c0a8bce0c9115cfb33aeeb/IMG_0904.PNG
+## Geral
+  Auto-Pan: Quando ativado, o Auto-Pan envia o clique & guia para o L (esquerda) e todas as demais tracks para o R (direita) do seu dispositivo iOS estéreo. O Auto Pan torna possível executar as tracks no Playback através da saída de fones de ouvido sem usar uma interface de áudio. Saiba mais sobre a configuração de Playback para Auto Pan.
+  Som do click: Escolha seu som Click favorito a partir de uma variedade de opções que o app fornece. Você também pode fazer o upload de seu próprio Carregue Click & Guia.
+  Entrada da seção: Habilite para adicionar uma contagem de 1 compasso a cada marcador de seção de música. Desabilite para ouvir apenas a guia da seção 1 compasso antes do marcador.
+  Pré-rolamento da seção: (Funcionalidade Premium) Ao pressionar o play no início de qualquer marcador de seção, a contagem de 1 compasso será feita automaticamente.
+  Idioma das guias: Mude o idioma das guias para espanhol, português, francês, ou duas opções (masculina e feminina) para inglês. Você também pode carregar suas próprias guias (Saiba mais).
+  Buses específicos por música: (Buses disponíveis com Premium) Quando habilitado, cada música poderá ter uma mix diferente de bus. Desabilite para que sua mix de bus seja global.
+  Track de referência: Habilitada por padrão, a track de referência é a música original disponível na visualização do mixer das tracks. disponivel para  AppTracks, MultiTracks e Rentals. Desabilite para ocultar a track de referência.
+  Pad Ambiente Padrão: Escolher qual pad comprado ou gratuito será o  padrão no Pad Player para todas as músicas carregadas.
+  Dispositivo de áudio: Veja qual dispositivo de áudio conectado é atualmente usado pelo Playback para a saída de áudio.
+  Grade da Waveform: Habilite/desabilite a grade de compasso e batida (tanto visual quanto o comportamento de snapping) sobre a Waveform.
+  Estilo do Medidor VU: Habilite para que o medidor VU do click pisque em sincronia com o andamento da música.
+  Volume Master por Música: Quando habilitado, cada música tem um volume de master separado. Desabilite para um volume de master global
+  Nível de Volume Padrão em 80%: Quando habilitado, uma música é adicionada ao Playback com todos os faders pré-definidos em 80%. Isto proporciona um espaço para aumentar o volume das faixas, se necessário.
+  Economizador de energia: Permite melhorar o desempenho em dispositivos mais antigos e diminuir o consumo da bateria.
+  MIDI Out: Habilita a opção MIDI Out por padrão. Desative se não usar o MIDI Out; isto melhorará o desempenho do Playback e diminuirá o consumo da bateria.
+  Iniciar o Pad player com músicas: Quando habilitado ele automaticamente toca o pad player quando uma música começa. Esta configuração global determina se a configuração padrão do "Iniciar o Pad player com músicas" está ativada ou desativada ao adicionar uma músicas ao seu repertório. Isto ainda pode ser alterado posteriormente de forma individual em cada música.
+## Aba Sobre
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336751930/70dad2fea9fe46d037209c27/IMG_0905.PNG
+  Restaurar Compras: Se uma assinatura do iTunes expirar ou não estiver sendo confirmada pelo Playback, reconcilie quaisquer problemas com as informações de pagamento na App Store e Toque em Restaurar Compras para reconectar sua Assinatura.
+  Administrar Assinatura: Explore as versões pagas de Playback e as características que elas têm a oferecer. Saiba mais aqui.
+  Seja um Tester: Interessado em ter acesso antecipado às novas funcionalidades? Inscreva-se para se tornar um tester.
+  Reiniciar Dicas: Se um novo recurso parecer confuso, toque para reiniciar e veja novamente o tour de dicas das ferramentas.
+  Isso é tudo o que há para saber nessa área. Vamos aprender como usar o Playback em uma performance ao vivo!
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303243596/05f7ec806723e75f83ffc3b5/5+Perform-+Routing.jpg
+## Introdução
+  Agora que seu repertório foi personalizado e está pronto para o culto, vamos nos certificar de que o Playback esteja preparado para trabalhar com seu hardware de áudio e MIDI.
+  Há duas formas principais de enviar áudio a partir do Playback
+  - Auto Pan: Envie click e tracks  usando a saída de fones de ouvido sem nenhum hardware de áudio adicional.
+  - Multiplas Saídas Com uma assinatura Premium, o Playback pode enviar até 10 saídas usando uma interface de áudio USB.
+## Escolhendo sua Interface de áudio
+  O Playback é compatível com a maioria das interfaces de áudio USB .Entretanto, algumas requerem roteamento e configuração adicionais.
+  Aqui está uma lista de interfaces de áudio USB testadas e suportada para o uso com Playback
+  Recomendado: A iConnectivity PlayAudio12 é a melhor interface de áudio/MIDI tudo-em-um para uso com Playback. Consulte este tutorial para saber como o PA12 maximiza os recursos de áudio e MIDI no Playback.
+  Saiba Mais: Dispositivos Compatíveis e Suportados
+  Saiba Mais: Soluções de Problemas de Áudio no Playback
+## Conectando Dispositivos MIDI
+  Para utilizar Playback em seu potencial máximo, são necessários múltiplos dispositivos USB. A fim de conectar um controlador MIDI, interface de áudio e outras conexões MIDI Out ao seu dispositivo iOS, recomendamos este Guia.
+  Saiba mais: Meu Controlador MIDI é compatível com Playback?
+## Roteamento de Bus (Assinatura Premium)
+  Com Playback Premium, cada track de instrumento é direcionada para 10 buses de instrumentos, criando uma maneira mais fácil de assumir o controle da mix geral de cada música.
+  Canais de saída
+  A guia Canais é onde o roteamento padrão de cada instrumento do catálogo da MultiTracks.com.br pode ser ajustado. Percorra para qualquer  instrumento, toque na linha e selecione o novo bus para o qual esta trilha será direcionada.
+## 
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336752863/a74d723b07902d42feb444b6/IMG_0907.PNG
+  Buses
+  A guia Configurações de Buses é onde eles podem ser personalizados e as saídas podem ser re-endereçadas a partir das configurações padrão. O Playback tem 10 buses padrão com Direcionamento Inteligente que direcionam automaticamente as tracks de instrumento relacionadas a cada bus compatível. Entretanto, o roteamento e a nomeação dos Buses é completamente personalizável e salvo por dispositivo de áudio.
+  Dica rápida: Renomeando os Buses
+  Deslize para a esquerda em qualquer célula de Bus para editar o nome e a abreviação
+  Nome: Muda o nome de um Bus
+  Abreviação: Altera o nome do Bus mostrado sob o fader
+  Emojis são suportados para nomes de buses 😉
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336752766/322625da1c87c49dc0eafd77/5SecondsApp_642626188.428123.gif
+  Mudando o Endereçamento do Bus
+  O endereçamento do Bus é salvo e lembrado com base no dispositivo de áudio conectado e dependendo do número de saídas suportadas. Se uma interface de áudio tiver 10 saídas, então essas 10 estão disponíveis para roteamento.
+  Toque na célula do bus para abrir o menu de roteamento.
+  Escolha a saída e Pronto.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/336752995/023d858345168d1294a0bbe1/IMG_0908.PNG
+## MIDI Out Routing
+  When adding MIDI Cues to a song in Playback, cues can be added to any of the 8 available MIDI Buses. Control the MIDI routing of these buses in the MIDI settings.
+  Select MIDI Output Port
+  Tap on this action to open the MIDI port selector.
+  Network Session will send MIDI Cues out to any MIDI network session that the iOS device is connected to
+  Hardware Ports will automatically be available when a MIDI interface is connected to Playback via USB.
+  Select MIDI Channel
+  Choose to send MIDI Cues to MIDI global channel(s) 1-16.
+  On/Off Toggle
+  Enable or disable an entire MIDI Bus.
+  Your hardware setup is now ready for services! Now let’s master using Playback’s powerful live performances features during a service.
+## MIDI Clock
+  Sync the tempo of your virtual instruments, external controllers, guitar delay pedals, and more with Playback using MIDI Clock. Send MIDI Clock data out of any selected MIDI port while tracks are playing to keep any MIDI Clock-supported instruments and music equipment in time with Playback.
+  MIDI Clock is available with a Playback Premium subscription.
+  Select MIDI Ports to Send MIDI Clock
+  Navigate to the MIDI Settings tab and scroll to the bottom of the page:
+IMG https://downloads.intercomcdn.com/i/o/380672177/94c01bf7dd5f3bae4c389a71/IMG_1017.PNG
+  Tap on the "Select Ports" row, and select which available MIDI Ports you would like to send MIDI Clock to.
+IMG https://downloads.intercomcdn.com/i/o/380672583/0c51354b03b1dc329b4c595c/IMG_1019.PNG
+  Once enabled, MIDI Clock will be sent to selected MIDI Ports any time tracks are playing. The tempo of the sending clock will update in real time based on the BPM of the currently playing songs or click track.
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303247842/385ef885d0315cd388531fc1/6+Perform+-+Performance.jpg
+## Introduction
+  The heart and soul of Playback is to be the most powerful, flexible, and simple solution for running tracks live. Let’s break down some features that will help you lead worship well.
+## The Transport: Starting and Stopping Songs
+  The top transport row is where the primary controls for the playback of songs loaded in your setlist are found. See where in the song you currently are, the time signature/tempo, and more.
+  Setlist Title: View the currently opened setlist title in the iOS header row.
+  Time Signature/Tempo Indicator: This is where the currently selected song’s tempo and time signature are displayed. If a song has tempo/time signature changes, this display will change in real-time while the song plays.
+  Time Display: See the currently selected song’s total song length (start/end time), as well as the current timestamp. Tap this display to set the selected song’s custom start/end time.
+  Pad Control: Use this button to turn the Pad Player on and off. While in Link mode, the Pad Player will automatically follow your song-specific settings and setlist transitions. Learn more about Pad Player.
+  Back to Start: Tap this button to return to the beginning of the currently playing song.
+  Play: Start and stop playback of tracks in the selected song.
+  Fade: Use this button to automatically fade tracks in and out while playing. The Click, Guide, and Pad Player will continue playing when tracks are faded out.
+## Setlist Row: Navigating the Setlist
+  The second row of Playback is where you interact with the songs during live performance and navigate through songs in your setlist during live performance.
+  Selecting Songs: While the tracks are stopped, Tap any song tile to select that song and cue it for playback. When Play is pressed, the selected song will begin to play from the start.
+  Live Crossfade: While a song is playing, double tap on another song tile to begin crossfading into it while the first song fades out. This is especially useful when transitioning from an ambient pad song tile to a new song or click track.
+## Waveform: Navigating the Song
+  Use the waveform to navigate the currently playing song in real time. Here are some powerful tools and actions to use while a song is playing.
+  Live ReOrder (Premium feature): Scroll the waveform while the song is playing to locate another song section. Double tap the song section bubble, and Playback jump to it mid-song as soon as the currently playing section ends.
+  Enable Section Loop (Pro feature): Tap the Loop icon in the top right of any song section to cue that section for a Single Loop. Once Playback comes to the end of a loop-enabled section, it will begin replaying.
+## Tracks/Buses Mixer: Controlling Your Tracks
+  Create your own mix of every song’s tracks in the tracks/buses mixer pane. The Tracks Mixer is where volume control of each track in a song can be set.
+  Toggle between Mixer Views
+  Tap the top button in the console to toggle between views in the mixer pane: Tracks Mixer, Bus Mixer, and Pad Player
+  Mixing Faders
+  Understand each way to interact with the faders for complete control of your mix.
+  Change Volume: Press and hold any fader to raise or lower the volume of that track or bus.
+  Mute the fader: Tap the track or bus name to mute the instrument. Muting a Bus fader will automatically mute all tracks routed to that bus.
+  Reminder: The bus fader mix can be song specific or global. Change this in General Settings.
+  Master Fader
+  Take full control of all audience-facing audio with the master track fader. This fader controls the overall volume output of all instrument tracks + buses, as well as the pad player.
+  Reminder: The master fader volume is globally set by default. For song specific master volume, enable this in General Settings.
+  Tip: Do you need to perform a factory reset of Playback for any reason? Triple-Tap the master fader label to initiate a factory reset, wiping all downloaded data and logging out.
+  Click Track Subdivisions
+  When the selected Click Track preset is in the Built-In category, click subdivisions are available for more detailed control over the click track mix.
+  Tap and Hold the Click fader to expand the subdivisions.
+  Control the mix of Accent, ¼ note, 1/8 note, and 1/16 note subdivisions.
+  Note: Built-In Click Track mixes are Song Specific.
+## Pad Player: Using the Interface
+VIDEO https://player.vimeo.com/video/503075860
+  The Pad Player interface can be opened using the mixer view toggle and is available for Premium subscribers. Unlock the power of live key and pad sound switching.
+  Learn everything there is to know about using the Pad Player: www.multitracks.com/products/padplayer
+## Live Navigation: Console Buttons
+  Playback has several powerful live flexibility controls in the Console, located in between the Master fader and tracks pane.
+  Mixer toggle: Press to toggle between the tracks, buses, pad player, and waveform (iPhone only)
+  MUTE MIDI: Toggle button that temporarily disables the overall sending of MIDI Cues out of Playback. This is a useful way to remove automation during an unplanned moment.
+  Loop (Pro feature): While tracks are playing, the Loop button will arm the currently playing song section to single looponce it finishes playing. After the single loop is triggered, the loop button is disabled and the song will continue playing through the section.
+  Infinite Loop (Pro feature): While tracks are playing, the Infinite Loop button will arm the current song section to indefinitely loop. This section will loop until the Infinite Loop button is pressed again to disable.
+## Live Navigation: Keyboard Shortcuts (Mac Only)
+  When using Playback on a Mac, a selection of keyboard shortcuts are available for quickly navigating Playback during service. These keyboard shortcuts will control the designated actions in Playback while the app is foregrounded:
+  Transport Controls
+  Space Bar = Play/Pause
+  P = Pad On/Off
+  F = Fade In/Out
+  L = Loop
+  I = Infinite Loop
+  Setlist Navigation
+  Left + Right Arrow Keys = Browse through the song sections, when tracks are playing or paused
+  Return/Enter (while tracks are playing) = Confirm ReOrder to new section
+  Keyboard NumbersWhile playing = Live Crossfade to corresponding song in setlist
+  While paused = Select corresponding song in setlist
+  Congrats, you are now a master of using Playback in live performance!
+IMG https://multitrackscom.intercom-attachments-1.com/i/o/303252788/279e11c80f8814e6a2497e1b/7+Save+Arrangements.jpg
+## 
+VIDEO https://player.vimeo.com/video/415576347
+## Introduction
+  Once service is over, there are new ways to save your time and work for the next service. Using the power of Cloud Pro, song arrangements can be saved to the Cloud and recalled at any time – on any device.
+  Save a song’s key/tempo, fader mix, song map and more as a custom arrangement. Custom song arrangements can be loaded into any other setlist instantly when the song is added.
+## Who can save a song arrangement?
+  Refer back to the User Permissions section in order to understand what user permissions are required to save arrangement changes to the cloud.
+  Learn More: Managing Team Roles and Permissions
+  Team Members: Can load custom arrangements with a song, but cannot save or update arrangements in the cloud
+  Team Leaders and Admins: Can load custom arrangements, save new arrangements, and update existing arrangements in the Cloud
+## What is saved in a custom song arrangement?
+  Key and Tempo
+  Track fader mix
+  Song map (song section order)
+  Content type
+  Track selection
+## Managing Saved Arrangements
+  Manage a song’s custom arrangements in the Edit Song Menu. While in Setlist Edit Mode, Tap on a song tile to open the Edit Song Menu. The top section of the Edit Song Menu is where the song’s arrangements can be managed and loaded.
+  Arrangement Picker: The first cell is where the currently loaded arrangement is shown. Tap the cell to open the Arrangements Picker menu.
+  Edit Saved Arrangements: Tap Edit in the top right to manage currently saved arrangements. Swipe to delete, or tap the pencil icon to rename any arrangement.
+  Note: The default arrangement cannot be renamed or deleted.
+## Carregar um Novo Arranjo
+  Qualquer arranjo de música salvo pode ser carregado no Repertório atual, substituindo qualquer mudança de música não salva
+  Toque na célula Arranjos para abrir os arranjos salvos.
+  Toque em quaisquer arranjos salvos disponíveis. As configurações e detalhes do novo arranjo de música selecionado estão agora visíveis no Menu Editar Música
+  Toque em Update para confirmar a seleção e carregar o novo arranjo. Nota: Isto pode exigir uma mudança de tom/andamento offline dependendo do novo arranjo carregado.
+## Salvando Arranjo das Músicas
+  Você gostou das mudanças que fez no arranjo de uma música de seu repertório? Você pode salvar esse arranjo e utilizá-lo novamente no futuro na próxima vez que for tocar essa música!
+  Abra o menu Editar Música
+  Salvar no Cloud: Isto salvará quaisquer alterações feitas no arranjo atualmente carregado e sobreporá a versão salva anteriormente.
+  Deixe uma nota (opcional) Marque as últimas mudanças feitas no arranjo.
+  Salvar como novo: Salve as mudanças atuais na música como um novo arranjo de música. Simplesmente dê um nome ao novo arranjo e toque em salvar
+## Restaurar um Arranjo
+  Se mudanças indesejadas foram feitas em um arranjo personalizado desde a última vez que foi salvo, desfaça essas mudanças restaurando o arranjo.
+  Restaurar da Nuvem: Restaurar a última versão salva do arranjo de música atualmente carregada, substituindo e desfazendo quaisquer alterações locais realizadas.
+## Conclusão e FAQ
+  Falta alguma coisa neste Guia do Usuário? Ainda confuso sobre como usar o Playback, ou você tem um pedido ou uma idéia para tornar o Playback ainda melhor? Por favor, entre em contato com nosso suporte e teremos o maior prazer em ajudá-lo. e nós adoraríamos ajudá-lo.
+  COMO | Usar músicas do catálogo com Click & Guia no Playback
+  Repertórios do Playback
+  COMO | Criar Arranjos Personalizados no Playback
+  COMO | Automações no Playback
+  Mapeamento MIDI | Controles Explicados

@@ -43,8 +43,9 @@ próprias por item em `docs/playback-analysis/playback-feature-inventory.md`.
 
 ## Pendências
 
-- Tela de performance já redesenhada no estilo do Playback (capturas em `docs/ui-performance/`); faltam as outras telas
-  (biblioteca, setlists, editores) e um ajuste fino com o app real ao lado — sessão local.
+- Tela de performance v2 (tela única, a partir do guia do usuário em `docs/playback-analysis/ui/helpcenter/`), capturas em
+  `docs/ui-performance/`. Faltam: ajustes num painel de abas, menu da música editando no lugar, fade que volta,
+  transições AutoLink/Overlap/Crossfade, crossfade ao vivo, Live ReOrder, arranjos, pad — ver o fim do inventário.
 - Itens ainda "escolha própria" sem evidência localizada: matemática da rampa de automação e
   `applyTransitionLengthCorrection`, valores de `storedTransition` (3 e 4 aparecem no binário), seção de tipo 7 e cues de
   tipo 1 das guias, curva do fade, balística do VU, porta por bus MIDI, protocolo do Playback Remote.
