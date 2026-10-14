@@ -33,8 +33,8 @@ no fim.
    "transition length correction" (`FUN_1008223d4`) é uma correção de grade de tempos para compassos x/8 e não a regra
    "não começar antes do ponto anterior" que o `MixerAutomation.h` assumiu. Hoje o WTracks implementa uma regra diferente.
 3. **Fade do transporte.** É um liga/desliga: abaixa e volta. Não pausa (`fadeButtonTouchUpInside:` → `FUN_10086ba58`).
-   O passo é linear a cada 1/30 s (`FUN_10002c318`), com 5 s por padrão. Click e guia ficam de fora (`FUN_1000c5708`). O
-   WTracks hoje termina o fade em pausa.
+   O passo é linear a cada 1/30 s (`FUN_10002c318`), com 5 s por padrão. Click e guia ficam de fora (`FUN_1000c5708`).
+   **Corrigido na Fase 1 (2026-10-14).**
 4. **Medidores.** No Playback a queda é linear em unidades de tela, `maxDecayDelta` = 1/30 por atualização, com a
    subida instantânea. O WTracks cai 24 dB/s (escolha própria). A taxa de atualização não foi achada **[G]**.
 5. **MIDI clock.** O primeiro 0xF8 sai um período depois do start. Não existe SPP (0xF2).
@@ -42,7 +42,12 @@ no fim.
 
 ## Fase 0 — Salvamento no Android (bloqueador, antes de tudo)
 
-**Status (2026-10-14): itens 1–3 feitos, 4–5 pendentes.**
+**Status (2026-10-14): itens 1–4 feitos, 5 com você.** O item 4 existe como `integration_test/persistence_test.dart` e
+`engine_init_test.dart` e `.github/workflows/android-tests.yml`. Os dois testes passaram no emulador local `wtracks_phase5`
+(Android 35, x86_64, motor falso no teste de salvamento); o workflow do CI ainda não rodou (falta o push).
+Resultado importante: no Android emulado, o salvamento real em disco (importar → editar → setlist → reabrir) **funciona**;
+se o defeito continuar no seu aparelho, a causa está em algo do aparelho (permissão, caminho do seletor de arquivos ou
+motor de áudio), e o registro de Diagnóstico deve mostrar onde.
 
 Causa encontrada:
 - A tela de importação só carregava a música, sem gravar.
@@ -108,6 +113,24 @@ Ver `docs/playback-analysis/ui/iphone-8.6.2/`.
   do pad (12 tons + LINK) entra na Fase 8.
 
 ## Fase 1 — Transporte fiel (curta, maior impacto ao vivo)
+
+**Status (2026-10-14): feita**, nos commits nativo `d146bcf` e Flutter `6305771`. Evidência da segunda passada em
+`docs/playback-analysis/pseudocode/second-pass/README.md`. O que mudou em relação ao texto abaixo:
+- **Fade:** rampa linear por amostra (`FadeRamp`), sem pausa nem `FadeFinished`; o nível persiste em pausa e seek e volta a
+  cheio em parar, RTZ e música nova (escolha própria); parado, vale na hora. Click, guias internos, `excludeFromFade` e os
+  canais Click/Guia (`ChannelInfo.isClickOrGuide`, preenchido pelos slots da importação e inferido pelo rótulo nas músicas
+  antigas) ficam de fora. A exceção dos partID 1 e 8 **continua pendente** (os nomes do enum de `FUN_10056fe0c` não aparecem
+  nas funções extraídas); até lá todo canal click/guia fica fora (escolha própria).
+- **Fade de fim:** fim − 5,0 s fixos (`FUN_1004fbb78`), mesma rampa, só se o fade estiver desligado; a música termina com
+  `EndReached`. A condição "sem crossfade com próxima música" fica como gancho para a Fase 2 (`_endFadeFor`).
+- **Início e fim:** `Track.startSeconds/endSeconds` (migram para o arranjo na Fase 3), `setPlayRange` no motor, tela
+  `SongRangeSheet` aberta pelo relógio e pelo menu da música. Play a partir do 0 começa no início personalizado; o seek é livre.
+- **RTZ:** **não para a música** (`FUN_1004f1918` reposiciona no início personalizado; `FUN_1002c4ea4(1)` só descarta o
+  próximo sequenciador e fecha o grupo anterior). `TransportNotifier.returnToZero` faz seek ao início, descarta laço ao
+  vivo e enfileirado e solta o fade; **não** mexe no MUTE MIDI (o Playback só reativa o MIDI cortado por crossfade; gancho
+  para a Fase 2) nem nos laços predefinidos.
+- **Pendente da fase:** os nomes dos casos de `FUN_10056fe0c`. Testes: nativo 3 execuções sem falhas; Flutter 221 testes e
+  `flutter analyze` limpo, 3 execuções (com `LD_LIBRARY_PATH=native/build-linux` para ligar os testes de FFI real).
 
 - **Fade em liga/desliga.** Rampa linear de 5 s para baixo e de volta para cima, reversível no meio. Não pausa e não
   gera `FadeFinished`. O transporte segue tocando.
@@ -262,8 +285,8 @@ interface de rede, limpar cache. O protocolo do Playback Remote só fica compat�
 |---|---|---|
 | Alta (Fase 2) | `FUN_1002da058` | Tipada como `void`; o valor de retorno (transição efetiva da última música) se perdeu. Redecompilar com retorno `uint8`. |
 | Alta (Fase 2) | `FUN_100504f30`, `FUN_10056b3d8`, `FUN_100502888`, `FUN_1002c4ea4`, `FUN_10034293c`, `FUN_10050cb68` | Blocos despachados que não estão nos dumps: curvas de ganho de Overlap e Crossfade e início do AutoLink. |
-| Alta (Fase 1) | `FUN_10064458c`, `FUN_1000c588c`, `FUN_10056fe0c` | Quais canais entram no fade; o que são partID 1 e 8. |
-| Alta (Fase 1) | `FUN_1004fbb78` e quem grava `SongChannelGroup.fadeStartTimecode` | Condição do fade de fim. |
+| Alta (Fase 1) | `FUN_10056fe0c` | **Parcial:** `10064458c`/`1000c588c` resolvidas (canais de faixa; click/guia fora). Falta o nome dos casos do enum (rawValue 0x33 e 0x4bd). |
+| ~~Alta (Fase 1)~~ | `FUN_1004fbb78` | **Resolvida:** fim × razão − 5,0 s. Quem grava `fadeStartTimecode` não foi localizado (não muda o comportamento). |
 | Alta (Fase 3) | `FUN_1000344fc` e a tabela `MetadataSection` | Tipos de seção (0x18, 0x19, 7, 0, 1…). |
 | Alta (Fase 3) | Classes `SongMenuArrangementsViewController`, `SongMapEditViewController`, `SongMapAddSectionViewController`, `SongMapAdjunctSectionViewController` | Edição do mapa e arranjos; extrair por nome de classe. |
 | Média (Fase 3) | `FUN_1005013b4`, `previous/select/nextNavigationAction`, `FUN_1001b45c8` | Live ReOrder e navegação. |
