@@ -9,6 +9,7 @@ import '../models/track.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dialog_text_controller.dart';
 import '../providers/engine_provider.dart';
+import '../providers/transition_provider.dart';
 import '../providers/waveform_provider.dart';
 import '../services/dynamic_guides.dart' show TempoSegment;
 import '../utils/tap_tempo.dart';
@@ -1280,10 +1281,10 @@ class _SetlistRow extends ConsumerWidget {
               artHeight: artHeight,
               current: i == current,
               editing: editing,
-              badge: inSession && !last ? song.transition : null,
+              badge: inSession && (!last || song.transition == SongTransition.cueFirstSong) ? song.transition : null,
               onTransition: i == current ? () => _chooseTransition(context, ref) : null,
               onSelect: i == current ? null : (playing ? null : () => notifier.go(i)),
-              onDoubleTap: i == current || !playing ? null : () => notifier.go(i),
+              onDoubleTap: i == current || !playing ? null : () => ref.read(transitionProvider.notifier).liveCrossfade(i),
               onRemove: inSession && i != current ? () => notifier.removeAt(i) : null,
               onMenu: i == current ? () => _showSongMenu(context, ref, track) : null,
               onAdd: () => _addSong(context, ref, inSession ? i + 1 : null),
@@ -1294,8 +1295,8 @@ class _SetlistRow extends ConsumerWidget {
     );
   }
 
-  /// Transições (Playback: Cue Next Song, Stay In Song, Continue Pad, AutoLink, Overlap, Crossfade). O WTracks tem as
-  /// duas primeiras; o pad está fora do escopo e as outras três ainda não existem no motor.
+  /// Transições (Playback: Cue Next Song, AutoLink, Overlap, Crossfade, Stay In Song, Cue First Song). O Continue Pad fica
+  /// para a Fase 8 (Pad Player).
   Future<void> _chooseTransition(BuildContext context, WidgetRef ref) async {
     final current = ref.read(currentTrackProvider);
     if (current == null) return;
@@ -1303,12 +1304,9 @@ class _SetlistRow extends ConsumerWidget {
       context: context,
       builder: (ctx) => _SheetDialog(title: 'Transição', children: [
         _SheetSection(children: [
-          for (final (value, label) in const [
-            (SongTransition.cueNextSong, 'Preparar a próxima música'),
-            (SongTransition.stayInSong, 'Continuar na música'),
-          ])
+          for (final value in SongTransition.values)
             _SheetRow(
-              label: label,
+              label: value.label,
               onTap: () => Navigator.of(ctx).pop(value),
               trailing: Icon(current.transition == value ? Icons.check : null, color: const Color(0xFF0A84FF), size: 20),
             ),
@@ -1386,8 +1384,7 @@ class _SongCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: current ? kStageGreen : const Color(0xFF2B2D2E), width: 1.5),
                       ),
-                      child: Icon(badge == SongTransition.stayInSong ? Icons.keyboard_tab : Icons.arrow_right_alt,
-                          size: 16, color: _text),
+                      child: Icon(badge!.icon, size: 16, color: _text),
                     ),
                   ),
                 ),

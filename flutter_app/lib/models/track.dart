@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show IconData;
+import 'package:flutter/material.dart' show Icons;
 import 'song_section.dart';
 import 'guide_cue.dart';
 import 'automation_cue.dart';
@@ -24,12 +26,48 @@ enum ChannelRoute {
       ChannelRoute.values.firstWhere((r) => r.name == name, orElse: () => ChannelRoute.stereo);
 }
 
-/// O que acontece quando a música termina (ou o fade de saída acaba) numa setlist. Playback: SongArrangement.
-/// storedTransition, strings "Cue Next Song" / "Stay In Song"; os valores numéricos do Playback não foram
-/// recuperados, os nomes aqui são nossos.
+/// Transição ao fim da música numa setlist (Playback `SongArrangement.storedTransition`, 0..5; ver
+/// docs/playback-analysis/pseudocode/second-pass/README.md). A ordem é a do Playback; a persistência usa o nome.
 enum SongTransition {
-  cueNextSong,
-  stayInSong;
+  /// 0 — a próxima música é carregada, parada no início ("Preparar Próxima Música").
+  cueNextSong('Preparar próxima música', 'Na setlist, carrega a próxima música parada no início'),
+
+  /// 1 — a próxima começa a tocar sozinha quando esta termina ("AutoLink").
+  autoLink('AutoLink', 'A próxima música começa assim que esta termina'),
+
+  /// 2 — nos últimos 5 s a próxima entra no volume total e esta termina sem desvanecer ("Sobreposição").
+  overlap('Sobreposição', 'Nos últimos 5 s a próxima entra no volume total; esta termina sem desvanecer'),
+
+  /// 3 — nos últimos 5 s a próxima entra aos poucos enquanto esta desvanece ("Transição Cruzada").
+  crossfade('Transição cruzada', 'Nos últimos 5 s a próxima entra aos poucos enquanto esta desvanece'),
+
+  /// 4 — a música continua selecionada ("Continuar na música").
+  stayInSong('Continuar na música', 'Ao terminar, a música continua selecionada'),
+
+  /// 5 — volta para a primeira música da setlist, parada no início ("Preparar primeira música").
+  cueFirstSong('Preparar primeira música', 'Ao terminar, volta para a primeira música da setlist');
+
+  final String label, description;
+  const SongTransition(this.label, this.description);
+
+  /// "Continuar Pad" só vale para 0, 4 e 5 (máscara 0x31 em FUN_1004bad90).
+  bool get continuesPad => this == cueNextSong || this == stayInSong || this == cueFirstSong;
+
+  /// A próxima música toca por cima desta (AutoLink, Sobreposição, Transição Cruzada): usa o segundo deck.
+  bool get isMixed => this == autoLink || this == overlap || this == crossfade;
+
+  /// Sobreposição e Transição Cruzada compartilham o código no Playback (`(v & 0xfe) == 2`).
+  bool get hasWindow => this == overlap || this == crossfade;
+
+  /// Ícone usado nos cartões e na edição da setlist.
+  IconData get icon => switch (this) {
+        cueNextSong => Icons.arrow_right_alt,
+        autoLink => Icons.link,
+        overlap => Icons.layers,
+        crossfade => Icons.swap_horiz,
+        stayInSong => Icons.keyboard_tab,
+        cueFirstSong => Icons.first_page,
+      };
 
   static SongTransition parse(Object? name) =>
       SongTransition.values.firstWhere((t) => t.name == name, orElse: () => SongTransition.cueNextSong);

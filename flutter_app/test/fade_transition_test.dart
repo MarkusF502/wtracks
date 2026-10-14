@@ -164,8 +164,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.byType(SongEndingSheet), findsOneWidget);
-    await tester.tap(find.byKey(const Key('transition-stay')));
+    await tester.tap(find.byKey(const Key('transition-stayInSong')));
+    await tester.ensureVisible(find.byKey(const Key('end-fade')));
     await tester.tap(find.byKey(const Key('end-fade')));
+    await tester.ensureVisible(find.byKey(const Key('exclude-fade-0')));
     await tester.tap(find.byKey(const Key('exclude-fade-0')));
     await tester.pump(const Duration(milliseconds: 200));
     final track = c.read(currentTrackProvider)!;

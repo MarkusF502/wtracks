@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/track.dart';
 import '../providers/engine_provider.dart';
 
-/// Fim da música: transição na setlist ("Cue Next Song" / "Stay In Song"), fade nos últimos 5 s
+/// Fim da música: transição na setlist (as seis do Playback), fade nos últimos 5 s
 /// (SongArrangement.endFade) e canais que não entram no fade (excludeFromFade).
 class SongEndingSheet extends ConsumerWidget {
   const SongEndingSheet({super.key});
@@ -38,18 +38,14 @@ class SongEndingSheet extends ConsumerWidget {
                 notifier.setTransition(v);
                 _save(context, ref);
               },
-              child: const Column(children: [
-                RadioListTile(
-                  key: Key('transition-cue-next'),
-                  value: SongTransition.cueNextSong,
-                  title: Text('Preparar a próxima música'),
-                  subtitle: Text('Na setlist, carrega a próxima música parada no início'),
-                ),
-                RadioListTile(
-                  key: Key('transition-stay'),
-                  value: SongTransition.stayInSong,
-                  title: Text('Ficar na música'),
-                ),
+              child: Column(children: [
+                for (final value in SongTransition.values)
+                  RadioListTile<SongTransition>(
+                    key: Key('transition-${value.name}'),
+                    value: value,
+                    title: Text(value.label),
+                    subtitle: Text(value.description),
+                  ),
               ]),
             ),
             SwitchListTile(

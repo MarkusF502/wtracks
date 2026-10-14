@@ -25,6 +25,9 @@ import 'package:flutter_app/models/song_section.dart';
 /// Engine falso que grava cada chamada recebida, pra os testes conferirem
 /// o que a UI/providers mandaram pro motor nativo.
 class FakeEngine implements WTracksEngine {
+  FakeEngine({this.deck = 0});
+  @override
+  final int deck;
   @override
   bool ready = true;
   @override
@@ -124,6 +127,45 @@ class FakeEngine implements WTracksEngine {
   }
   @override
   (double, double) get playRange => (playRangeStart, playRangeEnd);
+  // ---- second deck and transitions ----
+  bool nextDeckPrepared = false, handedOff = false, scheduled = false, schedulingFails = false, handoffFails = false;
+  int? scheduledKind;
+  double? scheduledStart, scheduledDuration;
+  double transitionProgressValue = -1;
+  @override
+  bool prepareNextDeck() {
+    calls.add('prepareNextDeck');
+    return nextDeckPrepared = true;
+  }
+  @override
+  void releaseNextDeck() => calls.add('releaseNextDeck');
+  @override
+  bool scheduleTransition(int kind, double startSeconds, double durationSeconds) {
+    calls.add('schedule($kind,${startSeconds.toStringAsFixed(3)},${durationSeconds.toStringAsFixed(3)})');
+    if (schedulingFails) return false;
+    scheduled = true;
+    scheduledKind = kind;
+    scheduledStart = startSeconds;
+    scheduledDuration = durationSeconds;
+    return true;
+  }
+  @override
+  void cancelTransition() {
+    calls.add('cancelTransition');
+    scheduled = false;
+  }
+  @override
+  double get transitionProgress => transitionProgressValue;
+  @override
+  bool get transitionScheduled => scheduled;
+  @override
+  bool handoff() {
+    calls.add('handoff');
+    if (handoffFails) return false;
+    handedOff = true;
+    scheduled = false;
+    return true;
+  }
   @override
   void resetTransportState() {
     calls.add('resetTransport');

@@ -184,7 +184,7 @@ class _SetlistEditorScreenState extends ConsumerState<SetlistEditorScreen> {
                       isLandscape: isLandscape,
                       onTap: () => openTrack(context, ref, track, setlist: setlist, index: index),
                       onTransition: () => ref.read(trackLibraryProvider.notifier).setTransition(track.id,
-                          track.transition == SongTransition.cueNextSong ? SongTransition.stayInSong : SongTransition.cueNextSong),
+                          SongTransition.values[(track.transition.index + 1) % SongTransition.values.length]),
                       onRemove: () =>
                           ref.read(setlistEditorProvider.notifier).removeTrack(track.id),
                     );
@@ -268,10 +268,8 @@ class _SongRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: Icon(track.transition == SongTransition.cueNextSong ? Icons.skip_next : Icons.repeat_one, color: kTextDim),
-              tooltip: track.transition == SongTransition.cueNextSong
-                  ? 'Ao terminar: preparar a próxima música'
-                  : 'Ao terminar: ficar na música',
+              icon: Icon(track.transition.icon, color: kTextDim),
+              tooltip: 'Ao terminar: ${track.transition.label.toLowerCase()} (toque para trocar)',
               onPressed: onTransition,
             ),
             IconButton(

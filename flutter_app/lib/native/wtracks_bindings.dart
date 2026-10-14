@@ -116,6 +116,8 @@ typedef _ChannelFlagNative = Void Function(Int32, Bool);
 typedef _ChannelFlagDart = void Function(int, bool);
 typedef _DoubleBoolNative = Bool Function(Double);
 typedef _DoubleBoolDart = bool Function(double);
+typedef _ScheduleTransitionNative = Bool Function(Int32, Double, Double);
+typedef _ScheduleTransitionDart = bool Function(int, double, double);
 typedef _SetFadeNative = Bool Function(Bool, Double);
 typedef _SetFadeDart = bool Function(bool, double);
 typedef _EventsNative = Uint32 Function();
@@ -301,6 +303,10 @@ class WTracksEngine {
   late final _EnqueueLoopDart _setPlayRange;
   late final _LoopSnapshotDart _getPlayRange;
   late final _VoidDart _resetTransportState;
+  late final _BoolFnDart _prepareNextDeck, _handoff, _transitionScheduled;
+  late final _VoidFnDart _releaseNextDeck, _cancelTransition;
+  late final _ScheduleTransitionDart _scheduleTransition;
+  late final _GetPositionDart _transitionProgress;
   late final _DoubleBoolDart _setEndFade;
   late final _ChannelFlagDart _setChannelExcludedFromFade;
   late final _GetPositionDart _getFadeGain;
@@ -323,7 +329,11 @@ class WTracksEngine {
   late final _PollInputDart _pollMidiInput;
   late final _InjectDart _injectMidiInput;
   late final _SetClickEnabledDart _setGuidesEnabled;
-  WTracksEngine() {
+  /// [deck] 0 é a música que toca (o dispositivo de áudio a chama); 1 é a próxima música pré-carregada durante uma transição.
+  /// Depois de [handoff] os decks se trocam no nativo: o objeto do deck 0 passa a falar com a música que entrou.
+  final int deck;
+  final String _p;
+  WTracksEngine({this.deck = 0}) : _p = deck == 0 ? 'wtracks_' : 'wtracks_n_' {
     _lib = _openLibrary();
 
     _initialise = _lib
@@ -333,150 +343,158 @@ class WTracksEngine {
         .lookup<NativeFunction<_VoidNative>>('wtracks_shutdown')
         .asFunction();
     _loadTrack = _lib
-        .lookup<NativeFunction<_LoadTrackNative>>('wtracks_load_track')
+        .lookup<NativeFunction<_LoadTrackNative>>('${_p}load_track')
         .asFunction();
     _getLastError = _lib
-        .lookup<NativeFunction<_GetLastErrorNative>>('wtracks_get_last_error')
+        .lookup<NativeFunction<_GetLastErrorNative>>('${_p}get_last_error')
         .asFunction();
     _getLastErrorCode = _lib.lookupFunction<Int32 Function(), int Function()>(
-      'wtracks_get_last_error_code',
+      '${_p}get_last_error_code',
     );
     _unloadTrack = _lib
-        .lookup<NativeFunction<_VoidNative>>('wtracks_unload_track')
+        .lookup<NativeFunction<_VoidNative>>('${_p}unload_track')
         .asFunction();
     _play = _lib
-        .lookup<NativeFunction<_VoidNative>>('wtracks_play')
+        .lookup<NativeFunction<_VoidNative>>('${_p}play')
         .asFunction();
     _pause = _lib
-        .lookup<NativeFunction<_VoidNative>>('wtracks_pause')
+        .lookup<NativeFunction<_VoidNative>>('${_p}pause')
         .asFunction();
     _stop = _lib
-        .lookup<NativeFunction<_VoidNative>>('wtracks_stop')
+        .lookup<NativeFunction<_VoidNative>>('${_p}stop')
         .asFunction();
     _seek = _lib
-        .lookup<NativeFunction<_SeekNative>>('wtracks_seek')
+        .lookup<NativeFunction<_SeekNative>>('${_p}seek')
         .asFunction();
     _getPosition = _lib
-        .lookup<NativeFunction<_GetPositionNative>>('wtracks_get_position')
+        .lookup<NativeFunction<_GetPositionNative>>('${_p}get_position')
         .asFunction();
     _getLength = _lib
-        .lookup<NativeFunction<_GetPositionNative>>('wtracks_get_length')
+        .lookup<NativeFunction<_GetPositionNative>>('${_p}get_length')
         .asFunction();
     _isPlaying = _lib
-        .lookup<NativeFunction<_IsPlayingNative>>('wtracks_is_playing')
+        .lookup<NativeFunction<_IsPlayingNative>>('${_p}is_playing')
         .asFunction();
     _setChannelVolume = _lib
         .lookup<NativeFunction<_SetChannelVolumeNative>>(
-          'wtracks_set_channel_volume',
+          '${_p}set_channel_volume',
         )
         .asFunction();
     _setChannelMuted = _lib
         .lookup<NativeFunction<_SetChannelMutedNative>>(
-          'wtracks_set_channel_muted',
+          '${_p}set_channel_muted',
         )
         .asFunction();
     _getChannelCount = _lib
         .lookup<NativeFunction<_GetChannelCountNative>>(
-          'wtracks_get_channel_count',
+          '${_p}get_channel_count',
         )
         .asFunction();
     _setClickEnabled = _lib
         .lookup<NativeFunction<_SetClickEnabledNative>>(
-          'wtracks_set_click_enabled',
+          '${_p}set_click_enabled',
         )
         .asFunction();
     _setClickBpm = _lib
-        .lookup<NativeFunction<_SetClickBpmNative>>('wtracks_set_click_bpm')
+        .lookup<NativeFunction<_SetClickBpmNative>>('${_p}set_click_bpm')
         .asFunction();
     _setClickTimeSignature = _lib
         .lookup<NativeFunction<_SetClickTimeSignatureNative>>(
-          'wtracks_set_click_time_signature',
+          '${_p}set_click_time_signature',
         )
         .asFunction();
     _setClickOffset = _lib
         .lookup<NativeFunction<_SetClickOffsetNative>>(
-          'wtracks_set_click_offset',
+          '${_p}set_click_offset',
         )
         .asFunction();
     _configureClick = _lib
         .lookupFunction<_ConfigureClickNative, _ConfigureClickDart>(
-          'wtracks_configure_click',
+          '${_p}configure_click',
         );
     _loadClickSound = _lib
         .lookupFunction<_LoadClickSoundNative, _LoadClickSoundDart>(
-          'wtracks_load_click_sound',
+          '${_p}load_click_sound',
         );
-    _loadClickBank = _lib.lookupFunction<_LoadClickBankNative, _LoadClickBankDart>('wtracks_load_click_bank');
-    _setLoop = _lib.lookupFunction<_SetLoopNative, _SetLoopDart>('wtracks_set_loop');
-    _enqueueLoop = _lib.lookupFunction<_EnqueueLoopNative, _EnqueueLoopDart>('wtracks_enqueue_loop');
-    _clearQueuedLoop = _lib.lookupFunction<_VoidNative, _VoidDart>('wtracks_clear_queued_loop');
-    _getLoopEnabled = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_get_loop_enabled');
-    _getQueuedLoopEnabled = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_get_queued_loop_enabled');
-    _getLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_loop_start');
-    _getLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_loop_end');
-    _getQueuedLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_start');
-    _getQueuedLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_queued_loop_end');
-    _getLoopState = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_loop_state');
+    _loadClickBank = _lib.lookupFunction<_LoadClickBankNative, _LoadClickBankDart>('${_p}load_click_bank');
+    _setLoop = _lib.lookupFunction<_SetLoopNative, _SetLoopDart>('${_p}set_loop');
+    _enqueueLoop = _lib.lookupFunction<_EnqueueLoopNative, _EnqueueLoopDart>('${_p}enqueue_loop');
+    _clearQueuedLoop = _lib.lookupFunction<_VoidNative, _VoidDart>('${_p}clear_queued_loop');
+    _getLoopEnabled = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('${_p}get_loop_enabled');
+    _getQueuedLoopEnabled = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('${_p}get_queued_loop_enabled');
+    _getLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('${_p}get_loop_start');
+    _getLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('${_p}get_loop_end');
+    _getQueuedLoopStart = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('${_p}get_queued_loop_start');
+    _getQueuedLoopEnd = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('${_p}get_queued_loop_end');
+    _getLoopState = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('${_p}get_loop_state');
     _processTimePitch = _lib.lookupFunction<_ProcessTimePitchNative, _ProcessTimePitchDart>('wtracks_process_time_pitch');
-    _setTimeScale = _lib.lookupFunction<_SetTimeScaleNative, _SetTimeScaleDart>('wtracks_set_time_scale');
-    _getTimeScale = _lib.lookupFunction<_GetTimeScaleNative, _GetTimeScaleDart>('wtracks_get_time_scale');
+    _setTimeScale = _lib.lookupFunction<_SetTimeScaleNative, _SetTimeScaleDart>('${_p}set_time_scale');
+    _getTimeScale = _lib.lookupFunction<_GetTimeScaleNative, _GetTimeScaleDart>('${_p}get_time_scale');
     _cancelTimePitch = _lib.lookupFunction<_CancelTimePitchNative, _CancelTimePitchDart>('wtracks_cancel_time_pitch');
-    _setLoopRepeats = _lib.lookupFunction<_SetLoopRepeatsNative, _SetLoopRepeatsDart>('wtracks_set_loop_repeats');
-    _enqueueLoopRepeats = _lib.lookupFunction<_EnqueueLoopRepeatsNative, _EnqueueLoopRepeatsDart>('wtracks_enqueue_loop_repeats');
-    _configurePresetLoops = _lib.lookupFunction<_PresetLoopsNative, _PresetLoopsDart>('wtracks_configure_preset_loops');
-    _setClickTempoChanges = _lib.lookupFunction<_TempoChangesNative, _TempoChangesDart>('wtracks_set_click_tempo_changes');
-    _configureTimecode = _lib.lookupFunction<_ConfigureTimecodeNative, _ConfigureTimecodeDart>('wtracks_configure_timecode');
-    _setTimecodeEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_timecode_enabled');
+    _setLoopRepeats = _lib.lookupFunction<_SetLoopRepeatsNative, _SetLoopRepeatsDart>('${_p}set_loop_repeats');
+    _enqueueLoopRepeats = _lib.lookupFunction<_EnqueueLoopRepeatsNative, _EnqueueLoopRepeatsDart>('${_p}enqueue_loop_repeats');
+    _configurePresetLoops = _lib.lookupFunction<_PresetLoopsNative, _PresetLoopsDart>('${_p}configure_preset_loops');
+    _setClickTempoChanges = _lib.lookupFunction<_TempoChangesNative, _TempoChangesDart>('${_p}set_click_tempo_changes');
+    _configureTimecode = _lib.lookupFunction<_ConfigureTimecodeNative, _ConfigureTimecodeDart>('${_p}configure_timecode');
+    _setTimecodeEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_timecode_enabled');
     _midiList = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_outputs');
-    _midiOpen = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('wtracks_midi_open_output');
-    _midiClose = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_output');
-    _midiIsOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_midi_output_open');
-    _setMidiClockEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_midi_clock_enabled');
-    _setMidiCuesMuted = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_midi_cues_muted');
-    _sendMidi = _lib.lookupFunction<_SendMidiNative, _SendMidiDart>('wtracks_send_midi');
-    _configureCues = _lib.lookupFunction<_ConfigureCuesNative, _ConfigureCuesDart>('wtracks_configure_cues');
-    _pollCues = _lib.lookupFunction<_PollCuesNative, _PollCuesDart>('wtracks_poll_cues');
-    _midiDropped = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_midi_dropped');
-    _setChannelRoute = _lib.lookupFunction<_SetRouteNative, _SetRouteDart>('wtracks_set_channel_route');
-    _setMasterVolume = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>('wtracks_set_master_volume');
-    _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('wtracks_configure_guides');
-    _configureGuidesEx = _lib.lookupFunction<_ConfigureGuidesExNative, _ConfigureGuidesExDart>('wtracks_configure_guides_ex');
-    _configurePreroll = _lib.lookupFunction<_ConfigurePrerollNative, _ConfigurePrerollDart>('wtracks_configure_preroll');
-    _isPrerolling = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_is_prerolling');
-    _configureMixerAutomation = _lib.lookupFunction<_MixerAutomationNative, _MixerAutomationDart>('wtracks_configure_mixer_automation');
-    _setAutomationEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_automation_enabled');
-    _getMixState = _lib.lookupFunction<_MixStateNative, _MixStateDart>('wtracks_get_mix_state');
-    _setChannelSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_channel_solo_muted');
-    _setFade = _lib.lookupFunction<_SetFadeNative, _SetFadeDart>('wtracks_set_fade');
-    _getFadeDown = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_get_fade_down');
-    _setPlayRange = _lib.lookupFunction<_EnqueueLoopNative, _EnqueueLoopDart>('wtracks_set_play_range');
-    _getPlayRange = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_play_range');
-    _resetTransportState = _lib.lookupFunction<_VoidNative, _VoidDart>('wtracks_reset_transport_state');
-    _setEndFade = _lib.lookupFunction<_DoubleBoolNative, _DoubleBoolDart>('wtracks_set_end_fade');
-    _setChannelExcludedFromFade = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_channel_excluded_from_fade');
-    _getFadeGain = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_fade_gain');
-    _pollTransportEvents = _lib.lookupFunction<_EventsNative, _EventsDart>('wtracks_poll_transport_events');
-    _takeMeters = _lib.lookupFunction<_TakeMetersNative, _TakeMetersDart>('wtracks_take_meters');
-    _configureBuses = _lib.lookupFunction<_IntBoolNative, _IntBoolDart>('wtracks_configure_buses');
-    _setBus = _lib.lookupFunction<_SetBusNative, _SetBusDart>('wtracks_set_bus');
-    _setBusSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_bus_solo_muted');
-    _setChannelBus = _lib.lookupFunction<_ChannelBusNative, _ChannelBusDart>('wtracks_set_channel_bus');
-    _setStereoSplit = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_stereo_split');
-    _getBusState = _lib.lookupFunction<_BusStateNative, _BusStateDart>('wtracks_get_bus_state');
-    _takeBusMeters = _lib.lookupFunction<_BusMetersNative, _BusMetersDart>('wtracks_take_bus_meters');
-    _configureCuesEx = _lib.lookupFunction<_CuesExNative, _CuesExDart>('wtracks_configure_cues_ex');
-    _configureSkips = _lib.lookupFunction<_SkipsNative, _SkipsDart>('wtracks_configure_skips');
-    _getLoopPass = _lib.lookupFunction<_LoopPassNative, _LoopPassDart>('wtracks_get_loop_pass');
+    _midiOpen = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('${_p}midi_open_output');
+    _midiClose = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('${_p}midi_close_output');
+    _midiIsOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('${_p}midi_output_open');
+    _setMidiClockEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_midi_clock_enabled');
+    _setMidiCuesMuted = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_midi_cues_muted');
+    _sendMidi = _lib.lookupFunction<_SendMidiNative, _SendMidiDart>('${_p}send_midi');
+    _configureCues = _lib.lookupFunction<_ConfigureCuesNative, _ConfigureCuesDart>('${_p}configure_cues');
+    _pollCues = _lib.lookupFunction<_PollCuesNative, _PollCuesDart>('${_p}poll_cues');
+    _midiDropped = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('${_p}get_midi_dropped');
+    _setChannelRoute = _lib.lookupFunction<_SetRouteNative, _SetRouteDart>('${_p}set_channel_route');
+    _setMasterVolume = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>('${_p}set_master_volume');
+    _configureGuides = _lib.lookupFunction<_ConfigureGuidesNative, _ConfigureGuidesDart>('${_p}configure_guides');
+    _configureGuidesEx = _lib.lookupFunction<_ConfigureGuidesExNative, _ConfigureGuidesExDart>('${_p}configure_guides_ex');
+    _configurePreroll = _lib.lookupFunction<_ConfigurePrerollNative, _ConfigurePrerollDart>('${_p}configure_preroll');
+    _isPrerolling = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('${_p}is_prerolling');
+    _configureMixerAutomation = _lib.lookupFunction<_MixerAutomationNative, _MixerAutomationDart>('${_p}configure_mixer_automation');
+    _setAutomationEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_automation_enabled');
+    _getMixState = _lib.lookupFunction<_MixStateNative, _MixStateDart>('${_p}get_mix_state');
+    _setChannelSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('${_p}set_channel_solo_muted');
+    _setFade = _lib.lookupFunction<_SetFadeNative, _SetFadeDart>('${_p}set_fade');
+    _getFadeDown = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('${_p}get_fade_down');
+    _setPlayRange = _lib.lookupFunction<_EnqueueLoopNative, _EnqueueLoopDart>('${_p}set_play_range');
+    _getPlayRange = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('${_p}get_play_range');
+    _resetTransportState = _lib.lookupFunction<_VoidNative, _VoidDart>('${_p}reset_transport_state');
+    // Transições entre músicas: sempre agem pelo deck 0 (a música que toca) sobre o deck 1.
+    _prepareNextDeck = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_prepare_next_deck');
+    _releaseNextDeck = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_release_next_deck');
+    _scheduleTransition = _lib.lookupFunction<_ScheduleTransitionNative, _ScheduleTransitionDart>('wtracks_schedule_transition');
+    _cancelTransition = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_cancel_transition');
+    _transitionProgress = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_transition_progress');
+    _transitionScheduled = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_is_transition_scheduled');
+    _handoff = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_handoff');
+    _setEndFade = _lib.lookupFunction<_DoubleBoolNative, _DoubleBoolDart>('${_p}set_end_fade');
+    _setChannelExcludedFromFade = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('${_p}set_channel_excluded_from_fade');
+    _getFadeGain = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('${_p}get_fade_gain');
+    _pollTransportEvents = _lib.lookupFunction<_EventsNative, _EventsDart>('${_p}poll_transport_events');
+    _takeMeters = _lib.lookupFunction<_TakeMetersNative, _TakeMetersDart>('${_p}take_meters');
+    _configureBuses = _lib.lookupFunction<_IntBoolNative, _IntBoolDart>('${_p}configure_buses');
+    _setBus = _lib.lookupFunction<_SetBusNative, _SetBusDart>('${_p}set_bus');
+    _setBusSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('${_p}set_bus_solo_muted');
+    _setChannelBus = _lib.lookupFunction<_ChannelBusNative, _ChannelBusDart>('${_p}set_channel_bus');
+    _setStereoSplit = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_stereo_split');
+    _getBusState = _lib.lookupFunction<_BusStateNative, _BusStateDart>('${_p}get_bus_state');
+    _takeBusMeters = _lib.lookupFunction<_BusMetersNative, _BusMetersDart>('${_p}take_bus_meters');
+    _configureCuesEx = _lib.lookupFunction<_CuesExNative, _CuesExDart>('${_p}configure_cues_ex');
+    _configureSkips = _lib.lookupFunction<_SkipsNative, _SkipsDart>('${_p}configure_skips');
+    _getLoopPass = _lib.lookupFunction<_LoopPassNative, _LoopPassDart>('${_p}get_loop_pass');
     _midiListInputs = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_inputs');
-    _midiOpenInput = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('wtracks_midi_open_input');
-    _midiCloseInput = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('wtracks_midi_close_input');
-    _midiInputOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('wtracks_midi_input_open');
-    _pollMidiInput = _lib.lookupFunction<_PollInputNative, _PollInputDart>('wtracks_poll_midi_input');
-    _injectMidiInput = _lib.lookupFunction<_InjectNative, _InjectDart>('wtracks_inject_midi_input');
-    _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_guides_enabled');
-    _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('wtracks_get_underrun_count');
+    _midiOpenInput = _lib.lookupFunction<_MidiOpenNative, _MidiOpenDart>('${_p}midi_open_input');
+    _midiCloseInput = _lib.lookupFunction<_VoidFnNative, _VoidFnDart>('${_p}midi_close_input');
+    _midiInputOpen = _lib.lookupFunction<_BoolFnNative, _BoolFnDart>('${_p}midi_input_open');
+    _pollMidiInput = _lib.lookupFunction<_PollInputNative, _PollInputDart>('${_p}poll_midi_input');
+    _injectMidiInput = _lib.lookupFunction<_InjectNative, _InjectDart>('${_p}inject_midi_input');
+    _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_guides_enabled');
+    _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('${_p}get_underrun_count');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
-      'wtracks_set_click_gain',
+      '${_p}set_click_gain',
     );
     _generateWaveformPeaks = _lib
         .lookup<NativeFunction<_GenerateWaveformNative>>(
@@ -532,14 +550,18 @@ class WTracksEngine {
 
   /// Carrega uma música de forma assíncrona em um isolate separado.
   /// Útil quando a chamada síncrona puder bloquear a UI.
+  /// Roda [body] num isolate sobre o mesmo deck deste objeto (as chamadas longas não podem travar a interface).
+  static Future<R> _isolateOnDeck<R>(int deck, R Function(WTracksEngine engine) body) => Isolate.run(() => body(WTracksEngine(deck: deck)));
+
   Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) {
+    final prefix = _p; // o isolate não pode capturar `this`
     return Isolate.run(() {
       final lib = _openLibrary();
       final loadFn = lib
-          .lookup<NativeFunction<_LoadTrackNative>>('wtracks_load_track')
+          .lookup<NativeFunction<_LoadTrackNative>>('${prefix}load_track')
           .asFunction<_LoadTrackDart>();
       final getErrorFn = lib
-          .lookup<NativeFunction<_GetLastErrorNative>>('wtracks_get_last_error')
+          .lookup<NativeFunction<_GetLastErrorNative>>('${prefix}get_last_error')
           .asFunction<_GetLastErrorDart>();
 
       final songIdPtr = songId.toNativeUtf8();
@@ -722,7 +744,7 @@ class WTracksEngine {
       _setChannelRoute(channelIndex, route.outputBase, route.mono);
   void setMasterVolume(double volume) => _setMasterVolume(volume);
   void setGuidesEnabled(bool enabled) => _setGuidesEnabled(enabled);
-  Future<bool> configureGuidesAsync(List<GuideCue> cues, List<String> paths) => Isolate.run(() => WTracksEngine().configureGuides(cues, paths));
+  Future<bool> configureGuidesAsync(List<GuideCue> cues, List<String> paths) => _isolateOnDeck(deck, (engine) => engine.configureGuides(cues, paths));
   bool configureGuides(List<GuideCue> cues, List<String> paths) {
     if (!GuideCue.validSequence(cues) || paths.length != cues.length) return false;
     final count=cues.length;
@@ -775,7 +797,7 @@ class WTracksEngine {
   }
 
   Future<bool> configureGuideScheduleAsync(List<ScheduledGuide> guides, Map<String, String> paths) =>
-      Isolate.run(() => WTracksEngine().configureGuideSchedule(guides, paths));
+      _isolateOnDeck(deck, (engine) => engine.configureGuideSchedule(guides, paths));
 
   /// Pré-roll de seção: um compasso de click e contagem antes de tocar a partir de [starts] (segundos da música).
   /// [countPaths][k] fala "k+1" (null = silêncio).
@@ -807,7 +829,7 @@ class WTracksEngine {
   }
 
   Future<bool> configurePrerollAsync(bool enabled, List<double> starts, List<String?> countPaths) =>
-      Isolate.run(() => WTracksEngine().configurePreroll(enabled, starts, countPaths));
+      _isolateOnDeck(deck, (engine) => engine.configurePreroll(enabled, starts, countPaths));
 
   bool get isPrerolling => _isPrerolling();
 
@@ -851,6 +873,18 @@ class WTracksEngine {
       calloc.free(out);
     }
   }
+  /// Cria (se preciso) o deck da próxima música; use `WTracksEngine(deck: 1)` para carregá-lo e configurá-lo.
+  bool prepareNextDeck() => _prepareNextDeck();
+  void releaseNextDeck() => _releaseNextDeck();
+  /// Agenda a entrada da próxima música (deck 1): [kind] 0 = Overlap, 1 = Crossfade; [startSeconds] em tempo da música que toca
+  /// (< 0 = agora); sem laço ativo. Gera [transportEventTransitionStarted] e [transportEventTransitionFinished].
+  bool scheduleTransition(int kind, double startSeconds, double durationSeconds) => _scheduleTransition(kind, startSeconds, durationSeconds);
+  void cancelTransition() => _cancelTransition();
+  /// -1 = não começou, 0..1 = em curso, 1 = terminou e espera o [handoff].
+  double get transitionProgress => _transitionProgress();
+  bool get transitionScheduled => _transitionScheduled();
+  /// A próxima música assume o dispositivo e passa a responder pelo deck 0; a antiga vira deck 1, parada (descarregue-a).
+  bool handoff() => _handoff();
   /// RTZ: descarta laço ao vivo e enfileirado e devolve o fade; não mexe em play/pause, posição, MUTE MIDI nem nos laços predefinidos.
   void resetTransportState() => _resetTransportState();
   /// Fade nos últimos [seconds] da música (0 desliga).
@@ -860,7 +894,7 @@ class WTracksEngine {
   double get fadeGain => _getFadeGain();
   /// Eventos desde a última leitura: [transportEventEndReached].
   int pollTransportEvents() => _pollTransportEvents();
-  static const transportEventEndReached = 1;
+  static const transportEventEndReached = 1, transportEventTransitionStarted = 2, transportEventTransitionFinished = 4;
 
   /// Áreas cortadas (segundos da música) que a reprodução pula; decodifica pontes de áudio — use a versão async.
   bool configureSkips(List<(double, double)> areas) {
@@ -879,7 +913,7 @@ class WTracksEngine {
     }
   }
 
-  Future<bool> configureSkipsAsync(List<(double, double)> areas) => Isolate.run(() => WTracksEngine().configureSkips(areas));
+  Future<bool> configureSkipsAsync(List<(double, double)> areas) => _isolateOnDeck(deck, (engine) => engine.configureSkips(areas));
 
   /// Volta atual do laço ativo (1..) e o total de repetições (0 = até soltar); (0, 0) sem laço.
   (int, int) get loopPass {
@@ -1020,11 +1054,11 @@ class WTracksEngine {
   bool setLoop(double start, double end, bool enabled, {int repeats = 0}) =>
       repeats == 0 ? _setLoop(start, end, enabled) : _setLoopRepeats(start, end, enabled, repeats);
   Future<bool> setLoopAsync(double start, double end, bool enabled, {int repeats = 0}) =>
-      Isolate.run(() => WTracksEngine().setLoop(start, end, enabled, repeats: repeats));
+      _isolateOnDeck(deck, (engine) => engine.setLoop(start, end, enabled, repeats: repeats));
   bool enqueueLoop(double start, double end, {int repeats = 0}) =>
       repeats == 0 ? _enqueueLoop(start, end) : _enqueueLoopRepeats(start, end, repeats);
   Future<bool> enqueueLoopAsync(double start, double end, {int repeats = 0}) =>
-      Isolate.run(() => WTracksEngine().enqueueLoop(start, end, repeats: repeats));
+      _isolateOnDeck(deck, (engine) => engine.enqueueLoop(start, end, repeats: repeats));
 
   /// Seções que entram em laço sozinhas ao chegar ao início (até 16, sem sobreposição). Decodifica o áudio:
   /// use [configurePresetLoopsAsync] fora da interface.
@@ -1046,7 +1080,7 @@ class WTracksEngine {
     }
   }
 
-  Future<bool> configurePresetLoopsAsync(List<SongSection> sections) => Isolate.run(() => WTracksEngine().configurePresetLoops(sections));
+  Future<bool> configurePresetLoopsAsync(List<SongSection> sections) => _isolateOnDeck(deck, (engine) => engine.configurePresetLoops(sections));
 
   /// Mudanças de andamento/compasso depois do segmento base do click (tempo da música).
   bool setClickTempoChanges(List<TempoChange> changes) {
@@ -1078,7 +1112,7 @@ class WTracksEngine {
   int get underrunCount => _getUnderrunCount();
 
   Future<bool> loadClickBankAsync(List<String?> paths) =>
-      Isolate.run(() => WTracksEngine().loadClickBank(paths));
+      _isolateOnDeck(deck, (engine) => engine.loadClickBank(paths));
 
   bool loadClickBank(List<String?> paths) {
     if (paths.length != 4) return false;
@@ -1094,7 +1128,7 @@ class WTracksEngine {
   }
 
   Future<bool> loadClickSoundAsync(int voice, String? path) =>
-      Isolate.run(() => WTracksEngine().loadClickSound(voice, path));
+      _isolateOnDeck(deck, (engine) => engine.loadClickSound(voice, path));
 
   bool loadClickSound(int voice, String? path) {
     final pointer = path?.toNativeUtf8() ?? nullptr;

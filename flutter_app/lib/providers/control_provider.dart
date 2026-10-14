@@ -7,6 +7,7 @@ import '../models/automation_cue.dart';
 import '../models/control_mapping.dart';
 import '../services/control_mapping_store.dart';
 import 'engine_provider.dart';
+import 'transition_provider.dart';
 
 final controlMappingStoreProvider = Provider<ControlMappingStore>((ref) => ControlMappingStore());
 
@@ -134,8 +135,22 @@ class ControlNotifier extends Notifier<ControlState> {
   bool handleKey(String keyLabel) {
     final mapping = state.mappings.where((m) => m.isKeyboard && m.stringValue1 == keyLabel).firstOrNull;
     final action = mapping?.action;
-    if (action == null) return false;
+    if (action == null) return _handleSongNumber(keyLabel);
     unawaited(performControlAction(ref, action));
+    return true;
+  }
+
+  /// Teclas 1..9 sem mapeamento: música N da setlist. Tocando, entra por crossfade ao vivo; parado, é carregada (Playback: "Keyboard
+  /// Numbers: while playing = Live Crossfade to corresponding song in setlist").
+  bool _handleSongNumber(String keyLabel) {
+    final number = int.tryParse(keyLabel);
+    final session = ref.read(setlistSessionProvider);
+    if (number == null || number < 1 || number > 9 || session == null || number > session.setlist.tracks.length) return false;
+    if (ref.read(engineProvider).isPlaying) {
+      unawaited(ref.read(transitionProvider.notifier).liveCrossfade(number - 1));
+    } else {
+      unawaited(ref.read(setlistSessionProvider.notifier).go(number - 1));
+    }
     return true;
   }
 }

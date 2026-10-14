@@ -22,6 +22,7 @@ import '../models/timecode_settings.dart';
 import '../models/tempo_change.dart';
 import '../models/time_pitch_settings.dart';
 import 'setlist_provider.dart';
+import 'transition_provider.dart';
 import 'waveform_provider.dart';
 import '../services/diagnostics_log.dart';
 import '../native/wtracks_bindings.dart';
@@ -271,19 +272,27 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     return null;
   }
 
+  /// O engine que este notifier comanda: o deck 0 (a música que toca). O [NextTrackNotifier] comanda o deck 1, a próxima
+  /// música pré-carregada para uma transição, e por isso não para o transporte nem liga relógio MIDI/timecode (só após o hand-off).
+  @protected
+  WTracksEngine get deckEngine => ref.read(engineProvider);
+  @protected
+  bool get isNextDeck => false;
+
   /// Conclui quando as operações nativas pendentes (carregamento etc.) terminam.
   Future<void> get idle => _pending;
 
   /// Serialize native loads: every isolate addresses the same C++ engine.
   /// A superseded result must not publish UI state or mixer settings.
   Future<bool> load(Track track) {
+    if (!isNextDeck) ref.read(transitionProvider.notifier).cancel();
     final generation = ++_generation;
     loadingTrackId = track.id;
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     final transport = ref.read(transportProvider.notifier);
     final operation = _pending.then((_) async {
       if (_disposed || generation != _generation) return false;
-      await transport.stop();
+      if (!isNextDeck) await transport.stop();
       if (_disposed || generation != _generation) return false;
       try {
         final clickPaths = await ref
@@ -372,8 +381,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         if (!engine.setPlayRange(track.startSeconds ?? 0, track.endSeconds ?? 0)) {
           engine.setPlayRange(0, 0); // início/fim gravados que não valem mais (arquivo trocado): música inteira
         }
-        engine.setMidiClockEnabled(track.midiClockEnabled);
-        if (!engine.configureTimecode(track.timecode)) {
+        engine.setMidiClockEnabled(!isNextDeck && track.midiClockEnabled);
+        if (!isNextDeck && !engine.configureTimecode(track.timecode)) {
           engine.unloadTrack();
           state = null;
           return false;
@@ -388,6 +397,10 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           engine.setChannelExcludedFromFade(i, track.channels[i].fadeExcluded);
         }
         engine.setMasterVolume(track.masterVolume);
+        if (isNextDeck) {  // the flags the engine keeps across songs are global switches of the console
+          engine.setClickEnabled(ref.read(clickEnabledProvider));
+          engine.setMidiCuesMuted(ref.read(midiCuesMutedProvider));
+        }
         _syncEffectiveMutes();
         return true;
       } catch (e) {
@@ -404,8 +417,8 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   Future<void> unload() {
     final generation = ++_generation;
     loadingTrackId = null;
-    final engine = ref.read(engineProvider);
-    final stopping = ref.read(transportProvider.notifier).stop();
+    final engine = deckEngine;
+    final stopping = isNextDeck ? Future<void>.value() : ref.read(transportProvider.notifier).stop();
     final operation = _pending.then((_) async {
       await stopping;
       engine.unloadTrack();
@@ -419,7 +432,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null) return;
 
-    ref.read(engineProvider).setChannelVolume(index, volume);
+    deckEngine.setChannelVolume(index, volume);
 
     final updatedChannels = [...track.channels];
     updatedChannels[index] = updatedChannels[index].copyWith(volume: volume);
@@ -435,7 +448,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   }
 
   /// Cancela a renderização de tom/andamento em andamento.
-  void cancelTimePitch() => ref.read(timePitchServiceProvider).cancel(ref.read(engineProvider));
+  void cancelTimePitch() => ref.read(timePitchServiceProvider).cancel(deckEngine);
 
   /// Aplica tom/andamento: renderiza primeiro (o motor não é tocado se falhar),
   /// recarrega a música processada e volta à mesma posição. A reprodução fica
@@ -444,7 +457,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null || track.id != trackId || loadingTrackId != null || !settings.isValid) return false;
     if (track.timePitch == settings) return true;
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     final position = engine.currentPositionSeconds;
     final generation = _generation;
     final updated = track.copyWith(timePitch: settings);
@@ -478,7 +491,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   bool setChannelRoute(int index, ChannelRoute route) {
     final track = state;
     if (track == null || index < 0 || index >= track.channels.length) return false;
-    if (!ref.read(engineProvider).setChannelRoute(index, route)) return false;
+    if (!deckEngine.setChannelRoute(index, route)) return false;
     final updatedChannels = [...track.channels];
     updatedChannels[index] = updatedChannels[index].copyWith(route: route);
     state = track.copyWith(channels: updatedChannels);
@@ -489,7 +502,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null || !volume.isFinite) return;
     final clamped = volume.clamp(0.0, 2.0).toDouble();
-    ref.read(engineProvider).setMasterVolume(clamped);
+    deckEngine.setMasterVolume(clamped);
     state = track.copyWith(masterVolume: clamped);
   }
 
@@ -528,7 +541,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null) return;
 
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     final anySoloed = track.channels.any((c) => c.soloed) || track.buses.any((b) => b.soloed);
     bool busSoloed(String? id) => track.buses.any((b) => b.id == id && b.soloed);
 
@@ -594,7 +607,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         !updated.midiBuses.every((b) => b.isValid)) {
       return false;
     }
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     if (!_sendMidiSchedule(engine, updated)) return false;
     engine.setMidiClockEnabled(updated.midiClockEnabled);
     state = updated;
@@ -625,7 +638,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
 
   /// Troca a lista de buses/atribuições: o motor recebe tudo de novo (buses removidos soltam suas faixas).
   bool _replaceBuses(Track updated) {
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     if (!_applyBuses(engine, updated)) {
       final previous = state;
       if (previous != null) _applyBuses(engine, previous);
@@ -667,7 +680,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     final index = track?.busIndex(bus.id) ?? -1;
     if (track == null || index < 0 || !bus.isValid) return false;
-    if (!ref.read(engineProvider).setBus(index, bus)) return false;
+    if (!deckEngine.setBus(index, bus)) return false;
     final buses = [...track.buses];
     buses[index] = bus;
     state = track.copyWith(buses: buses);
@@ -685,7 +698,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null || track.id != trackId || loadingTrackId != null || !MixerAutomationCue.validSequence(cues)) return false;
     final updated = track.copyWith(mixerAutomation: List.unmodifiable(cues));
-    if (!ref.read(engineProvider).configureMixerAutomation(_automationPointsFor(updated))) return false;
+    if (!deckEngine.configureMixerAutomation(_automationPointsFor(updated))) return false;
     state = updated;
     return true;
   }
@@ -694,7 +707,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   void setAutomationEnabled(bool enabled) {
     final track = state;
     if (track == null) return;
-    ref.read(engineProvider).setAutomationEnabled(enabled);
+    deckEngine.setAutomationEnabled(enabled);
     state = track.copyWith(automationEnabled: enabled);
   }
 
@@ -703,19 +716,19 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final track = state;
     if (track == null) return;
     final next = track.copyWith(endFade: enabled);
-    ref.read(engineProvider).setEndFade(_endFadeFor(next));
+    deckEngine.setEndFade(_endFadeFor(next));
     state = next;
   }
 
   /// Fade de fim em segundos para o motor. O Playback não o dispara quando a música seguinte entra por crossfade
-  /// (FUN_1004f2edc); ainda não há transição Crossfade aqui — gancho para a Fase 2.
-  double _endFadeFor(Track track) => track.endFade ? Track.fadeSeconds : 0;
+  /// (transição 3; FUN_1004f2edc): a própria transição já desvanece esta música.
+  double _endFadeFor(Track track) => track.endFade && track.transition != SongTransition.crossfade ? Track.fadeSeconds : 0;
 
   /// Início e fim personalizados da música (`null` = arquivo inteiro). Recusa início negativo ou fim antes do início.
   bool setSongRange(double? start, double? end) {
     final track = state;
     if (track == null) return false;
-    if (!ref.read(engineProvider).setPlayRange(start ?? 0, end ?? 0)) return false;
+    if (!deckEngine.setPlayRange(start ?? 0, end ?? 0)) return false;
     state = track.copyWith(startSeconds: start == 0 ? null : start, endSeconds: end == 0 ? null : end);
     return true;
   }
@@ -725,21 +738,53 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     if (track == null || index < 0 || index >= track.channels.length) return;
     final channels = [...track.channels];
     channels[index] = channels[index].copyWith(excludeFromFade: excluded);
-    ref.read(engineProvider).setChannelExcludedFromFade(index, channels[index].fadeExcluded);
+    deckEngine.setChannelExcludedFromFade(index, channels[index].fadeExcluded);
     state = track.copyWith(channels: channels);
   }
 
   /// O que a setlist faz quando esta música termina.
   void setTransition(SongTransition transition) {
     final track = state;
-    if (track != null) state = track.copyWith(transition: transition);
+    if (track == null) return;
+    final updated = track.copyWith(transition: transition);
+    deckEngine.setEndFade(_endFadeFor(updated));
+    state = updated;
+  }
+
+  /// Solta a música sem mexer no motor (depois do hand-off o objeto do deck 1 já aponta para outra música).
+  void forget() {
+    ++_generation;
+    loadingTrackId = null;
+    state = null;
+    midiSchedule = const [];
+    _guideSchedule = null;
+    _prerollSignature = null;
+    _presetSignature = const [];
+    _skipSignature = const [];
+  }
+
+  /// Hand-off: a música que este notifier recebe é a que estava pré-carregada no deck 1 e agora é o deck 0. Leva junto tudo o que
+  /// o carregamento guardou sobre ela (agenda de guias, MIDI, laços predefinidos) e liga o que ficou esperando o hand-off
+  /// (relógio MIDI e timecode, que só podem sair de uma música por vez).
+  void adoptFrom(CurrentTrackNotifier other) {
+    final track = other.state;
+    if (track == null) return;
+    midiSchedule = other.midiSchedule;
+    _guideSchedule = other._guideSchedule;
+    _prerollSignature = other._prerollSignature;
+    _presetSignature = other._presetSignature;
+    _skipSignature = other._skipSignature;
+    state = track;
+    deckEngine.setMidiClockEnabled(track.midiClockEnabled);
+    deckEngine.configureTimecode(track.timecode);
+    _syncEffectiveMutes();
   }
 
   /// A duração das transições é medida em tempos: mudanças de andamento movem o início das rampas.
   void _resendMixerAutomation(Track track) {
     if (track.mixerAutomation.isEmpty) return;
-    if (!ref.read(engineProvider).configureMixerAutomation(_automationPointsFor(track))) {
-      debugPrint('Automação do mixer recusada: ${ref.read(engineProvider).lastError}');
+    if (!deckEngine.configureMixerAutomation(_automationPointsFor(track))) {
+      debugPrint('Automação do mixer recusada: ${deckEngine.lastError}');
     }
   }
 
@@ -747,7 +792,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   bool updateTimecode(String trackId, TimecodeSettings settings) {
     final track = state;
     if (track == null || track.id != trackId || loadingTrackId != null || !settings.isValid) return false;
-    if (!ref.read(engineProvider).configureTimecode(settings)) return false;
+    if (!deckEngine.configureTimecode(settings)) return false;
     state = track.copyWith(timecode: settings);
     return true;
   }
@@ -822,7 +867,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       final track = state;
       if (track == null) return false;
       try {
-        return await _syncGuides(ref.read(engineProvider), track);
+        return await _syncGuides(deckEngine, track);
       } catch (e) {
         debugPrint('Falha nas guias: $e');
         return false;
@@ -837,7 +882,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final generation=_generation;
     final operation=_pending.then((_) async {
       try {
-        final engine=ref.read(engineProvider);
+        final engine=deckEngine;
         final current=state;
         if (_disposed || generation != _generation || current == null || current.id != trackId) return false;
         // Only the switch changed: the native schedule stays as prepared.
@@ -869,7 +914,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     final operation = _pending.then((_) async {
       try {
         if (_disposed || generation != _generation) return false;
-        final engine = ref.read(engineProvider);
+        final engine = deckEngine;
         final ok = queue ? await engine.enqueueLoopAsync(section.playStart, section.playEnd, repeats: section.loopCount)
           : await engine.setLoopAsync(section.playStart, section.playEnd, true, repeats: section.loopCount);
         if (_disposed || generation != _generation || request != _loopRequest) {
@@ -935,7 +980,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   bool updateSections(String trackId, List<SongSection> sections) {
     final track = state;
     if (track == null || track.id != trackId || loadingTrackId != null || _loopBusy || !SongSection.validSequence(sections)) return false;
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     final loop = engine.loopState;
     bool matches(SongSection s, double start, double end) =>
       (s.playStart - start).abs() <= 0.001 && (s.playEnd - end).abs() <= 0.001;
@@ -969,7 +1014,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         if (_disposed || generation != _generation || state?.id != track.id) {
           return false;
         }
-        final engine = ref.read(engineProvider);
+        final engine = deckEngine;
         final bankLoaded = await engine.loadClickBankAsync(paths);
         if (_disposed || generation != _generation || !bankLoaded) return false;
         return updateClickSettings(
@@ -991,7 +1036,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         !TempoChange.validSequence(changes, baseOffset: track.clickSettings.beatOffsetSeconds)) {
       return false;
     }
-    if (!ref.read(engineProvider).setClickTempoChanges(changes)) return false;
+    if (!deckEngine.setClickTempoChanges(changes)) return false;
     state = track.copyWith(tempoChanges: List.unmodifiable(changes));
     _resendMixerAutomation(state!);
     refreshGuides();
@@ -1003,7 +1048,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     if (track == null || loadingTrackId != null || !settings.isValid) {
       return false;
     }
-    final engine = ref.read(engineProvider);
+    final engine = deckEngine;
     if (!engine.configureClick(settings)) return false;
     // The engine drops changes at or before the new click offset; mirror that so state and engine agree.
     final keep = TempoChange.validSequence(track.tempoChanges, baseOffset: settings.beatOffsetSeconds);
@@ -1036,6 +1081,25 @@ class CurrentTrackNotifier extends Notifier<Track?> {
 
 final currentTrackProvider =
     NotifierProvider<CurrentTrackNotifier, Track?>(CurrentTrackNotifier.new);
+
+/// O deck 1 do motor: a próxima música, pré-carregada enquanto a atual toca (Playback: segundo `Sequencer`). Criado sob demanda;
+/// depois de cada hand-off o mesmo objeto passa a falar com a música que acabou de sair, que é descarregada.
+final nextEngineProvider = Provider<WTracksEngine>((ref) {
+  final main = ref.read(engineProvider);
+  main.prepareNextDeck();
+  ref.onDispose(main.releaseNextDeck);
+  return WTracksEngine(deck: 1);
+});
+
+/// Carrega e configura a próxima música no deck 1 com o mesmo caminho da música atual, sem tocar no transporte.
+class NextTrackNotifier extends CurrentTrackNotifier {
+  @override
+  WTracksEngine get deckEngine => ref.read(nextEngineProvider);
+  @override
+  bool get isNextDeck => true;
+}
+
+final nextTrackProvider = NotifierProvider<NextTrackNotifier, Track?>(NextTrackNotifier.new);
 
 /// Instância única do serviço de persistência em disco (JSON local).
 final persistenceServiceProvider = Provider<PersistenceService>((ref) => PersistenceService());
@@ -1257,7 +1321,12 @@ class TransportNotifier extends Notifier<TransportState> {
       }
       if (next != state) state = next;
       final events = engine.pollTransportEvents();
-      if (events != 0) unawaited(ref.read(setlistSessionProvider.notifier).songFinished());
+      final transitions = ref.read(transitionProvider.notifier);
+      final handled = events != 0 && transitions.handleEvents(events);
+      if (events & WTracksEngine.transportEventEndReached != 0 && !handled) {
+        unawaited(ref.read(setlistSessionProvider.notifier).songFinished());
+      }
+      transitions.tick();
       final track = ref.read(currentTrackProvider);
       final automated = track != null && track.automationEnabled && track.mixerAutomation.isNotEmpty;
       final mix = automated ? engine.mixState() : null;
@@ -1386,6 +1455,12 @@ class SetlistSessionNotifier extends Notifier<SetlistSession?> {
 
   void end() => state = null;
 
+  /// O hand-off de uma transição já trocou a música no motor: só atualiza a posição na setlist.
+  void moveTo(int index) {
+    final session = state;
+    if (session != null && index >= 0 && index < session.setlist.tracks.length) state = SetlistSession(session.setlist, index);
+  }
+
   /// Carrega a música [index] da setlist (versão mais recente da biblioteca).
   Future<bool> go(int index) async {
     final session = state;
@@ -1431,13 +1506,29 @@ class SetlistSessionNotifier extends Notifier<SetlistSession?> {
   Future<bool> next() => go((state?.index ?? -2) + 1);
   Future<bool> previous() => go((state?.index ?? 0) - 1);
 
-  /// Fim da música ou do fade: aplica a transição da música atual.
+  /// Fim da música: aplica a transição da música atual quando o segundo deck não assumiu (Preparar próxima/primeira, Continuar na
+  /// música, ou AutoLink/Sobreposição/Transição Cruzada que não chegaram a ser pré-carregadas: nesse caso a próxima entra tocando,
+  /// com um corte, em vez de ficar parada — escolha própria).
   Future<void> songFinished() async {
     final session = state;
     final track = ref.read(currentTrackProvider);
     if (session == null || track == null || track.id != session.current.id) return;
-    if (track.transition == SongTransition.stayInSong || session.next == null) return;
-    await go(session.index + 1);
+    switch (track.transition) {
+      case SongTransition.stayInSong:
+        return;
+      case SongTransition.cueFirstSong:
+        // Volta para a primeira música, parada no início (se já é ela, só volta ao começo).
+        if (session.index != 0) {
+          await go(0);
+        } else {
+          await ref.read(transportProvider.notifier).stop();
+        }
+        return;
+      case SongTransition.cueNextSong:
+        if (session.next != null) await go(session.index + 1);
+      case SongTransition.autoLink || SongTransition.overlap || SongTransition.crossfade:
+        if (session.next != null && await go(session.index + 1)) await ref.read(transportProvider.notifier).play();
+    }
   }
 }
 
