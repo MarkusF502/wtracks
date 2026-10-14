@@ -1,5 +1,6 @@
 #include "AudioEngine.h"
 #include "TimePitchFile.h"
+#include <thread>
 #include <vector>
 using namespace wtracks;
 
@@ -101,6 +102,38 @@ public:
             expect(!cancelled.ok && cancelled.cancelled); expectEquals<int64_t>(out.getSize(), before); expect(out.getLastModificationTime() == stamp);
             expect(!dir.getChildFile("tone-slow.wav.part").exists());
             auto text = dir.getChildFile("notes.txt"); text.replaceWithText("not audio"); expect(!processTimePitchFile(text, out, {1.2, 1, true}, 17).ok);
+        }
+        beginTest("TimePitch memory budget (WT-07): concurrent jobs are serialized when they do not fit, waiting jobs can be cancelled");
+        {
+            auto stem = wav(dir, "stem.wav", 44100, 1, 3 * 44100, [](int, int i) { return 0.3f * std::sin(2 * 3.14159265f * 330.f * static_cast<float>(i) / 44100.f); });
+            const timepitch::Options options{1.25, 1.0, false};
+            const auto one = estimateTimePitchBytes(3 * 44100, 1, options);
+            expect(one >= 4ULL * 3 * 44100 + 4ULL * std::llround(3 * 44100 * 1.25), "covers the input and the whole output");
+            expect(estimateTimePitchBytes(3 * 44100, 2, options) > one);
+
+            setTimePitchMemoryBudget(1);  // nothing fits next to anything else: a job runs only when it is alone
+            timePitchPeakReservedBytes(true);
+            bool okA = false, okB = false;
+            std::thread a([&] { okA = processTimePitchFile(stem, dir.getChildFile("budget-a.wav"), options, 21).ok; });
+            std::thread b([&] { okB = processTimePitchFile(stem, dir.getChildFile("budget-b.wav"), options, 22).ok; });
+            a.join(); b.join();
+            expect(okA && okB);
+            expectEquals<uint64_t>(timePitchPeakReservedBytes(false), one);   // never two reservations at once
+            expectEquals<uint64_t>(timePitchReservedBytes(), 0);
+
+            TimePitchResult waiting;
+            std::thread holder([&] { okA = processTimePitchFile(stem, dir.getChildFile("budget-a.wav"), options, 23).ok; });
+            while (timePitchReservedBytes() == 0) juce::Thread::sleep(1);       // the holder owns the budget
+            std::thread blocked([&] { waiting = processTimePitchFile(stem, dir.getChildFile("budget-c.wav"), options, 24); });
+            juce::Thread::sleep(100);
+            cancelTimePitch(24);
+            blocked.join();
+            expect(waiting.cancelled && !waiting.ok);
+            expect(!dir.getChildFile("budget-c.wav").exists());
+            holder.join();
+            expect(okA, "the running job was not affected");
+            expectEquals<uint64_t>(timePitchReservedBytes(), 0);
+            setTimePitchMemoryBudget(0);
         }
         dir.deleteRecursively();
     }

@@ -276,6 +276,7 @@ class WTracksEngine {
   late final _GetCounterDart _getUnderrunCount;
   late final _LoopSnapshotDart _getRenderStats;
   late final void Function() _resetRenderStats;
+  late final void Function(int) _setTimePitchBudget;
   late final _LoopSnapshotDart _getLoopState;
 
   late final _ProcessTimePitchDart _processTimePitch;
@@ -505,6 +506,7 @@ class WTracksEngine {
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('${_p}get_underrun_count');
     _getRenderStats = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('${_p}get_render_stats');
     _resetRenderStats = _lib.lookupFunction<Void Function(), void Function()>('${_p}reset_render_stats');
+    _setTimePitchBudget = _lib.lookupFunction<Void Function(Uint64), void Function(int)>('wtracks_set_time_pitch_memory_budget');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
       '${_p}set_click_gain',
     );
@@ -1133,6 +1135,9 @@ class WTracksEngine {
     } finally { calloc.free(values); }
   }
   void resetRenderStats() => _resetRenderStats();
+
+  /// Orçamento global (bytes) dos processamentos de tom/andamento simultâneos; 0 = padrão de 1 GiB. Trabalhos que não cabem esperam.
+  void setTimePitchMemoryBudget(int bytes) => _setTimePitchBudget(bytes);
 
   Future<bool> loadClickBankAsync(List<String?> paths) =>
       _isolateOnDeck(deck, (engine) => engine.loadClickBank(paths));

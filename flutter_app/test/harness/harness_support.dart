@@ -382,6 +382,8 @@ class FakeEngine implements WTracksEngine {
   RenderStatsSnapshot get renderStats => const RenderStatsSnapshot();
   @override
   void resetRenderStats() {}
+  @override
+  void setTimePitchMemoryBudget(int bytes) {}
   bool failLoop = false;
   @override
   List<double> get loopState => [loopEnabled ? 1 : 0, loopStart, loopEnd,

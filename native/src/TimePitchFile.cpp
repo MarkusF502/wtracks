@@ -1,8 +1,11 @@
 #include "../include/TimePitchFile.h"
+#include <condition_variable>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <set>
+#include <algorithm>
+#include <chrono>
 
 namespace wtracks {
 namespace {
@@ -11,6 +14,31 @@ std::map<int64_t, std::shared_ptr<std::atomic<bool>>> running;
 std::set<int64_t> cancelledEarly;
 
 TimePitchResult fail(const juce::String& message) { TimePitchResult r; r.error = message; return r; }
+
+constexpr uint64_t kDefaultBudget = 1ULL << 30;
+std::mutex budgetMutex;
+std::condition_variable budgetChanged;
+uint64_t budgetBytes = kDefaultBudget, reservedBytes = 0, peakReserved = 0;
+int activeJobs = 0;
+
+// Reserva `bytes` do orçamento; espera enquanto outros trabalhos ocupam memória que não deixa espaço. Devolve false se cancelado.
+struct Reservation {
+    Reservation(uint64_t wanted, const std::atomic<bool>* cancel) : bytes(wanted) {
+        std::unique_lock<std::mutex> lock(budgetMutex);
+        while (!(activeJobs == 0 || reservedBytes + bytes <= budgetBytes)) {
+            if (cancel->load()) return;
+            budgetChanged.wait_for(lock, std::chrono::milliseconds(50));
+        }
+        if (cancel->load()) return;
+        ++activeJobs; reservedBytes += bytes; peakReserved = std::max(peakReserved, reservedBytes); held = true;
+    }
+    ~Reservation() {
+        if (!held) return;
+        { std::lock_guard<std::mutex> lock(budgetMutex); --activeJobs; reservedBytes -= bytes; }
+        budgetChanged.notify_all();
+    }
+    uint64_t bytes; bool held = false;
+};
 
 struct Registration {
     explicit Registration(int64_t id) : token(id), flag(std::make_shared<std::atomic<bool>>(false)) {
@@ -21,6 +49,31 @@ struct Registration {
     ~Registration() { std::lock_guard<std::mutex> lock(registryMutex); running.erase(token); }
     int64_t token; std::shared_ptr<std::atomic<bool>> flag;
 };
+}
+
+uint64_t estimateTimePitchBytes(int64_t frames, int channels, const timepitch::Options& options)
+{
+    const auto f = static_cast<uint64_t>(std::max<int64_t>(frames, 0)), c = static_cast<uint64_t>(std::max(channels, 0));
+    const auto o = static_cast<uint64_t>(std::llround(static_cast<double>(f) * options.timeFactor));
+    const auto stretched = static_cast<uint64_t>(std::llround(static_cast<double>(f) * options.timeFactor * options.pitchFactor));
+    const uint64_t work = std::max({f, o, stretched});
+    return 4 * f * c + 4 * o * c + 28 * work;
+}
+
+void setTimePitchMemoryBudget(uint64_t bytes)
+{
+    { std::lock_guard<std::mutex> lock(budgetMutex); budgetBytes = bytes == 0 ? kDefaultBudget : bytes; }
+    budgetChanged.notify_all();
+}
+
+uint64_t timePitchReservedBytes() { std::lock_guard<std::mutex> lock(budgetMutex); return reservedBytes; }
+
+uint64_t timePitchPeakReservedBytes(bool reset)
+{
+    std::lock_guard<std::mutex> lock(budgetMutex);
+    const auto peak = peakReserved;
+    if (reset) peakReserved = reservedBytes;
+    return peak;
 }
 
 void cancelTimePitch(int64_t token)
@@ -52,6 +105,9 @@ TimePitchResult processTimePitchFile(const juce::File& input, const juce::File& 
     if (static_cast<uint64_t>(frames) * static_cast<uint64_t>(channels) * sizeof(float) > kInputLimit
         || outFrames * static_cast<uint64_t>(channels) * sizeof(float) > kOutputLimit || outFrames == 0)
         return fail("Audio too long for time/pitch processing");
+
+    Reservation memory(estimateTimePitchBytes(frames, channels, options), cancel);
+    if (!memory.held) { TimePitchResult r; r.cancelled = true; r.error = "Cancelled"; return r; }
 
     std::vector<std::vector<float>> planar(static_cast<size_t>(channels), std::vector<float>(static_cast<size_t>(frames)));
     {

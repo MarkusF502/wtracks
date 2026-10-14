@@ -114,6 +114,7 @@ bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, d
 }
 
 void wtracks_cancel_time_pitch(int64_t token) { wtracks::cancelTimePitch(token); }
+void wtracks_set_time_pitch_memory_budget(uint64_t bytes) { wtracks::setTimePitchMemoryBudget(bytes); }
 
 int wtracks_midi_list_outputs(char* buffer, int capacity)
 {

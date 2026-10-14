@@ -85,6 +85,8 @@ WTRACKS_API double wtracks_get_time_scale();
 // token identifies the call for wtracks_cancel_time_pitch. Failure reasons are in wtracks_get_last_error.
 WTRACKS_API bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, double timeFactor, double pitchFactor, bool complexAlgorithm, int64_t token);
 WTRACKS_API void wtracks_cancel_time_pitch(int64_t token);
+// Orçamento global de memória (bytes) dos processamentos simultâneos; 0 = padrão (1 GiB). Trabalhos grandes esperam em vez de somar picos.
+WTRACKS_API void wtracks_set_time_pitch_memory_budget(uint64_t bytes);
 
 // MIDI output (clock 0xF8 on the click grid, 0xFA/0xFB/0xFC, cue messages). Devices are listed as "id\tname\n" lines;
 // the return value is the byte size needed including the terminating NUL (buffer is filled only when large enough).
