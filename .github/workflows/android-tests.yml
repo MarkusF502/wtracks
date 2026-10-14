@@ -1,0 +1,67 @@
+# Testes de integração no emulador Android (Fase 0 do plano: o salvamento no Android).
+# - persistence_test.dart: importar -> editar -> setlist -> "reabrir o app" mantém tudo (motor falso; isola o salvamento).
+# - engine_init_test.dart: o motor nativo (JUCE) carrega e inicializa no Android.
+# Os dois importam helpers de flutter_app/test/harness/ por caminho relativo (../test/harness/...).
+name: Android tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fase5-estabilizacao, main]
+    paths:
+      - 'flutter_app/**'
+      - 'native/**'
+      - '.github/workflows/android-tests.yml'
+
+concurrency:
+  group: android-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Dependências do JUCE no host
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libfreetype-dev libfontconfig1-dev libasound2-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libcurl4-openssl-dev
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.9
+          cache: true
+
+      # O runner do GitHub tem KVM, mas o usuário precisa de permissão para usá-lo.
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Dependências do Flutter
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Testes de integração no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          # Sem janela nem áudio: o emulador do CI não tem placa de som (o teste do motor só registra o resultado do áudio).
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: flutter_app
+          script: flutter test integration_test/engine_init_test.dart integration_test/persistence_test.dart
