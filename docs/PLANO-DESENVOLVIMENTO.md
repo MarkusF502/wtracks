@@ -448,14 +448,18 @@ mas não substitui o registro escrito necessário antes de publicar builds para 
 
 ### 6.1.2 — Conta, organização e sessão
 
-- Tela "Conectar ao MultiTracks" com autenticação no navegador/OAuth quando suportada pelo servidor. O WTracks não
-  captura nem persiste a senha da conta.
-- Seleção explícita da organização e exibição do usuário/organização ativos. Trocar de organização invalida consultas e
-  downloads em andamento da organização anterior.
-- Tokens ficam no armazenamento seguro da plataforma (Android Keystore, Keychain no futuro e Secret Service/keyring no
-  desktop). Nunca em preferências JSON, argumentos de processo ou relatório de diagnóstico.
-- Renovação serializada de sessão, cancelamento por geração e logout completo. Respostas atrasadas de uma sessão antiga
-  não podem publicar biblioteca, entitlement ou arquivos na sessão atual.
+**Decisão (2026-10-14):** a MultiTracks não oferece OAuth para este projeto; o desenvolvedor-chefe orientou usar o login do endpoint do
+Playback, com usuário e senha enviados em `authenticate` (ver `docs/playback-analysis/multitracks-api-contract.md`). Salvaguardas:
+- Tela "Conectar ao MultiTracks" com usuário e senha. A **senha vive só em memória durante a chamada**: não é gravada em disco, em
+  preferências, em backup, em log, em diagnóstico nem em argumento de processo, e o campo é limpo ao terminar. Nenhum "lembrar senha".
+- Depois do login guarda-se **apenas** o `userHash` da sessão (e o necessário para renová-la), no armazenamento seguro da plataforma
+  (Android Keystore, Keychain no futuro e Secret Service/keyring no desktop). Nunca em preferências JSON.
+- Se o servidor recusar o `userHash`, a sessão expira e o app pede o login de novo; nada de reenviar a senha em segundo plano.
+- Seleção explícita da organização e exibição do usuário/organização ativos. Trocar de organização invalida consultas e downloads em andamento.
+- Renovação serializada de sessão, cancelamento por geração e logout completo (`logout` no servidor e apagar o `userHash`). Respostas atrasadas de
+  uma sessão antiga não podem publicar biblioteca, entitlement ou arquivos na sessão atual.
+- Sem tentativas automáticas de login: uma falha de autenticação para a execução (evita bloquear a conta).
+- Se a MultiTracks passar a oferecer OAuth, ele substitui o login por senha sem mudar o restante (o provider isola o protocolo).
 
 ### 6.1.3 — Biblioteca e direitos de uso
 

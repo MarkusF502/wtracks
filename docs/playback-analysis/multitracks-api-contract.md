@@ -48,13 +48,13 @@ A lista é um **piso**: nomes com mais de 15 caracteres podem não ter sido deco
 5. O arquivo baixado é um **`.mtrack`** **[O]**. O app embute `SSZipArchive`, então o `.mtrack` provavelmente é um zip (ou contém um) **[I]**;
    o conteúdo (stems, marca-d'água, chaves) é **[?]** e vem na próxima investigação.
 
-## Decisões abertas para o responsável pelo projeto
+## Decisões do responsável pelo projeto
 
-1. **Senha.** O plano (6.1.2) diz que o WTracks não captura a senha e usa OAuth no navegador. Este endpoint só aceita usuário/senha no corpo.
-   Opções: (a) pedir à MultiTracks o fluxo OAuth/MCP oficial para o login e usar este endpoint só para direitos e áudio, ou (b) aceitar usuário/senha
-   no WTracks, mantendo a senha apenas em memória durante o login e guardando só o `userHash` no armazenamento seguro. Recomendo (a); (b) só com
-   a anuência escrita da MultiTracks.
-2. **Primeiro teste de comunicação.** Um utilitário de linha de comando (`tool/`) que **você** executa no seu terminal: pede usuário e senha
-   localmente, chama `authenticate` e imprime só o resultado categorizado (sucesso, organizações, se há Rentals), sem gravar senha nem `userHash`.
-3. **Identidade do aparelho.** `deviceName`, `application` e `platform` identificam o cliente; o WTracks deve enviar valores próprios e estáveis,
-   nunca se passar por iPhone/Playback (Fase 6.1.4).
+1. **Senha — decidido (2026-10-14): opção B.** A MultiTracks não oferece OAuth para este projeto; o desenvolvedor-chefe orientou usar o login por
+   usuário e senha do endpoint. A senha só existe em memória durante a chamada; guarda-se apenas o `userHash` no armazenamento seguro
+   (detalhes na Fase 6.1.2 do plano).
+2. **Primeiro teste de comunicação:** `tool/multitracks_probe.dart`, executado por você no terminal. Pede usuário e senha localmente, chama
+   `authenticate` (e, se você pedir, `organization`, `library/rentals`, `library/songs`) e imprime só o **esquema** das respostas — chaves e tipos,
+   com todos os valores redigidos. O arquivo de saída (`--out`) pode ser compartilhado para eu descrever as respostas neste contrato.
+3. **Identidade do aparelho.** `deviceName`, `application` e `platform` identificam o cliente; o WTracks envia valores próprios e estáveis, nunca se
+   passa por iPhone/Playback (Fase 6.1.4). **[?]** se o servidor valida `platform`/`application` contra uma lista.
