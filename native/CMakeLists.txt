@@ -60,6 +60,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         tests/MixerTests.cpp
         tests/MixerAutomationTests.cpp
         tests/FadeOutTests.cpp
+        tests/PlayRangeTests.cpp
         tests/MeterTests.cpp
         tests/BusTests.cpp
         tests/MidiEventTests.cpp

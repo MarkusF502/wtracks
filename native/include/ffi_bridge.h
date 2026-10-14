@@ -110,13 +110,19 @@ WTRACKS_API void wtracks_set_automation_enabled(bool enabled);
 // Effective mixer state at the playhead; returns the channel count, fills up to `capacity` entries.
 WTRACKS_API int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master);
 WTRACKS_API void wtracks_set_channel_solo_muted(int channelIndex, bool muted);
-// Fade out: manual (ends in a pause) and over the last seconds of the song; -1 gain = no manual fade running.
-WTRACKS_API bool wtracks_start_fade_out(double seconds);
-WTRACKS_API void wtracks_cancel_fade_out();
+// Transport fade as an on/off switch (down = fade to silence, else back to full) over `seconds`; nothing pauses. Stopped, it
+// applies at once. The gain is 1 at full level; get_fade_down tells whether the switch is on.
+WTRACKS_API bool wtracks_set_fade(bool down, double seconds);
+WTRACKS_API bool wtracks_get_fade_down();
 WTRACKS_API bool wtracks_set_end_fade(double seconds);
 WTRACKS_API void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded);
 WTRACKS_API double wtracks_get_fade_gain();
-// Bitmask since the last call: 1 = end of song reached, 2 = fade out finished.
+// Custom song start and end in song time (0 / 0 = whole file); stop and new songs park at the start.
+WTRACKS_API bool wtracks_set_play_range(double startSeconds, double endSeconds);
+WTRACKS_API void wtracks_get_play_range(double* out2);
+// Return to zero: drops live/queued loops and brings the fade back; play state, position, MUTE MIDI and preset loops stay.
+WTRACKS_API void wtracks_reset_transport_state();
+// Bitmask since the last call: 1 = end of song reached.
 WTRACKS_API uint32_t wtracks_poll_transport_events();
 // Peaks since the previous call (then reset): post-fader per channel, per output after the master. Returns channels.
 WTRACKS_API int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity);

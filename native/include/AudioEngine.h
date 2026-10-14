@@ -118,17 +118,27 @@ public:
     // Effective bus state at the playhead (automation when enabled); returns the bus count.
     int getBusState(float* volumes, uint8_t* mutes, int capacity) const;
     int takeBusMeters(float* peaks, int capacity);
-    // Fade out (see FadeOut in MixerStage.h). startFadeOut needs playback running (0.05..60 s); it ends in a pause and a
-    // FadeFinished event. Seek, pause, stop, play and new songs cancel it. During a pre-roll count-in it pauses at once.
-    bool startFadeOut(double seconds);
-    void cancelFadeOut();
-    // End fade: once the playhead passes `seconds` before the song end (outside loops), the transport fade of that
-    // length starts, as if the fade button was pressed (once per play/seek). 0 disables.
+    // Transport fade (see FadeRamp in MixerStage.h): an on/off switch. setFade(true, s) fades the song to silence over `s`
+    // seconds (0.05..60) from the current level, setFade(false, s) brings it back; nothing pauses and no event is raised.
+    // Stopped (or during a pre-roll count-in) the level changes at once. Pause and seek keep the level; stop, resetTransportState
+    // and new songs bring it back to full. Excluded channels, click and guides never fade.
+    bool setFade(bool down, double seconds);
+    // End fade: once the playhead passes `seconds` before the song end (outside loops) and the fade is off, the fade starts as if
+    // the button was pressed (once per play/seek). 0 disables. Playback uses a fixed 5 s (FUN_1004fbb78).
     bool setEndFade(double seconds);
     void setChannelExcludedFromFade(int channelIndex, bool excluded);
-    // Current manual fade gain (1..0) or -1 when no fade runs.
+    // Current fade gain (1 = full) and whether the fade switch is on (target 0).
     double getFadeGain() const;
-    enum TransportEvent : uint32_t { EndReached = 1, FadeFinished = 2 };
+    bool isFadeDown() const;
+    // Custom start and end of the song (Playback SongArrangement.storedStartTime / storedEndTime), in song time. stop() and
+    // new songs park the playhead at `start`; reaching `end` ends the song (EndReached) and the end fade counts back from it.
+    // Seeking stays free. Pass 0 / 0 for the whole file; invalid (negative, end <= start) changes nothing. Dropped with the song.
+    bool setPlayRange(double startSeconds, double endSeconds);
+    void getPlayRange(double* out2) const;
+    // Return to zero (Playback FUN_10086a1c0): drops the live and queued loops and brings the fade back. Does not touch
+    // play/pause, the position, MUTE MIDI or the preset loops.
+    void resetTransportState();
+    enum TransportEvent : uint32_t { EndReached = 1 };
     // Events raised by the audio thread since the last poll (bitmask of TransportEvent).
     uint32_t pollTransportEvents();
     // Peak meters since the previous call (and reset): post-fader per channel (<= 64) and per output after the master
@@ -256,7 +266,8 @@ private:
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;
     MixerAutomation mixerAutomation;
-    FadeOut fadeOut;
+    FadeRamp fade;
+    double rangeStart = 0, rangeEnd = 0;  // song time; 0 = whole file
     double endFadeSeconds = 0;
     bool endFadeTriggered = false;
     std::atomic<uint32_t> transportEvents { 0 };

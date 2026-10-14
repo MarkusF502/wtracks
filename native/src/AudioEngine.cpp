@@ -85,7 +85,7 @@ void AudioEngine::shutdown()
     guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
     mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
-    fadeOut.cancel(); endFadeSeconds=0;
+    fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0;
     busCount=0; buses={}; skips.clear(); bridge.reset();
 }
 
@@ -180,7 +180,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
         std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0); resetAutomationBases();
-        fadeOut.cancel(); endFadeSeconds=0; transportEvents=0; busCount=0; buses={};
+        fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0; transportEvents=0; busCount=0; buses={};
         staleSkips.swap(skips); staleBridge.swap(bridge);
         for (auto& meter : channelMeters) meter.take();
     }
@@ -200,7 +200,7 @@ void AudioEngine::unloadCurrentTrack()
     guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
     preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
     mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
-    fadeOut.cancel(); endFadeSeconds=0;
+    fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0;
     busCount=0; buses={}; skips.clear(); bridge.reset();
 }
 
@@ -226,11 +226,20 @@ void AudioEngine::setLastError(EngineErrorCode code, const juce::String& errorMe
 void AudioEngine::play()
 {
     bool started=false;
+    double startAt=-1;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         if (channels.empty())
             return;
-        if (!playing.load()) { beginPreroll(); fadeOut.cancel(); endFadeTriggered=false; started=true; }
+        // Play from the very beginning starts at the custom start point (Playback storedStartTime).
+        if (!playing.load() && rangeStart > 0 && currentSamplePosition.load() == 0) startAt=rangeStart;
+    }
+    if (startAt >= 0) seekToSeconds(startAt);
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        if (channels.empty())
+            return;
+        if (!playing.load()) { beginPreroll(); endFadeTriggered=false; started=true; }
         playing = true;
     }
     if (started) chaseCuesNow();
@@ -330,7 +339,7 @@ bool AudioEngine::isPrerolling() const { const juce::SpinLock::ScopedLockType lo
 void AudioEngine::pause()
 {
     playing = false;
-    { const juce::SpinLock::ScopedLockType lock(channelsLock); preroll.cancel(); fadeOut.cancel(); }
+    { const juce::SpinLock::ScopedLockType lock(channelsLock); preroll.cancel(); }
     stopMidiClock();
     releaseHeldNotesNow();
 }
@@ -341,8 +350,8 @@ void AudioEngine::stop()
     playing=false;
     stopMidiClock();
     { const juce::SpinLock::ScopedLockType lock(channelsLock);
-      loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); }
-    seekToSeconds(0);
+      loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); fade.reset(); }
+    seekToSeconds(rangeStart);
 }
 
 void AudioEngine::seekToSeconds(double seconds)
@@ -364,7 +373,7 @@ void AudioEngine::seekToSeconds(double seconds)
             channel.resampler->flushBuffers();
         }
         loopPasses=0; loopWraps=0;
-        clickTimeline.reset(); guideTimeline.reset(); preroll.cancel(); fadeOut.cancel(); endFadeTriggered=false;
+        clickTimeline.reset(); guideTimeline.reset(); preroll.cancel(); endFadeTriggered=false;
     }
     releaseHeldNotesNow();
     if (prefillChannels()) playing=resume;
@@ -663,19 +672,15 @@ void AudioEngine::setChannelSoloMuted(int channelIndex, bool muted)
         channels[static_cast<size_t>(channelIndex)].soloMuted = muted;
 }
 
-bool AudioEngine::startFadeOut(double seconds)
+bool AudioEngine::setFade(bool down, double seconds)
 {
     if (!std::isfinite(seconds) || seconds < 0.05 || seconds > 60) { setLastError(EngineErrorCode::FormatMismatch,"Invalid fade length"); return false; }
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    if (!playing.load() || channels.empty()) return false;
-    if (preroll.active()) {  // nothing of the song sounds yet: stop right away
-        preroll.cancel(); playing=false; transportEvents.fetch_or(FadeFinished); return true;
-    }
-    fadeOut.start(static_cast<int64_t>(std::llround(seconds*currentSampleRate)));
+    if (channels.empty()) return false;
+    if (!playing.load() || preroll.active()) fade.jump(down);  // nothing of the song sounds yet: apply at once
+    else fade.ramp(down,static_cast<int64_t>(std::llround(seconds*currentSampleRate)));
     return true;
 }
-
-void AudioEngine::cancelFadeOut() { const juce::SpinLock::ScopedLockType lock(channelsLock); fadeOut.cancel(); }
 
 bool AudioEngine::setEndFade(double seconds)
 {
@@ -692,7 +697,44 @@ void AudioEngine::setChannelExcludedFromFade(int channelIndex, bool excluded)
 double AudioEngine::getFadeGain() const
 {
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    return fadeOut.active() ? static_cast<double>(fadeOut.remaining)/static_cast<double>(fadeOut.total) : -1.0;
+    return fade.gain;
+}
+
+bool AudioEngine::isFadeDown() const
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    return fade.down();
+}
+
+bool AudioEngine::setPlayRange(double startSeconds, double endSeconds)
+{
+    if (!std::isfinite(startSeconds) || !std::isfinite(endSeconds) || startSeconds < 0 || endSeconds < 0
+        || (endSeconds > 0 && endSeconds <= startSeconds)) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid song start/end"); return false;
+    }
+    double previous, parked;
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        previous=rangeStart; rangeStart=startSeconds; rangeEnd=endSeconds;
+        parked=static_cast<double>(currentSamplePosition.load())/(currentSampleRate*timeScale);
+    }
+    // A song waiting at its old start follows the new one.
+    if (!playing.load() && startSeconds != previous && std::abs(parked-previous) < 0.001) seekToSeconds(startSeconds);
+    return true;
+}
+
+void AudioEngine::getPlayRange(double* out2) const
+{
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    out2[0]=rangeStart; out2[1]=rangeEnd;
+}
+
+void AudioEngine::resetTransportState()
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); loopPasses=0; loopWraps=0;
+    fade.reset(); endFadeTriggered=false;
 }
 
 uint32_t AudioEngine::pollTransportEvents() { return transportEvents.exchange(0); }
@@ -1221,7 +1263,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
         scratchBuffer.setSize(2, samplesPerBlockExpected);
         guideScratch.setSize(1,samplesPerBlockExpected);
         busScratch.setSize(2*kMaxBuses,samplesPerBlockExpected);
-        fadeGains.assign(static_cast<size_t>(samplesPerBlockExpected),1.0f); fadeOut.cancel();
+        fadeGains.assign(static_cast<size_t>(samplesPerBlockExpected),1.0f);
         timecodeScratch.setSize(1,samplesPerBlockExpected);
 
         for (auto& channel : channels)
@@ -1260,7 +1302,8 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (!playing.load() || channels.empty() || !isPrepared || preparedBlockSize <= 0) return;
     const auto& first=channels.front();
-    const int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
+    int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
+    if (rangeEnd > 0) end=juce::jmin(end,static_cast<int64_t>(std::llround(rangeEnd*timeScale*currentSampleRate)));  // custom song end
     const int rampFrames=GainRamp::framesFor(currentSampleRate);
     const double blockHostMs=juce::Time::getMillisecondCounterHiRes();
     const bool automating=automationEnabled.load();
@@ -1308,19 +1351,18 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         // End fade (Playback Sequencer: arrangement.endFade starts the transport fade once the playhead passes the
         // channel group's fadeStartTimecode, and the fade button lights up): the chunk stops at that point.
         const int64_t endFadeLength=endFadeSeconds > 0 ? static_cast<int64_t>(std::llround(endFadeSeconds*currentSampleRate)) : 0;
-        if (endFadeLength > 0 && !endFadeTriggered && !loopEnabled && !fadeOut.active()) {
+        if (endFadeLength > 0 && !endFadeTriggered && !loopEnabled && !fade.down()) {
             const int64_t fadeStart=end-endFadeLength;
-            if (position >= fadeStart && position < end) { fadeOut.start(endFadeLength); endFadeTriggered=true; }
+            if (position >= fadeStart && position < end) { fade.ramp(true,endFadeLength); endFadeTriggered=true; }
             else if (fadeStart > position && fadeStart-position < room) room=fadeStart-position;
         }
-        if (fadeOut.active()) room=juce::jmin(room,fadeOut.remaining);  // the fade ends exactly at a chunk end
         const int count=static_cast<int>(juce::jmin<int64_t>(juce::jmin(preparedBlockSize,info.numSamples-written),room));
         if (count <= 0) { currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); releaseHeldNotesRealtime(blockHostMs,written); break; }
         const auto* source=loopEnabled && activeLoop ? activeLoop.get() : (!loopEnabled ? bridge.get() : nullptr);
         if (!source && !channelsReady(count,0)) { ++underrunCount; break; }
-        const bool fading=fadeOut.active();
+        const bool fading=!fade.idle();
         if (fading)
-            for (int i=0;i<count;++i) fadeGains[static_cast<size_t>(i)]=fadeOut.gain(i);
+            for (int i=0;i<count;++i) fadeGains[static_cast<size_t>(i)]=fade.next();
         const int outputs=info.buffer->getNumChannels();
         const bool split=stereoSplit.load() && outputs >= 2;  // click/guides left, every track and bus mono right
         if (busCount > 0) for (int c=0;c<2*busCount;++c) juce::FloatVectorOperations::clear(busScratch.getWritePointer(c),count);
@@ -1377,13 +1419,13 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             });
             busMeters[static_cast<size_t>(b)].raise(peak);
         }
-        // Click, guides and count-in tails share one mono bus that fades with the song and feeds every output.
+        // Click, guides and count-in tails share one mono bus that feeds every output and never fades (Playback keeps
+        // click and guide channels out of the fade).
         guideScratch.clear();
         clickTimeline.render(guideScratch,0,count,position,currentSampleRate,clickEnabled.load());
         guideTimeline.render(guideScratch.getWritePointer(0),count,position,currentSampleRate,guidesEnabled.load(),guideWrapSample());
         float* internal[1]={guideScratch.getWritePointer(0)};
         preroll.render(internal,1,0,count,clickTimeline,currentSampleRate,clickEnabled.load(),guidesEnabled.load());
-        if (fading) juce::FloatVectorOperations::multiply(internal[0],fadeGains.data(),count);
         for(int output=0;output<(split ? 1 : outputs);++output)
             info.buffer->addFrom(output,info.startSample+written,guideScratch,0,0,count);
         if (midiRouter.isOpen()) {
@@ -1432,12 +1474,6 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
             info.buffer->addFrom(timecodeOutput,info.startSample+written,timecodeScratch,0,0,count);
         }
         currentSamplePosition=position+count; written+=count;
-        if (fadeOut.active() && (fadeOut.remaining-=count) <= 0) {  // silence reached: pause where the fade ended
-            fadeOut.cancel(); playing=false; transportEvents.fetch_or(FadeFinished); releaseHeldNotesRealtime(blockHostMs,written);
-            normalizeLoopPosition();
-            if (!loopEnabled && position+count >= end) { currentSamplePosition=end; transportEvents.fetch_or(EndReached); }
-            break;
-        }
         normalizeLoopPosition();
         if (!loopEnabled && position+count >= end) {
             currentSamplePosition=end; playing=false; transportEvents.fetch_or(EndReached); releaseHeldNotesRealtime(blockHostMs,written); break;

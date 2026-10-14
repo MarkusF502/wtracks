@@ -106,16 +106,36 @@ inline void applyGainTargets(float* const* out, int outputs, int start, int coun
 }
 
 namespace wtracks {
-// Fade out (Playback: transport "5 Second Fade Out"; SongTrack fades default to 5.0 s, `currentFadeVolume`,
-// `fadeWorkItem` — pseudocode/fade.c FUN_10002a5fc). The per-track volume stepping curve was not recovered; ours is
-// linear in amplitude, counted in real (device) samples, and playback pauses when it reaches silence.
-struct FadeOut {
-    int64_t total = 0, remaining = 0;
+// Transport fade (Playback: the "5 Second Fade Out" button is an on/off switch, not a stop — pseudocode/second-pass
+// 10086ba58, 10002c318, 100647c80). Each press moves the gain linearly from where it is now to 0 (button on) or back to 1
+// (button off) over `duration`; the 1/30 s steps of the original are followed per sample. Nothing pauses and no event is
+// raised: the song keeps playing at the faded level. A stopped transport applies the target at once. Own choice: the level
+// survives pause and seek and is only reset by a stop / return to zero / new song (the original keeps it per track).
+struct FadeRamp {
+    float gain = 1.0f, target = 1.0f;
+    int64_t remaining = 0, total = 0;
+    double from = 1.0;
     bool active() const noexcept { return remaining > 0; }
-    void start(int64_t samples) noexcept { total = remaining = samples > 0 ? samples : 0; }
-    void cancel() noexcept { total = remaining = 0; }
-    // Gain of frame i of the next chunk (1 when idle); reaches 1/total on the last fading frame.
-    float gain(int i) const noexcept { return active() ? static_cast<float>(remaining - i) / static_cast<float>(total) : 1.0f; }
+    bool down() const noexcept { return target == 0.0f; }   // the button is on
+    bool idle() const noexcept { return remaining == 0 && gain == 1.0f; }
+    void ramp(bool toZero, int64_t samples) noexcept {
+        target = toZero ? 0.0f : 1.0f;
+        if (samples <= 0 || gain == target) { gain = target; remaining = total = 0; return; }
+        from = gain; remaining = total = samples;
+    }
+    void jump(bool toZero) noexcept { target = gain = toZero ? 0.0f : 1.0f; remaining = total = 0; }
+    void reset() noexcept { jump(false); }
+    // Gain of the next frame; advances the ramp (computed from the start level, so there is no drift; the target is
+    // reached exactly after `samples` frames).
+    float next() noexcept {
+        const float value = gain;
+        if (remaining > 0) {
+            --remaining;
+            gain = remaining == 0 ? target
+                 : static_cast<float>(from + (static_cast<double>(target) - from) * static_cast<double>(total - remaining) / static_cast<double>(total));
+        }
+        return value;
+    }
 };
 }
 
