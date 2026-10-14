@@ -17,6 +17,32 @@ Regras de sempre:
 Legenda: **[G]** precisa de uma segunda passada no Ghidra antes (ou durante) a implementação; a lista completa está
 no fim.
 
+## Plano de consolidação (análise de 2026-10-14)
+
+Segundo plano, em `docs/ANALISE-PLAYBACK-PLANO-WTRACKS-2026-10-14.md`: pontos fracos do Playback e riscos do próprio WTracks
+(WT-01…WT-15), organizados nas fases A–G. Ele **tem prioridade sobre as funcionalidades novas deste documento**: a ordem
+recomendada é A → B (dados e atualização segura) → C (desempenho e continuidade) → D (dispositivos) → E (preparação/arranjos) →
+F (UX de palco) → G (remoto e distribuição). Como as duas listas se encaixam:
+
+| Plano de consolidação | Neste documento |
+|---|---|
+| Fase A — consolidar a base (transições, deck) | Fase 2 (feita); baseline registrado em "Estado da base" abaixo |
+| Fase B — dados e atualização segura (WT-01…05, WT-14) | Fase 0 (salvamento) e Fase 0.1 (atualizador) |
+| Fase C — desempenho e continuidade (WT-06…08, WT-10) | Fase 2 (medições do render), Fase 4 (VU) |
+| Fase D — dispositivos e roteamento (WT-09) | Fase 4 (saídas, buses globais), Fase 10 |
+| Fase E — preparação, arranjos, undo (WT-11) | Fases 3 e 6 |
+| Fase F — UX de palco e acessibilidade (WT-12, WT-15) | Fase 7 |
+| Fase G — remoto e distribuição (WT-13) | Fase 10, Fase 0.1 |
+
+A Fase 3 (mapa da música, Live ReOrder, arranjos) só recomeça depois da Fase B.
+
+## Estado da base (Fase A, 2026-10-14)
+
+Baseline verificado em `7850128` + este commit, com a biblioteca nativa recém-compilada: suíte nativa 3 execuções sem falhas;
+`flutter analyze` limpo e 238 testes Flutter em 3 execuções (`LD_LIBRARY_PATH=native/build-linux`); teste de integração com o motor
+real (`transition_engine_test`) passou no emulador `wtracks_phase5`. O CI Android e o APK ainda não rodaram nestes commits (nada foi
+enviado ao GitHub). As seis transições têm comportamento definido e testado (`transition_test.dart`, `TransitionTests.cpp`).
+
 ## Correções ao que já está documentado
 
 1. **Transições.** `FUN_1004bad90` (transition.c, por volta da linha 10337) monta o rótulo a partir de `storedTransition`:
