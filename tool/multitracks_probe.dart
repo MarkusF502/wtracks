@@ -48,7 +48,12 @@ Future<void> main(List<String> args) async {
     request.headers.contentType = ContentType.json;
     request.headers.set('Accept', 'application/json');
     request.headers.set('User-Agent', '$_appName-probe/1');
-    request.add(utf8.encode(jsonEncode(body)));
+    final bytes = utf8.encode(jsonEncode(body));
+    // Content-Length explícito: sem ele o Dart envia o corpo em "chunked", que alguns servidores não leem ao ligar o JSON ao modelo.
+    request.contentLength = bytes.length;
+    say('\nEnviando para $route: ${bytes.length} bytes, ${body.length} chaves: '
+        '${body.entries.map((e) => '${e.key}${e.value is String ? '(len=${(e.value as String).length})' : ''}').join(', ')}');
+    request.add(bytes);
     final response = await request.close().timeout(const Duration(seconds: 60));
     final text = await response.transform(utf8.decoder).join();
     Object? json;
