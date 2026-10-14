@@ -7,6 +7,10 @@
 #include <mutex>
 #include <vector>
 
+// The per-deck functions live in ffi_deck_api.inc, compiled once per deck.
+#define WT_CAT_(a, b) a##b
+#define WT_CAT(a, b) WT_CAT_(a, b)
+
 #if defined(__ANDROID__)
 #include <jni.h>
 #include <juce_core/juce_core.h>
@@ -22,124 +26,77 @@ Java_com_example_flutter_1app_MainActivity_initJuceContext(JNIEnv *env, jobject 
 }
 #endif
 
-static std::unique_ptr<wtracks::AudioEngine> engine;
+// Two decks: [0] is the song that plays (the device calls it), [1] holds the next song during a transition. The hand-off swaps them,
+// so the Dart side keeps talking to deck 0 (`wtracks_*`) for the song that plays and to deck 1 (`wtracks_n_*`) for the preloaded one.
+static std::unique_ptr<wtracks::AudioEngine> decks[2];
 // An isolated click decoder must finish before its owning engine is destroyed.
 static std::mutex engineLifetimeMutex;
-static juce::String globalLastErrorBuffer; // Variável mágica que evita falhas de ponteiro no Dart
 
 extern "C" {
 
 bool wtracks_initialise(int sampleRate, int bufferSize)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    engine = std::make_unique<wtracks::AudioEngine>();
-    return engine->initialise(sampleRate, bufferSize);
+    decks[1].reset();
+    decks[0] = std::make_unique<wtracks::AudioEngine>();
+    return decks[0]->initialise(sampleRate, bufferSize);
 }
 
 void wtracks_shutdown()
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (engine)
-        engine->shutdown();
-    engine.reset();
+    if (decks[0]) decks[0]->cancelTransition();
+    if (decks[1]) decks[1]->shutdown();   // the second deck only lets go of its song
+    decks[1].reset();
+    if (decks[0])
+        decks[0]->shutdown();
+    decks[0].reset();
 }
 
-bool wtracks_load_track(const char* songId, const char** channelPaths, int channelCount)
-{
-    if (!engine)
-        return false;
-
-    try {
-        std::vector<juce::File> files;
-        for (int i = 0; i < channelCount; ++i) {
-            const char* p = channelPaths[i];
-            juce::String s = p != nullptr ? juce::String(juce::CharPointer_UTF8(p)) : juce::String("<null>");
-            juce::File f(s);
-            files.emplace_back(std::move(f));
-        }
-
-        return engine->loadTrack(juce::String(songId), files);
-    } catch (...) {
-        // Se explodir qualquer limite de RAM no C++, captura aqui e não derruba o Dart.
-        engine->setLastError(wtracks::EngineErrorCode::Unknown, "C++ Exception catastrófica ao carregar arquivos");
-        return false;
-    }
-}
-
-// Expõe a string de erro com segurança de memória
-const char* wtracks_get_last_error()
-{
-    if (!engine) return "";
-    globalLastErrorBuffer = engine->getLastError();
-    return globalLastErrorBuffer.toRawUTF8();
-}
-
-int wtracks_get_last_error_code()
-{
-    return static_cast<int>(engine ? engine->getLastErrorCode() : wtracks::EngineErrorCode::DeviceInitFailed);
-}
-
-void wtracks_unload_track()
-{
-    if (engine) engine->unloadCurrentTrack();
-}
-
-void wtracks_play()  { if (engine) engine->play();  }
-void wtracks_pause() { if (engine) engine->pause(); }
-void wtracks_stop()  { if (engine) engine->stop();  }
-
-void wtracks_seek(double seconds)
-{
-    if (engine) engine->seekToSeconds(seconds);
-}
-
-double wtracks_get_position()
-{
-    return engine ? engine->getCurrentPositionSeconds() : 0.0;
-}
-
-double wtracks_get_length()
-{
-    return engine ? engine->getTotalLengthSeconds() : 0.0;
-}
-
-bool wtracks_is_playing()
-{
-    return engine && engine->isPlaying();
-}
-
-void wtracks_set_channel_volume(int channelIndex, float volume)
-{
-    if (engine) engine->setChannelVolume(channelIndex, volume);
-}
-
-void wtracks_set_channel_muted(int channelIndex, bool muted)
-{
-    if (engine) engine->setChannelMuted(channelIndex, muted);
-}
-
-bool wtracks_set_channel_route(int channelIndex, int outputBase, bool mono)
-{
-    return engine ? engine->setChannelRoute(channelIndex, outputBase, mono) : false;
-}
-
-void wtracks_set_master_volume(float volume)
-{
-    if (engine) engine->setMasterVolume(volume);
-}
-
-int wtracks_get_channel_count()
-{
-    return engine ? engine->getChannelCount() : 0;
-}
-
-bool wtracks_set_time_scale(double scale)
+// ---- Second deck and song transitions ----
+bool wtracks_prepare_next_deck()
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    return engine ? engine->setTimeScale(scale) : false;
+    if (!decks[0]) return false;
+    if (!decks[1]) decks[1] = std::make_unique<wtracks::AudioEngine>(decks[0]->sharedIo());
+    return true;
 }
 
-double wtracks_get_time_scale() { return engine ? engine->getTimeScale() : 1.0; }
+void wtracks_release_next_deck()
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (decks[0]) decks[0]->cancelTransition();
+    decks[1].reset();
+}
+
+bool wtracks_schedule_transition(int kind, double startSeconds, double durationSeconds)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!decks[0] || !decks[1]) return false;
+    return decks[0]->scheduleTransition(decks[1].get(), kind == 1 ? wtracks::TransitionKind::Crossfade : wtracks::TransitionKind::Overlap,
+                                        startSeconds, durationSeconds);
+}
+
+void wtracks_cancel_transition()
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (decks[0]) decks[0]->cancelTransition();
+}
+
+double wtracks_get_transition_progress() { return decks[0] ? decks[0]->getTransitionProgress() : -1.0; }
+bool wtracks_is_transition_scheduled() { return decks[0] && decks[0]->isTransitionScheduled(); }
+
+// The incoming song takes the device over and becomes deck 0; the old one is released, stopped and kept as deck 1 (unload it).
+bool wtracks_handoff()
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!decks[0] || !decks[1] || !decks[1]->isPlaying()) return false;
+    decks[1]->activate();
+    decks[0]->finishTransitionAsOutgoing();
+    decks[0]->stop();
+    std::swap(decks[0], decks[1]);
+    return true;
+}
 
 bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, double timeFactor, double pitchFactor, bool complexAlgorithm, int64_t token)
 {
@@ -151,7 +108,7 @@ bool wtracks_process_time_pitch(const char* inputPath, const char* outputPath, d
     } catch (...) { result.error = "Time/pitch processing failed"; }
     if (!result.ok) {
         const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-        if (engine) engine->setLastError(wtracks::EngineErrorCode::Unknown, result.error);
+        if (decks[0]) decks[0]->setLastError(wtracks::EngineErrorCode::Unknown, result.error);
     }
     return result.ok;
 }
@@ -167,126 +124,6 @@ int wtracks_midi_list_outputs(char* buffer, int capacity)
     return needed;
 }
 
-bool wtracks_midi_open_output(const char* identifier)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    return engine && identifier ? engine->openMidiOutput(juce::String::fromUTF8(identifier)) : false;
-}
-
-void wtracks_midi_close_output()
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (engine) engine->closeMidiOutput();
-}
-
-bool wtracks_midi_output_open() { return engine && engine->isMidiOutputOpen(); }
-void wtracks_set_midi_clock_enabled(bool enabled) { if (engine) engine->setMidiClockEnabled(enabled); }
-void wtracks_set_midi_cues_muted(bool muted) { if (engine) engine->setMidiCuesMuted(muted); }
-
-bool wtracks_send_midi(const uint8_t* bytes, int size)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    return engine ? engine->sendMidiMessage(bytes, size) : false;
-}
-
-bool wtracks_configure_cues(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configureCues(times, midiBytes, midiSizes, count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Cue preparation failed"); return false; }
-}
-
-int wtracks_poll_cues(uint32_t* out, int maxCount) { return engine ? engine->pollCues(out, maxCount) : 0; }
-uint64_t wtracks_get_midi_dropped() { return engine ? engine->getMidiDroppedCount() : 0; }
-
-bool wtracks_configure_timecode(int rateIndex, int64_t startFrame, double onsetSeconds, int outputChannel, float gain)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    return engine ? engine->configureTimecode(rateIndex, startFrame, onsetSeconds, outputChannel, gain) : false;
-}
-
-void wtracks_set_timecode_enabled(bool enabled) { if (engine) engine->setTimecodeEnabled(enabled); }
-
-bool wtracks_set_click_tempo_changes(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    return engine ? engine->setClickTempoChanges(starts, bpms, numerators, denominators, count) : false;
-}
-
-bool wtracks_configure_preset_loops(const double* starts, const double* ends, const int* repeats, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configurePresetLoops(starts, ends, repeats, count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Preset loop preparation failed"); return false; }
-}
-
-bool wtracks_configure_guides(const double* times, const char** paths, const float* gains, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configureGuides(times,paths,gains,count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Guide preparation failed"); return false; }
-}
-void wtracks_set_guides_enabled(bool enabled) { if (engine) engine->setGuidesEnabled(enabled); }
-
-bool wtracks_configure_guides_ex(const double* times, const char** paths, const char** replacementPaths,
-                                 const double* targets, const float* gains, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configureGuides(times,paths,replacementPaths,targets,gains,count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Guide preparation failed"); return false; }
-}
-
-bool wtracks_configure_preroll(bool enabled, const double* starts, int startCount, const char** countPaths, int countCount)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configurePreroll(enabled,starts,startCount,countPaths,countCount); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Pre-roll preparation failed"); return false; }
-}
-
-bool wtracks_is_prerolling() { return engine ? engine->isPrerolling() : false; }
-
-bool wtracks_configure_mixer_automation(const double* starts, const double* ends, const int* params, const float* values, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configureMixerAutomation(starts,ends,params,values,count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Mixer automation failed"); return false; }
-}
-
-void wtracks_set_automation_enabled(bool enabled) { if (engine) engine->setAutomationEnabled(enabled); }
-
-int wtracks_get_mix_state(float* volumes, uint8_t* mutes, int capacity, float* master)
-{
-    return engine ? engine->getMixState(volumes,mutes,capacity,master) : 0;
-}
-
-void wtracks_set_channel_solo_muted(int channelIndex, bool muted) { if (engine) engine->setChannelSoloMuted(channelIndex,muted); }
-bool wtracks_set_fade(bool down, double seconds) { return engine ? engine->setFade(down,seconds) : false; }
-bool wtracks_get_fade_down() { return engine ? engine->isFadeDown() : false; }
-bool wtracks_set_play_range(double startSeconds, double endSeconds) { return engine ? engine->setPlayRange(startSeconds,endSeconds) : false; }
-void wtracks_get_play_range(double* out2) { if (engine) engine->getPlayRange(out2); else out2[0]=out2[1]=0; }
-void wtracks_reset_transport_state() { if (engine) engine->resetTransportState(); }
-bool wtracks_set_end_fade(double seconds) { return engine ? engine->setEndFade(seconds) : false; }
-void wtracks_set_channel_excluded_from_fade(int channelIndex, bool excluded) { if (engine) engine->setChannelExcludedFromFade(channelIndex,excluded); }
-double wtracks_get_fade_gain() { return engine ? engine->getFadeGain() : 1.0; }
-uint32_t wtracks_poll_transport_events() { return engine ? engine->pollTransportEvents() : 0; }
-int wtracks_take_meters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity)
-{
-    return engine ? engine->takeMeters(channelPeaks,capacity,outputPeaks,outputCapacity) : 0;
-}
-bool wtracks_configure_cues_ex(const double* times, const uint8_t* midiBytes, const uint8_t* midiSizes, const uint8_t* flags, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configureCues(times,midiBytes,midiSizes,flags,count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Cue preparation failed"); return false; }
-}
-
 int wtracks_midi_list_inputs(char* buffer, int capacity)
 {
     const auto text = wtracks::AudioEngine::listMidiInputs().joinIntoString("\n") + "\n";
@@ -294,118 +131,6 @@ int wtracks_midi_list_inputs(char* buffer, int capacity)
     const int needed = static_cast<int>(utf8.size()) + 1;
     if (buffer && capacity >= needed) std::memcpy(buffer, utf8.c_str(), static_cast<size_t>(needed));
     return needed;
-}
-
-bool wtracks_midi_open_input(const char* identifier)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    return engine && identifier ? engine->openMidiInput(juce::String::fromUTF8(identifier)) : false;
-}
-
-void wtracks_midi_close_input() { const std::lock_guard<std::mutex> lock(engineLifetimeMutex); if (engine) engine->closeMidiInput(); }
-bool wtracks_midi_input_open() { return engine ? engine->isMidiInputOpen() : false; }
-int wtracks_poll_midi_input(uint32_t* out, int maxCount) { return engine ? engine->pollMidiInput(out,maxCount) : 0; }
-bool wtracks_inject_midi_input(const uint8_t* bytes, int size) { return engine ? engine->injectMidiInput(bytes,size) : false; }
-
-void wtracks_get_loop_pass(int32_t* pass, int32_t* repeats) { if (engine) engine->getLoopPass(pass,repeats); else { if (pass) *pass=0; if (repeats) *repeats=0; } }
-bool wtracks_configure_skips(const double* starts, const double* ends, int count)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->configureSkips(starts,ends,count); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Trim preparation failed"); return false; }
-}
-
-bool wtracks_configure_buses(int count) { return engine ? engine->configureBuses(count) : false; }
-bool wtracks_set_bus(int index, float volume, bool muted, int outputBase, bool mono) { return engine ? engine->setBus(index,volume,muted,outputBase,mono) : false; }
-void wtracks_set_bus_solo_muted(int index, bool muted) { if (engine) engine->setBusSoloMuted(index,muted); }
-bool wtracks_set_channel_bus(int channelIndex, int bus) { return engine ? engine->setChannelBus(channelIndex,bus) : false; }
-void wtracks_set_stereo_split(bool enabled) { if (engine) engine->setStereoSplit(enabled); }
-int wtracks_get_bus_state(float* volumes, uint8_t* mutes, int capacity) { return engine ? engine->getBusState(volumes,mutes,capacity) : 0; }
-int wtracks_take_bus_meters(float* peaks, int capacity) { return engine ? engine->takeBusMeters(peaks,capacity) : 0; }
-
-bool wtracks_set_loop(double start, double end, bool enabled)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->setLoop(start,end,enabled); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Loop preparation failed"); return false; }
-}
-bool wtracks_set_loop_repeats(double start, double end, bool enabled, int repeats)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->setLoop(start, end, enabled, repeats); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Loop preparation failed"); return false; }
-}
-
-bool wtracks_enqueue_loop_repeats(double start, double end, int repeats)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->enqueueLoop(start, end, repeats); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown, "Loop preparation failed"); return false; }
-}
-
-bool wtracks_enqueue_loop(double start, double end)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->enqueueLoop(start,end); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Queued loop preparation failed"); return false; }
-}
-void wtracks_clear_queued_loop() { if (engine) engine->clearQueuedLoop(); }
-void wtracks_get_loop_state(double* out6) { if (!out6) return; if (engine) engine->getLoopState(out6); else for (int i=0;i<6;++i) out6[i]=0; }
-bool wtracks_get_loop_enabled() { return engine && engine->getLoopEnabled(); }
-bool wtracks_get_queued_loop_enabled() { return engine && engine->getQueuedLoopEnabled(); }
-double wtracks_get_loop_start() { return engine ? engine->getLoopStart() : 0; }
-double wtracks_get_loop_end() { return engine ? engine->getLoopEnd() : 0; }
-double wtracks_get_queued_loop_start() { return engine ? engine->getQueuedLoopStart() : 0; }
-double wtracks_get_queued_loop_end() { return engine ? engine->getQueuedLoopEnd() : 0; }
-uint64_t wtracks_get_underrun_count() { return engine ? engine->getUnderrunCount() : 0; }
-
-bool wtracks_configure_click(double bpm, int numerator, int denominator, int unit, double offset, double accent, double quarter, double eighth, double sixteenth)
-{
-    return engine && engine->configureClick(bpm,numerator,denominator,unit,offset,accent,quarter,eighth,sixteenth);
-}
-bool wtracks_load_click_sound(int voice, const char* path)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    try { return engine->loadClickSound(voice, path ? juce::String::fromUTF8(path) : juce::String()); }
-    catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Click sound loading failed"); return false; }
-}
-bool wtracks_load_click_bank(const char** paths, int voiceCount)
-{
-    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
-    if (!engine) return false;
-    if (!paths || voiceCount != 4) { engine->setLastError(wtracks::EngineErrorCode::FormatMismatch,"Click bank requires four voices"); return false; }
-    try {
-        std::array<juce::String,4> names;
-        for (int voice=0;voice<4;++voice) names[voice]=paths[voice] ? juce::String::fromUTF8(paths[voice]) : juce::String();
-        return engine->loadClickBank(names);
-    } catch (...) { engine->setLastError(wtracks::EngineErrorCode::Unknown,"Click bank loading failed"); return false; }
-}
-void wtracks_set_click_gain(float gain) { if (engine) engine->setClickGain(gain); }
-
-void wtracks_set_click_enabled(bool enabled)
-{
-    if (engine) engine->setClickEnabled(enabled);
-}
-
-void wtracks_set_click_bpm(double bpm)
-{
-    if (engine) engine->setClickBpm(bpm);
-}
-
-void wtracks_set_click_time_signature(int numerator, int denominator)
-{
-    if (engine) engine->setClickTimeSignature(numerator, denominator);
-}
-
-void wtracks_set_click_offset(double offsetSeconds)
-{
-    if (engine) engine->setClickOffsetSeconds(offsetSeconds);
 }
 
 bool wtracks_generate_waveform_peaks(const char** channelPaths, int channelCount, int numBuckets, float* outPeaks)
@@ -422,5 +147,21 @@ bool wtracks_generate_waveform_peaks(const char** channelPaths, int channelCount
         return false;
     }
 }
+
+#define WT_DECK 0
+#define WT(name) WT_CAT(wtracks_, name)
+#define ENGINE decks[WT_DECK]
+#include "ffi_deck_api.inc"
+#undef WT
+#undef ENGINE
+#undef WT_DECK
+
+#define WT_DECK 1
+#define WT(name) WT_CAT(wtracks_n_, name)
+#define ENGINE decks[WT_DECK]
+#include "ffi_deck_api.inc"
+#undef WT
+#undef ENGINE
+#undef WT_DECK
 
 } // extern "C"

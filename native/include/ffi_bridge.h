@@ -19,6 +19,20 @@ extern "C" {
 WTRACKS_API bool wtracks_initialise(int sampleRate, int bufferSize);
 WTRACKS_API void wtracks_shutdown();
 
+// Segundo deck e transições entre músicas. Todas as funções `wtracks_*` abaixo agem no deck 0 (a música que toca, a que o dispositivo
+// chama); as mesmas funções com o prefixo `wtracks_n_` (ex.: wtracks_n_load_track) agem no deck 1, a próxima música pré-carregada.
+// Depois do hand-off os decks se trocam: o que era a próxima música passa a responder em `wtracks_*`.
+WTRACKS_API bool wtracks_prepare_next_deck();
+WTRACKS_API void wtracks_release_next_deck();
+// kind: 0 = Overlap, 1 = Crossfade. startSeconds em tempo da música que toca (< 0 = agora), sem laço ativo; duração em segundos.
+WTRACKS_API bool wtracks_schedule_transition(int kind, double startSeconds, double durationSeconds);
+WTRACKS_API void wtracks_cancel_transition();
+// -1 = não começou, 0..1 = em curso, 1 = terminou e espera o hand-off.
+WTRACKS_API double wtracks_get_transition_progress();
+WTRACKS_API bool wtracks_is_transition_scheduled();
+// A próxima música assume o dispositivo e vira o deck 0; a antiga é parada e fica no deck 1 (descarregue-a).
+WTRACKS_API bool wtracks_handoff();
+
 // Carregamento de música: channelPaths é um array de strings C
 // (caminhos de arquivo), um por canal. channelCount informa quantos.
 WTRACKS_API bool wtracks_load_track(const char* songId, const char** channelPaths, int channelCount);
