@@ -4,8 +4,9 @@ Base: pacote de evidências em `docs/playback-analysis/`, ou seja, o pseudocódi
 áudio, o modelo Core Data 145, 1472 textos de interface, 208 nibs/storyboards e o guia do usuário em
 `ui/helpcenter/`. A comparação foi feita com o código em `native/` e `flutter_app/` em 2026-10-14.
 
-Continuam fora do escopo: contas, nuvem, compras e aluguéis, downloads, anúncios, Planning Center, licenças de igreja,
-a loja MultiTracks e a importação de cues da nuvem.
+Continuam fora do escopo: contas, nuvem, compras e aluguéis, downloads de conteúdo MultiTracks, anúncios, Planning
+Center, licenças de igreja, a loja MultiTracks e a importação de cues da nuvem. O download de APK para atualizar o
+próprio WTracks está no escopo, conforme a Fase 0.1.
 
 Regras de sempre:
 - Dart não agenda nada de áudio.
@@ -93,6 +94,108 @@ Plano:
 4. Teste instrumentado no emulador Android no CI (o runner do GitHub tem KVM; `android-emulator-runner`):
    importar → salvar → recriar o app → a música e a setlist continuam lá.
 5. Testar de novo no seu aparelho com o registro de diagnóstico ligado.
+
+## Fase 0.1 — Atualização do aplicativo pelo próprio WTracks (P0)
+
+**Status (2026-10-14): planejada e aprovada para inclusão no plano; ainda não implementada.** Funcionalidade própria
+do WTracks, inicialmente para Android distribuído pelo GitHub Releases. Não depende de investigação no Ghidra.
+
+**Objetivo:** consultar uma nova versão, baixar o APK e solicitar ao instalador Android a atualização sobre a versão
+existente, preservando músicas, áudios, setlists, arranjos e preferências. O usuário confirma a instalação no sistema.
+
+**Prioridade e dependências:** estabilizar assinatura e versionamento antes da próxima distribuição. A implementação
+do instalador depende de salvamento confiável, backup/restauração para a migração inicial quando necessária e testes
+de compatibilidade dos dados. Não substituir ou descartar o trabalho das outras fases.
+
+### 0.1.1 — Assinatura estável, identidade e migração inicial
+
+- Hoje `android/app/build.gradle.kts` usa assinatura debug para release, e `.github/workflows/android-apk.yml`
+  informa que a atualização pode exigir desinstalação. O atualizador não contorna incompatibilidade de assinatura.
+- Conferir o certificado do APK instalado e a disponibilidade da chave privada correspondente. Não presumir que
+  a chave local é a mesma das builds distribuídas pelo CI.
+- Configurar uma chave de release persistente, protegida fora do repositório, com backup seguro e uso pelo CI.
+  Guardar segredos no mecanismo de secrets do CI; não incluir chave, senha ou token de publicação no aplicativo.
+- Manter o `applicationId` atual durante essa mudança; trocar identidade exige plano de migração separado.
+- Garantir `versionCode` crescente entre todas as releases e manter `versionName` legível.
+- Se a chave antiga estiver disponível, avaliar atualização compatível/rotação suportada. Se não estiver, pode ser
+  necessária uma migração inicial: exportar backup completo para fora do armazenamento privado do app, verificar
+  integridade, instalar a versão de assinatura estável e restaurar. Não instruir desinstalação antes desse backup.
+- A primeira versão com atualizador precisa chegar por uma atualização manual compatível ou por essa migração.
+  Depois da base estável, as próximas versões usam o fluxo dentro do WTracks.
+
+### 0.1.2 — Catálogo e publicação de atualizações
+
+- Publicar `update.json` por canal (`stable`/`beta`), com versão do formato do manifesto, `versionName`, `versionCode`,
+  Android mínimo, notas da versão e artefatos por arquitetura.
+- Cada artefato informa URL HTTPS, tamanho, SHA-256, identidade do pacote e certificado esperado. Selecionar uma ABI
+  compatível com o aparelho; comparar versões por `versionCode`, não por ordem textual ou data.
+- O manifesto aponta para o APK de uma release específica. Evitar resolver `latest` novamente durante o download,
+  pois outra publicação poderia trocar o arquivo após a consulta.
+- Publicar o APK e conferir o artefato antes de promover o manifesto do canal. Separar builds experimentais das
+  releases estáveis; promoção estável depende de analyze, testes Flutter/nativos e integração de atualização.
+- O CI deve verificar certificado, pacote e versionamento dos APKs produzidos, além de gerar hashes.
+
+### 0.1.3 — Consulta, download e interface
+
+- Criar **Ajustes → Atualizações**, mostrando versão instalada, versão disponível, notas, tamanho e progresso.
+  Ações: **Verificar**, **Baixar atualização**, **Cancelar**, **Instalar** e **Mais tarde**.
+- Consulta automática discreta ao abrir, com intervalo limitado e sem bloquear a abertura do app; consulta manual
+  disponível. Falha de rede não impede reprodução local.
+- Primeira versão: download iniciado pelo usuário em foreground, com cancelamento e nova tentativa. Retomada e
+  download prolongado em background ficam para uma etapa posterior.
+- Adiar consulta automática/download/instalação durante reprodução ou preparação de áudio. Revalidar o estado
+  imediatamente antes de instalar; não interromper uma apresentação para atualizar.
+- Baixar por HTTPS para armazenamento privado, primeiro em arquivo temporário. Verificar espaço, tamanho, SHA-256,
+  pacote, versão, Android mínimo e ABI antes de disponibilizar a instalação. A validação de assinatura pelo Android
+  continua obrigatória; um hash fornecido pelo manifesto não substitui a autenticação do APK.
+- Persistir a operação e o alvo da atualização. Tratar download interrompido, arquivo removido pelo sistema,
+  manifesto inválido, timeout, falta de espaço e limpeza de temporários sem tocar na biblioteca.
+- Arquitetura: serviço Dart de consulta/download, modelo de manifesto e provider de estados; ponte Kotlin para
+  metadados instalados, autorização e instalação. Nenhuma mudança no agendamento de áudio do motor C++.
+
+### 0.1.4 — Instalação e preservação dos dados
+
+- Usar `PackageInstaller` por ponte Kotlin; declarar `REQUEST_INSTALL_PACKAGES` na distribuição direta.
+- Consultar `canRequestPackageInstalls()`. Quando necessário, abrir a configuração de fontes desconhecidas para
+  o próprio WTracks e revalidar a autorização ao retornar. Permissão do navegador não concede permissão ao WTracks.
+- Tratar `STATUS_PENDING_USER_ACTION`, sucesso, cancelamento e erros de armazenamento, conflito ou incompatibilidade.
+  A confirmação do sistema faz parte do fluxo; não implementar instalação forçada ou silenciosa.
+- Antes de instalar, aguardar salvamentos/importações/processamentos pendentes terminarem, criar snapshot recuperável
+  dos metadados para migração e persistir a versão-alvo. Nunca limpar dados para resolver erro de instalação.
+- Na próxima abertura, conferir a versão efetivamente instalada, aplicar migrações compatíveis, mostrar o resultado
+  e remover o APK temporário após confirmação. Abrir com o transporte parado, sem retomar áudio automaticamente.
+- Se a instalação for cancelada ou falhar, a versão existente continua utilizável. Não prometer rollback automático;
+  correção de release normalmente será outra versão com `versionCode` maior.
+
+### 0.1.5 — Critérios de aprovação
+
+1. Atualizar A → B preserva áudios, biblioteca, setlists, arranjos, preferências e caminhos válidos; conferir hashes
+   dos áudios e conteúdo dos metadados, além de abrir e tocar músicas na nova versão.
+2. Cancelar instalação ou negar autorização mantém A utilizável e permite tentar novamente.
+3. Interromper rede, download ou processo não publica APK parcial nem altera a biblioteca; a tentativa seguinte
+   identifica o estado anterior e recupera ou reinicia de forma explícita.
+4. Rejeitar APK corrompido, pacote errado, ABI incompatível, versão igual/menor e assinatura incompatível; o sistema
+   também deve rejeitar assinatura inválida. Erros aparecem na tela e no diagnóstico.
+5. Falta de espaço e falha de migração preservam dados e oferecem recuperação; restauração da migração inicial é
+   validada antes de qualquer desinstalação eventualmente necessária.
+6. Durante reprodução/preparação, a atualização fica adiada. Se o áudio começar após o download, instalar continua
+   bloqueado até o aplicativo estar em estado seguro.
+7. Validar em emulador e Android físico, incluindo retorno da configuração de autorização, fechamento do processo
+   durante instalação e confirmação da versão na abertura seguinte. Resultado sintético não substitui teste físico.
+
+**Ordem de entrega:** assinatura/migração → manifesto e CI → consulta/download → instalador → preservação/migração
+de dados → validação e liberação. Documentar cada bloco e fazer commits próprios.
+
+**Distribuição futura pela Google Play:** usar variante com atualização pela loja, sem o autoatualizador por APK e
+sem `REQUEST_INSTALL_PACKAGES` para esse fim. iOS e desktop exigem planos próprios; esta fase é Android.
+
+Referências oficiais consultadas em 2026-10-14:
+
+- [Assinatura e continuidade de atualizações](https://developer.android.com/studio/publish/app-signing).
+- [PackageInstaller e resultado de instalação](https://developer.android.com/reference/android/content/pm/PackageInstaller).
+- [Autorização para solicitar instalação](https://developer.android.com/reference/android/content/pm/PackageManager#canRequestPackageInstalls()).
+- [Política Google Play para REQUEST_INSTALL_PACKAGES](https://support.google.com/googleplay/android-developer/answer/9888170?hl=en-EG).
+
 
 ## Novidades vistas nas capturas do Playback 8.6.2 no iPhone
 
