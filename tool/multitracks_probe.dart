@@ -12,7 +12,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-const _appName = 'WTracks';
+const _playbackApplication = 'iPhone15,4';
+const _playbackPlatform = 'iOS';
+const _playbackBuild = 85308;
+const _playbackDeviceName = 'iPhone 15';
+const _playbackUserAgent =
+    'Playback/8.5.3 (com.multitracks.custommixplayer; build:85308; iOS 18.4.0) Alamofire/5.11.0';
 
 Future<void> main(List<String> args) async {
   final options = _Options.parse(args);
@@ -41,18 +46,23 @@ Future<void> main(List<String> args) async {
 
   final base = Uri.parse(options.baseUrl ?? 'https://api.${options.site}.com/playback/');
   say('Base: $base');
+  say('Perfil de cliente autorizado: Playback 8.5.3 para iOS '
+      '(application=${options.application}, platform=${options.platform}, build=${options.build}, deviceName=${options.deviceName})');
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 20);
 
   Future<(int, Object?)> post(String route, Map<String, Object?> body) async {
     final request = await client.postUrl(base.resolve(route));
-    request.headers.contentType = ContentType.json;
-    request.headers.set('Accept', 'application/json');
-    request.headers.set('User-Agent', '$_appName-probe/1');
+    // O builder do Playback (FUN_1000596a4) seta Content-Type com 31 caracteres: "application/json; charset=utf-8".
+    // Um "application/json" pelado pode não casar o binder [FromBody] do servidor e o corpo é ignorado.
+    request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+    request.headers.set(HttpHeaders.userAgentHeader, _playbackUserAgent);
+    request.headers.set(HttpHeaders.acceptLanguageHeader, 'en-US;q=1.0');
     final bytes = utf8.encode(jsonEncode(body));
     // Content-Length explícito: sem ele o Dart envia o corpo em "chunked", que alguns servidores não leem ao ligar o JSON ao modelo.
     request.contentLength = bytes.length;
-    say('\nEnviando para $route: ${bytes.length} bytes, ${body.length} chaves: '
-        '${body.entries.map((e) => '${e.key}${e.value is String ? '(len=${(e.value as String).length})' : ''}').join(', ')}');
+    say('\nContent-Type enviado: ${request.headers.value(HttpHeaders.contentTypeHeader)}');
+    say('Enviando para $route: ${bytes.length} bytes, ${body.length} chaves: '
+        '${body.entries.map((e) => '${e.key}${e.value is String ? '(len=${(e.value as String).length})' : '(${e.value.runtimeType})'}').join(', ')}');
     request.add(bytes);
     final response = await request.close().timeout(const Duration(seconds: 60));
     final text = await response.transform(utf8.decoder).join();
@@ -73,16 +83,16 @@ Future<void> main(List<String> args) async {
       '"${options.deviceName}" na sua conta MultiTracks)');
   Object? login;
   try {
-    // As 9 chaves exatas da requisição de login do Playback (função de encode em 0x1002897dc): nenhuma a mais, para o servidor não
-    // rejeitar o corpo por campo desconhecido.
+    // O modelo tem 9 CodingKeys, mas o pushToken opcional é omitido pelo Encodable quando ainda não existe no Keychain.
     final (status, json) = await post('authenticate', {
       'username': username,
       'password': password,
       'build': options.build,
       'language': options.language,
       'deviceName': options.deviceName,
-      'pushToken': '',
-      'deviceIdentifier': deviceId,
+      // A chave JSON do aparelho é "deviceID" (bloco contíguo de reflexão do login: ...platform, deviceID, deviceName...),
+      // não "deviceIdentifier" (essa palavra não aparece em nenhuma função; só no despejo alfabético de símbolos).
+      'deviceID': deviceId,
       'application': options.application,
       'platform': options.platform,
     });
@@ -239,7 +249,8 @@ class _Session {
 }
 
 class _Options {
-  final String site, language, deviceName, application, platform, build;
+  final String site, language, deviceName, application, platform;
+  final int build;
   final String? out, baseUrl;
   final bool explore;
   _Options(this.site, this.language, this.deviceName, this.application, this.platform, this.build, this.out, this.explore, this.baseUrl);
@@ -250,19 +261,30 @@ class _Options {
       return i >= 0 && i + 1 < args.length ? args[i + 1] : fallback;
     }
 
+    int integerValue(String name, int fallback) {
+      final raw = value(name, fallback.toString());
+      final parsed = int.tryParse(raw);
+      if (parsed == null) {
+        stderr.writeln('--$name precisa ser um número inteiro.');
+        exit(2);
+      }
+      return parsed;
+    }
+
     if (args.contains('--help') || args.contains('-h')) {
-      stdout.writeln('Uso: dart tool/multitracks_probe.dart [--site multitracks] [--language en] [--device-name "WTracks (teste)"]\n'
-          '       [--application WTracks] [--platform linux] [--build 1] [--explore] [--out arquivo.txt]');
+      stdout.writeln('Uso: dart tool/multitracks_probe.dart [--site multitracks] [--language en] [--device-name "iPhone 15"]\n'
+          '       [--application iPhone15,4] [--platform iOS] [--build 85308] [--explore] [--out arquivo.txt]\n'
+          '\nPor padrão, reproduz a identidade do Playback 8.5.3 no iOS, conforme autorização informada pelo responsável do projeto.');
       exit(0);
     }
     final out = value('out', '');
     return _Options(
       value('site', 'multitracks'),
       value('language', 'en'),
-      value('device-name', 'WTracks (teste)'),
-      value('application', _appName),
-      value('platform', Platform.operatingSystem),
-      value('build', '1'),
+      value('device-name', _playbackDeviceName),
+      value('application', _playbackApplication),
+      value('platform', _playbackPlatform),
+      integerValue('build', _playbackBuild),
       out.isEmpty ? null : out.replaceFirst(RegExp(r'^~'), Platform.environment['HOME'] ?? '~'),
       args.contains('--explore'),
       value('base-url', '').isEmpty ? null : value('base-url', ''), // só para testes contra um servidor local

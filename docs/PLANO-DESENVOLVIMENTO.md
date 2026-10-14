@@ -492,9 +492,12 @@ Playback, com usuário e senha enviados em `authenticate` (ver `docs/playback-an
 ### 6.1.4 — Registro de dispositivo e Playback Rentals
 
 - Reproduzir somente o fluxo de dispositivo autorizado pela MultiTracks: registrar/listar o aparelho, associar Rental,
-  transferir quando permitido e refletir revogação. Não fabricar identidade de iPhone/iPad/Playback.
-- Usar um identificador próprio e estável do WTracks, reinstalável apenas conforme o contrato aprovado. A interface deve
-  deixar claro em qual aparelho a Rental foi ativada antes de consumir o crédito.
+  transferir quando permitido e refletir revogação. Enquanto o servidor não aceitar outras plataformas, usar no protocolo
+  a identidade Playback/iOS autorizada pelo desenvolvedor-chefe. No contrato observado, `application` recebe o identificador do modelo
+  (`uname.machine`, por exemplo `iPhone15,4`), `platform` é exatamente `iOS` e `build` é inteiro, não texto.
+- Usar um identificador próprio e estável da instalação do WTracks, reinstalável apenas conforme o contrato aprovado. A
+  interface deve deixar claro que o dispositivo registrado corresponde ao WTracks antes de consumir o crédito. Migrar
+  para a identidade nativa do WTracks quando o backend disponibilizar suporte oficial.
 - Aplicar a expiração fornecida pelo servidor. Rental expirada fica indisponível e seu áudio é removido de forma segura;
   relógio local alterado, ausência de rede ou falha de exclusão não podem renovar acesso.
 - Transferência, reembolso, revogação, remoção da organização e logout interrompem novos usos conforme o estado retornado

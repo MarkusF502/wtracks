@@ -1,30 +1,45 @@
-# Perguntas ao desenvolvedor da MultiTracks sobre `authenticate` (sem dados pessoais)
+# Perguntas ao desenvolvedor-chefe da MultiTracks sobre `authenticate`
 
-Estamos testando, com a conta do responsável pelo WTracks e a autorização combinada, `POST https://api.multitracks.com/playback/authenticate`.
-A resposta é sempre HTTP 200 com o mesmo erro:
+Testando, com a conta do responsável pelo WTracks e a autorização combinada (login "como Playback iOS", conforme você orientou),
+`POST https://api.multitracks.com/playback/authenticate`.
 
-> `message`: "Username, password and device identifier are required fields."   (`customerID`, `userID` etc. vêm preenchidos como padrão; `hash` e `organizations` vêm `null`)
+## O que já reproduzimos fielmente do Playback 8.5.3 (iOS)
 
-O corpo enviado (JSON, `Content-Type: application/json; charset=utf-8`, com `Content-Length`) tem as 9 chaves que o Playback 8.5.3 usa
-(extraídas do encode da requisição), todas texto:
+Corpo JSON, `Content-Type: application/json`, `Content-Length` explícito, `User-Agent`
+`Playback/8.5.3 (com.multitracks.custommixplayer; build:85308; iOS 18.4.0) Alamofire/5.11.0`, `Accept-Language: en-US;q=1.0`.
+As 8 chaves do request (o `pushToken` opcional é omitido quando não há token), com nomes/tipos conferidos no encode do binário:
 
-| chave | valor enviado |
+| chave | valor |
 |---|---|
-| `username` | e-mail da conta (25 caracteres) |
-| `password` | a senha (13 caracteres) |
-| `build` | `"1"` |
+| `username` | e-mail da conta |
+| `password` | a senha |
+| `build` | `85308` (inteiro) |
 | `language` | `"en"` |
-| `deviceName` | `"WTracks (teste)"` |
-| `pushToken` | `""` (vazio) |
-| `deviceIdentifier` | UUID v4 em maiúsculas (36 caracteres), fixo para este computador |
-| `application` | `"WTracks"` |
-| `platform` | `"linux"` |
+| `deviceName` | `"iPhone 15"` |
+| `deviceID` | UUID v4 em maiúsculas (36 caracteres), estável neste computador |
+| `application` | `"iPhone15,4"` |
+| `platform` | `"iOS"` |
 
-Perguntas:
-1. Está certo o nome `deviceIdentifier` e o formato do valor (UUID, outro formato)? O identificador precisa estar registrado antes do login?
-2. `application`, `platform` e `build` são validados contra uma lista? Quais valores o WTracks deve usar (Android e Linux/desktop)? Precisamos de um `appID`/`application` próprio?
-3. `pushToken` pode ir vazio?
-4. O `username` aceita e-mail, ou é o nome de usuário da conta?
-5. Há limite de aparelhos por conta (`deviceLimit`/"três logins")? Como remover os aparelhos de teste?
-6. Existe algum cabeçalho obrigatório além de `Content-Type` (o Playback só define esse)?
-7. Se possível: o formato das respostas de `organization`, `library/rentals`, `library/songs`, `content/access` e `content/request`.
+## O achado que precisamos entender
+
+A resposta é **sempre HTTP 200 e byte a byte idêntica (766 bytes)**, em todas as tentativas, variando o conjunto de chaves, o nome da
+chave do aparelho (`deviceIdentifier` e `deviceID`), os cabeçalhos e o `Content-Length`:
+
+> `result: 3`, `errorCode: 0`, `message: "Username, password and device identifier are required fields."`
+> `hash` e `organizations` vêm `null`; os demais campos vêm nos valores-padrão.
+
+Como a resposta **não muda conforme o corpo**, o servidor parece recusar a requisição **antes de ligar o JSON ao modelo** — ou seja, o
+problema não está nos nomes/valores dos campos, que já conferem com o app.
+
+## Perguntas
+
+1. **O que falta na requisição, acima do corpo?** Há algum cabeçalho obrigatório além dos do Alamofire (uma chave/assinatura de aplicativo,
+   um token de app, um header `Authorization` ou algo específico da MultiTracks) que o Playback 8.5.3 envia e que não está visível no
+   `authenticate` em si?
+2. **Deriva de versão:** o artefato que analisamos é o 8.5.3, mas a App Store já publica **8.6.2**. O backend passou a exigir um `build`
+   mínimo, um novo contrato de `authenticate`, ou algo que mudou entre 8.5.3 e 8.6.2? Qual `build`/versão o servidor aceita hoje?
+3. **Registro de aparelho:** o `deviceID` precisa estar previamente registrado na conta? Há limite por conta
+   (`deviceLimit` / "três logins de aparelho") e como liberar/remover os aparelhos de teste?
+4. Confirmação do formato do corpo: as 8/9 chaves acima e o tipo de cada uma (em especial `build` inteiro e `platform: "iOS"` como string) estão corretos?
+5. Se possível, o formato das respostas de `organization`, `library/rentals`, `library/songs`, `content/access` e `content/request`,
+   para seguirmos depois que o login passar.
