@@ -302,6 +302,7 @@ private:
     };
     std::shared_ptr<LoopCache> activeLoop, queuedLoop;
     bool loopEnabled=false, queuedLoopEnabled=false;
+    void releaseTrackResources();
     void normalizeLoopPosition();
     std::shared_ptr<LoopCache> prepareLoop(double startSeconds, double endSeconds);
     int loopPasses=0;

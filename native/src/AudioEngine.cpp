@@ -95,13 +95,26 @@ void AudioEngine::shutdown()
         io->active = nullptr;
     }
 
-    const juce::SpinLock::ScopedLockType lock(channelsLock);
-    channels.clear();
-    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
-    preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
-    mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
-    fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0;
-    busCount=0; buses={}; skips.clear(); bridge.reset();
+    releaseTrackResources();
+}
+
+// Frees the song's heavy state (readers, buffers, loop caches) after the lock the audio callback contends for is released (WT-06).
+void AudioEngine::releaseTrackResources()
+{
+    std::vector<Channel> staleChannels; GuideTimeline staleGuides; CueTimeline staleCues; MixerAutomation staleAutomation;
+    std::vector<std::shared_ptr<LoopCache>> stalePresets; std::vector<Skip> staleSkips;
+    std::shared_ptr<LoopCache> staleBridge, staleActive, staleQueued;
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        staleChannels.swap(channels);
+        staleGuides=std::move(guideTimeline); guideTimeline=GuideTimeline{}; staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
+        stalePresets.swap(presetLoops); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
+        preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
+        std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0);
+        fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0;
+        busCount=0; buses={}; staleSkips.swap(skips); staleBridge.swap(bridge);
+        staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset();
+    }
 }
 
 bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::File>& channelFiles)
@@ -185,12 +198,12 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
     // pertencia à música anterior e é descartada fora do lock.
     GuideTimeline staleGuides; CueTimeline staleCues; std::vector<std::shared_ptr<LoopCache>> stalePresets;
     decltype(preroll.counts) staleCounts; std::vector<double> staleStarts; MixerAutomation staleAutomation;
-    std::vector<Skip> staleSkips; std::shared_ptr<LoopCache> staleBridge;
+    std::vector<Skip> staleSkips; std::shared_ptr<LoopCache> staleBridge, staleActive, staleQueued;
     {
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         playing = false; // Pausa por segurança
-        channels = std::move(newChannels);
-        loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset();
+        channels.swap(newChannels);  // the previous song's channels now live in `newChannels` and die after the lock (WT-06)
+        loopEnabled=false; queuedLoopEnabled=false; staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
         timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
@@ -210,13 +223,7 @@ void AudioEngine::unloadCurrentTrack()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     stop();
-    const juce::SpinLock::ScopedLockType lock(channelsLock);
-    channels.clear();
-    guideTimeline=GuideTimeline{}; cueTimeline=CueTimeline{}; presetLoops.clear(); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
-    preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
-    mixerAutomation.clear(); mixerAutomation.setTimeScale(1.0);
-    fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0;
-    busCount=0; buses={}; skips.clear(); bridge.reset();
+    releaseTrackResources();
 }
 
 juce::String AudioEngine::getLastError() const
@@ -369,8 +376,10 @@ void AudioEngine::stop()
     playing=false;
     cancelTransition();
     stopMidiClock();
+    std::shared_ptr<LoopCache> staleActive, staleQueued;
     { const juce::SpinLock::ScopedLockType lock(channelsLock);
-      loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); fade.reset(); }
+      loopEnabled=false; queuedLoopEnabled=false; staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset(); fade.reset(); }
+    staleActive.reset(); staleQueued.reset();
     seekToSeconds(rangeStart);
 }
 
@@ -469,8 +478,10 @@ bool AudioEngine::setLoop(double start, double end, bool enabled, int repeats)
     if (!enabled) {
         const bool resume=playing.exchange(false);
         const double seconds=getCurrentPositionSeconds();
+        std::shared_ptr<LoopCache> staleActive, staleQueued;
         { const juce::SpinLock::ScopedLockType lock(channelsLock);
-          loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); }
+          loopEnabled=false; queuedLoopEnabled=false; staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset(); }
+        staleActive.reset(); staleQueued.reset();
         seekToSeconds(seconds);
         if (prefillChannels()) playing=resume;
         return true;
@@ -480,7 +491,9 @@ bool AudioEngine::setLoop(double start, double end, bool enabled, int repeats)
     auto bank=prepareLoop(start,end); if (!bank) return false;
     bank->repeats=repeats;
     if (repeats > 0) parkStreamsAt(bank->end);  // the continuation after the last pass reads ahead while the cache plays
-    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    std::shared_ptr<LoopCache> staleActive, staleQueued, staleBridge;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);  // declared before the lock: the old caches are freed after it
+    staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); staleBridge=std::move(bridge);
     activeLoop=std::move(bank); queuedLoop.reset(); queuedLoopEnabled=false; loopEnabled=true; loopPasses=0; loopWraps=0; bridge.reset();
     const double seconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
     if (seconds < start || seconds >= end) currentSamplePosition=static_cast<int64_t>(std::llround(start*currentSampleRate));
@@ -573,8 +586,9 @@ bool AudioEngine::enqueueLoop(double start, double end, int repeats)
 void AudioEngine::clearQueuedLoop()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    std::shared_ptr<LoopCache> staleQueued;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    queuedLoopEnabled=false; queuedLoop.reset();
+    queuedLoopEnabled=false; staleQueued=std::move(queuedLoop); queuedLoop.reset();
 }
 void AudioEngine::getLoopState(double* out6) const
 {
@@ -752,8 +766,9 @@ void AudioEngine::getPlayRange(double* out2) const
 void AudioEngine::resetTransportState()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    std::shared_ptr<LoopCache> staleActive, staleQueued;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
-    loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); loopPasses=0; loopWraps=0;
+    loopEnabled=false; queuedLoopEnabled=false; staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset(); loopPasses=0; loopWraps=0;
     fade.reset(); endFadeTriggered=false;
 }
 
@@ -1003,9 +1018,11 @@ bool AudioEngine::setTimeScale(double scale)
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     if (!std::isfinite(scale) || scale < 0.25 || scale > 4.0) { setLastError(EngineErrorCode::FormatMismatch,"Invalid time scale"); return false; }
-    const juce::SpinLock::ScopedLockType lock(channelsLock);
-    timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); presetLoops.clear();  // caches were cut for the old scale
-    skips.clear(); bridge.reset();
+    std::shared_ptr<LoopCache> staleActive, staleQueued, staleBridge; std::vector<std::shared_ptr<LoopCache>> stalePresets; std::vector<Skip> staleSkips;
+    const juce::SpinLock::ScopedLockType lock(channelsLock);  // declared before the lock: the old caches are freed after it
+    timeScale=scale; loopEnabled=false; queuedLoopEnabled=false; staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset();
+    stalePresets.swap(presetLoops);  // caches were cut for the old scale
+    staleSkips.swap(skips); staleBridge=std::move(bridge); bridge.reset();
     applyClickScale(); guideTimeline.setTimeScale(scale); cueTimeline.setTimeScale(scale); preroll.cancel(); mixerAutomation.setTimeScale(scale);
     setLastError(EngineErrorCode::None,""); return true;
 }

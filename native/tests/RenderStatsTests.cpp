@@ -1,5 +1,6 @@
 #include "AudioEngine.h"
 #include "RenderStats.h"
+#include <thread>
 #include <vector>
 using namespace wtracks;
 
@@ -54,6 +55,31 @@ public:
         expectEquals<uint64_t>(b.getRenderStats().callbacks,0);     // the incoming deck is part of the outgoing deck's callback
         expectWithinAbsoluteError(s.lastDeadlineMs,10.0,1e-6);
         expect(s.maxMs > 0.0);
+
+        beginTest("Contention (WT-06): reloading songs while the callback runs keeps every callback inside its deadline in this scenario");
+        {
+            // 8 stems of 20 s so that releasing a song is real work; one thread plays the callback, another reloads in a loop.
+            std::vector<juce::File> stems;
+            for (int i=0;i<8;++i) stems.push_back(writeDc(dir,"stem"+juce::String(i)+".wav",20*48000,0.01f*static_cast<float>(i+1)));
+            AudioEngine engine; engine.prepareToPlay(480,48000); engine.activate();
+            expect(engine.loadTrack("s",stems)); engine.play();
+            engine.resetRenderStats();
+            std::atomic<bool> stop { false };
+            std::thread audio([&] {
+                juce::AudioBuffer<float> out(2,480);
+                while (!stop.load()) {
+                    juce::AudioSourceChannelInfo info(&out,0,480); engine.sharedIo()->deckSwitch.getNextAudioBlock(info);
+                    juce::Thread::sleep(1);
+                }
+            });
+            for (int i=0;i<12;++i) { expect(engine.loadTrack("s"+juce::String(i),stems)); engine.play(); }
+            stop=true; audio.join();
+            const auto s=engine.getRenderStats();
+            logMessage("callbacks="+juce::String(static_cast<juce::int64>(s.callbacks))+" max="+juce::String(s.maxMs,3)+" ms p99load="+juce::String(s.p99Load,3)
+                       +" overruns="+juce::String(static_cast<juce::int64>(s.overruns))+" deadline="+juce::String(s.lastDeadlineMs,2)+" ms");
+            expect(s.callbacks > 0);
+            expectEquals<uint64_t>(s.overruns,0);
+        }
         dir.deleteRecursively();
     }
 };
