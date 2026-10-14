@@ -68,21 +68,16 @@ Future<void> main(List<String> args) async {
       '"${options.deviceName}" na sua conta MultiTracks)');
   Object? login;
   try {
+    // As 9 chaves exatas da requisição de login do Playback (função de encode em 0x1002897dc): nenhuma a mais, para o servidor não
+    // rejeitar o corpo por campo desconhecido.
     final (status, json) = await post('authenticate', {
-      // O servidor respondeu "Username, password and device identifier are required fields.": o nome exato da chave do identificador não
-      // aparece no binário (nomes com mais de 15 caracteres não são decodificados); envia as variantes prováveis, o servidor ignora as outras.
-      // Nomes de chave encontrados no binário perto dos campos do login: deviceID, deviceUUID, deviceIdentifier, identifierForVendor.
-      'deviceIdentifier': deviceId,
-      'deviceID': deviceId,
-      'deviceId': deviceId,
-      'deviceUUID': deviceId,
-      'uuid': deviceId,
-      'identifierForVendor': deviceId,
       'username': username,
       'password': password,
+      'build': options.build,
       'language': options.language,
       'deviceName': options.deviceName,
       'pushToken': '',
+      'deviceIdentifier': deviceId,
       'application': options.application,
       'platform': options.platform,
     });
@@ -237,10 +232,10 @@ class _Session {
 }
 
 class _Options {
-  final String site, language, deviceName, application, platform;
+  final String site, language, deviceName, application, platform, build;
   final String? out, baseUrl;
   final bool explore;
-  _Options(this.site, this.language, this.deviceName, this.application, this.platform, this.out, this.explore, this.baseUrl);
+  _Options(this.site, this.language, this.deviceName, this.application, this.platform, this.build, this.out, this.explore, this.baseUrl);
 
   static _Options parse(List<String> args) {
     String value(String name, String fallback) {
@@ -250,7 +245,7 @@ class _Options {
 
     if (args.contains('--help') || args.contains('-h')) {
       stdout.writeln('Uso: dart tool/multitracks_probe.dart [--site multitracks] [--language en] [--device-name "WTracks (teste)"]\n'
-          '       [--application WTracks] [--platform linux] [--explore] [--out arquivo.txt]');
+          '       [--application WTracks] [--platform linux] [--build 1] [--explore] [--out arquivo.txt]');
       exit(0);
     }
     final out = value('out', '');
@@ -260,6 +255,7 @@ class _Options {
       value('device-name', 'WTracks (teste)'),
       value('application', _appName),
       value('platform', Platform.operatingSystem),
+      value('build', '1'),
       out.isEmpty ? null : out.replaceFirst(RegExp(r'^~'), Platform.environment['HOME'] ?? '~'),
       args.contains('--explore'),
       value('base-url', '').isEmpty ? null : value('base-url', ''), // só para testes contra um servidor local

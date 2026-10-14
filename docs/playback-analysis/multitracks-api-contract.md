@@ -29,7 +29,7 @@ A lista é um **piso**: nomes com mais de 15 caracteres podem não ter sido deco
 
 | Contexto | Chaves |
 |---|---|
-| Login (`authenticate`) | `username`, `password`, `language`, `deviceName`, `pushToken`, `application`, `platform` |
+| Login (`authenticate`) | **9 chaves exatas [O]** (encode em `0x1002897dc`, todas texto): `username`, `password`, `build`, `language`, `deviceName`, `pushToken`, `deviceIdentifier`, `application`, `platform` |
 | Cadastro (`register`) | `organization`, `firstname`, `lastname`, `email`, `username`, `password`, `language` |
 | Sessão / chamadas autenticadas | `hash` (o `userHash` do usuário), `customer`, `language`, `siteID` (nas listagens: `pageNumber`, `pageSize`, `sort`, `sortDirection`) |
 | Usuário (`APIUser`) | `userID`, `userHash`, `organizations[]`, `subscriptionExpirationDate`, `firstName`, `email`, `isAdmin` |
