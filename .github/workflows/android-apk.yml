@@ -45,9 +45,43 @@ jobs:
           flutter-version: 3.44.9
           cache: true
 
+      # Chave de release persistente (secrets do repositório). Sem ela a build usa a chave de DEBUG e o APK avisa que não é
+      # uma atualização compatível das versões assinadas com a chave estável.
+      - name: Chave de assinatura
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WTRACKS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/wtracks-release.jks"
+            echo "WTRACKS_KEYSTORE_FILE=$RUNNER_TEMP/wtracks-release.jks" >> "$GITHUB_ENV"
+            echo "WTRACKS_REQUIRE_RELEASE_SIGNING=true" >> "$GITHUB_ENV"
+            echo "SIGNED_WITH_RELEASE_KEY=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret WTRACKS_KEYSTORE_BASE64 ausente: o APK será assinado com a chave de DEBUG."
+            echo "SIGNED_WITH_RELEASE_KEY=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Compilar APKs (um por arquitetura)
         working-directory: flutter_app
+        env:
+          WTRACKS_KEYSTORE_PASSWORD: ${{ secrets.WTRACKS_KEYSTORE_PASSWORD }}
+          WTRACKS_KEY_ALIAS: ${{ secrets.WTRACKS_KEY_ALIAS }}
+          WTRACKS_KEY_PASSWORD: ${{ secrets.WTRACKS_KEY_PASSWORD }}
         run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }}
+
+      - name: Conferir o certificado dos APKs
+        env:
+          EXPECTED_SHA256: ${{ vars.WTRACKS_RELEASE_CERT_SHA256 }}
+        run: |
+          APKSIGNER=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/apksigner | sort -V | tail -1)
+          for apk in flutter_app/build/app/outputs/flutter-apk/app-*-release.apk; do
+            "$APKSIGNER" verify --print-certs "$apk" | tee "$RUNNER_TEMP/cert.txt"
+            actual=$(grep -m1 "certificate SHA-256 digest" "$RUNNER_TEMP/cert.txt" | awk '{print $NF}')
+            echo "$apk -> $actual"
+            if [ "$SIGNED_WITH_RELEASE_KEY" = "true" ] && [ -n "$EXPECTED_SHA256" ] && [ "$actual" != "$EXPECTED_SHA256" ]; then
+              echo "::error::Certificado inesperado em $apk (esperado $EXPECTED_SHA256)"; exit 1
+            fi
+          done
 
       - name: Renomear
         run: |
@@ -69,7 +103,7 @@ jobs:
             - WTracks-arm64.apk: quase todos os celulares e tablets Android atuais.
             - WTracks-armv7.apk: aparelhos 32 bits antigos.
             - WTracks-x86_64.apk: emuladores / Chromebooks.
-            Assinado com a chave de debug: para atualizar de um build anterior pode ser preciso desinstalar antes.
+            Assinatura: ver o relatório "Conferir o certificado dos APKs" do workflow. Builds com a chave de DEBUG não atualizam por cima de builds com a chave estável.
           files: |
             dist/*.apk
             dist/SHA256SUMS.txt

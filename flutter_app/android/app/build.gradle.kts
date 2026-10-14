@@ -1,3 +1,19 @@
+import java.util.Properties
+
+// Assinatura de release (Fase 0.1.1 do plano): a chave fica fora do repositório. Vem de android/key.properties (storeFile,
+// storePassword, keyAlias, keyPassword) ou das variáveis de ambiente WTRACKS_KEYSTORE_FILE, WTRACKS_KEYSTORE_PASSWORD,
+// WTRACKS_KEY_ALIAS e WTRACKS_KEY_PASSWORD (o CI as preenche a partir dos secrets). Sem chave a build cai na assinatura de DEBUG,
+// que muda a cada máquina: serve para desenvolvimento, não para distribuir (WTRACKS_REQUIRE_RELEASE_SIGNING=true faz a build falhar).
+val keyProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun signingValue(property: String, env: String): String? = System.getenv(env)?.takeIf { it.isNotBlank() } ?: keyProperties.getProperty(property)
+val releaseStoreFile: File? = signingValue("storeFile", "WTRACKS_KEYSTORE_FILE")?.let { path ->
+    File(path).takeIf { it.exists() } ?: rootProject.file(path).takeIf { it.exists() }
+}
+val hasReleaseKey = releaseStoreFile != null
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -25,11 +41,28 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = signingValue("storePassword", "WTRACKS_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "WTRACKS_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "WTRACKS_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseKey) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                if (System.getenv("WTRACKS_REQUIRE_RELEASE_SIGNING") == "true") {
+                    throw GradleException("Chave de assinatura de release não encontrada (key.properties ou WTRACKS_KEYSTORE_*).")
+                }
+                logger.warn("WTracks: sem chave de release; assinando com a chave de DEBUG (não distribua este APK).")
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 

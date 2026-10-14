@@ -17,8 +17,10 @@ Como instalar:
 3. Abra o **WTracks**.
 
 Os APKs são gerados automaticamente pelo GitHub Actions (`.github/workflows/android-apk.yml`) a cada push no ramo de
-desenvolvimento. Eles são assinados com uma chave de debug que muda a cada build: para atualizar pode ser preciso
-desinstalar a versão anterior (isso apaga a biblioteca local do app).
+desenvolvimento. Enquanto os secrets de assinatura (`docs/ASSINATURA-ANDROID.md`) não estiverem configurados, eles são
+assinados com uma chave de debug que muda a cada build: para atualizar pode ser preciso desinstalar a versão anterior
+(isso apaga a biblioteca local do app — **faça um backup antes**). Com a chave estável configurada, cada build atualiza a
+anterior sem apagar nada.
 
 ## Estrutura
 
