@@ -40,6 +40,53 @@ no fim.
 5. **MIDI clock.** O primeiro 0xF8 sai um período depois do start. Não existe SPP (0xF2).
 6. **Timecode.** O sinal LTC sai com amplitude ×0,5.
 
+## Fase 0 — Salvamento no Android (bloqueador, antes de tudo)
+
+Relato do teste no Android (2026-10-14): músicas novas, setlists e edições não ficam salvas. Também não deu para testar
+tom e andamento, que só se aplicam depois de salvar.
+
+O que já foi verificado:
+- No Linux, `PersistenceService` grava e relê músicas (simples, importadas, com seções e buses) e setlists sem perda,
+  com teste de ida e volta feito em 2026-10-14.
+- O defeito é, portanto, específico do aparelho ou do fluxo de interface, e a causa ainda **não foi confirmada**.
+
+Pontos do código que escondem falhas e precisam ser corrigidos primeiro:
+- `TimePitchSheet._apply` não captura erro de `saveCurrent()`. Se salvar falhar, nada aparece e o painel fica aberto.
+- O menu "Editar música" chama `_save` e `_renameTrack` com o `ref` do diálogo depois de fechá-lo.
+- `setTransition` e `updateSections` na tela engolem o erro (`catch (_) {}`).
+- `loadAllTracks` e `loadAllSetlists` pulam arquivos ilegíveis só com um `debugPrint`, que não aparece no APK de release.
+- Não existe um "Salvar" visível na tela principal. Ele fica em ≡ → Editar música… → Salvar. O Playback salva sozinho
+  e só pede ação para arranjos.
+
+Plano:
+1. Mostrar toda falha de leitura ou gravação, com mensagem e caminho do arquivo, e manter um registro local exportável
+   (Ajustes → Diagnóstico, como o "Diagnostic Information" do Playback).
+2. **Salvar automaticamente** cada edição (mixer, seções, transição, MIDI, tom e andamento), como o Playback faz. A
+   gravação vale para a música da biblioteca, e a importação já grava ao terminar.
+3. Mover o áudio importado do cache para `files/` com cópia verificada (tamanho igual) antes de apagar a origem, e
+   não apagar enquanto o motor está lendo. Hoje é `rename` e, se falhar, copiar + apagar.
+4. Teste instrumentado no emulador Android no CI (o runner do GitHub tem KVM; `android-emulator-runner`):
+   importar → salvar → recriar o app → a música e a setlist continuam lá.
+5. Testar de novo no seu aparelho com o registro de diagnóstico ligado.
+
+## Novidades vistas nas capturas do Playback 8.6.2 no iPhone
+
+Ver `docs/playback-analysis/ui/iphone-8.6.2/`.
+
+- **Barra de modos de edição.** Ao tocar em EDITAR (que vira PRONTO), aparece no rodapé uma barra rolável: Repertório
+  / Mapa da Música, Gatilhos MIDI, Automação, Mapeamento MIDI, Mapeamento do Teclado, (Seções da Música do Cloud) e
+  SMPTE. No WTracks os modos ficam no "segurar EDITAR" e abrem telas separadas; a barra entra na Fase 7, com os modos
+  agindo na própria tela.
+- **Música só de click** ("Click & Pad": cartão com metrônomo e título "120 BPM 4/4 (F)"). É uma música sem áudio, só
+  com click e guia, com fader Click (grupo Acento / 1/4 / 1/8 / 1/16) e fader Guia. Entra na Fase 6 junto com a
+  importação ("Add Click Section to Songs", "Click Section Length").
+- **Tela vazia e "Novo Repertório"** com Nome e Data ("Tipo de Culto" e "Horário dos Cultos" são de organização e
+  ficam fora do escopo). O título da tela é o nome do repertório; em modo de edição mostra o nome do modo. Fases 6 e 7.
+- **Menu ≡ como painel lateral** (Ajustes, versão, notificações), **dicas de primeiro uso** (balão azul "NOVO" com
+  ENTENDI) e o ponto vermelho de novidade no ≡. Fase 7.
+- **Console com pontos de página** (⋮), que indicam quantos painéis existem (Faixas / Buses / Pad). Fase 7. O painel
+  do pad (12 tons + LINK) entra na Fase 8.
+
 ## Fase 1 — Transporte fiel (curta, maior impacto ao vivo)
 
 - **Fade em liga/desliga.** Rampa linear de 5 s para baixo e de volta para cima, reversível no meio. Não pausa e não
