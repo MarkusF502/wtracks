@@ -1,0 +1,68 @@
+# Compila o APK do WTracks e publica numa Release do GitHub a cada push no ramo de desenvolvimento (ou manualmente).
+# O README aponta para releases/latest/download/WTracks-arm64.apk, que sempre leva ao build mais recente.
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fase5-estabilizacao, main]
+    paths:
+      - 'flutter_app/**'
+      - 'native/**'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.9
+          cache: true
+
+      - name: Compilar APKs (um por arquitetura)
+        working-directory: flutter_app
+        run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }}
+
+      - name: Renomear
+        run: |
+          mkdir dist
+          cp flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/WTracks-arm64.apk
+          cp flutter_app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/WTracks-armv7.apk
+          cp flutter_app/build/app/outputs/flutter-apk/app-x86_64-release.apk dist/WTracks-x86_64.apk
+          (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: WTracks build ${{ github.run_number }}
+          make_latest: true
+          body: |
+            Build automático do commit ${{ github.sha }} (ramo ${{ github.ref_name }}).
+            - WTracks-arm64.apk: quase todos os celulares e tablets Android atuais.
+            - WTracks-armv7.apk: aparelhos 32 bits antigos.
+            - WTracks-x86_64.apk: emuladores / Chromebooks.
+            Assinado com a chave de debug: para atualizar de um build anterior pode ser preciso desinstalar antes.
+          files: |
+            dist/*.apk
+            dist/SHA256SUMS.txt

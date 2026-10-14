@@ -51,3 +51,4 @@ android/app/build/
 android/.gradle/
 # Saídas do harness de testes (tool/harness/run_harness.sh)
 harness_reports/
+/dist/

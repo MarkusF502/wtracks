@@ -10,7 +10,7 @@
          também ser solicitada em runtime pelo MainActivity; a entrada no manifest sozinha não concede a permissão. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="flutter_app"
+        android:label="WTracks"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <service
