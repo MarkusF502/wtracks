@@ -39,7 +39,7 @@ instalado por uma build local. Consequências:
 
 Para a opção A: copie `~/.android/debug.keystore` para um lugar seguro **agora** (cofre de senhas/pendrive cifrado; sem ela nenhuma atualização
 futura será aceita), e cadastre os secrets do passo 3 com `alias=androiddebugkey` e as senhas `android`; a variável
-`WTRACKS_RELEASE_CERT_SHA256` é `EA84129699310120E943688CEA0BA8489B7E065FBA7BC02F99BCC8A12401EC6` sem espaços (ver abaixo).
+`WTRACKS_RELEASE_CERT_SHA256` é `EA841296993101200E943688CEA0BA8489B7E065FBA7BC02F99BCC8A12401EC6` sem espaços (ver abaixo).
 
 ## 2. Gerar a chave (opção B; uma vez, na sua máquina)
 
