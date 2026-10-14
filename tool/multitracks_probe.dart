@@ -174,6 +174,8 @@ String _schema(Object? json, [int depth = 0]) {
       final lower = key.toLowerCase();
       if (v is String && (lower == 'message' || lower.startsWith('error')) && v.length <= 120 && !v.contains('@')) {
         lines.add('$pad$key: "$v"');
+      } else if (v is int && (lower == 'result' || lower == 'resultid' || lower.startsWith('errorcode'))) {
+        lines.add('$pad$key: $v'); // códigos de resultado/erro não são dados pessoais
       } else if (v is Map || v is List) {
         lines.add('$pad$key: ${_describe(v)}');
         if (depth < 4) lines.add(_schema(v, depth + 1));
