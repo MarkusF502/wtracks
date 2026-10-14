@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 import '../models/guide_settings.dart';
+import 'safe_json.dart';
 
 /// Guarda as preferências de guia (idioma, voz, contagem, pré-roll) do app todo.
 class GuidePreferencesStore {
@@ -15,20 +16,19 @@ class GuidePreferencesStore {
     return File('${dir.path}/guides.json');
   }
 
+  /// O que deu errado na última leitura (ver [AppPreferencesStore.lastProblem]); null se nada.
+  String? lastProblem;
+
   Future<GuideSettings> load() async {
     try {
-      final file = await _file();
-      if (!await file.exists()) return const GuideSettings();
-      return GuideSettings.fromJson(jsonDecode(await file.readAsString()));
-    } on Exception {
-      return const GuideSettings(); // corrupt file or storage unavailable: defaults
+      final read = await SafeJson.read<GuideSettings>(await _file(), (json) => GuideSettings.fromJson(json));
+      lastProblem = read.problem;
+      return read.value ?? const GuideSettings();
+    } on Exception catch (e) {
+      debugPrint('Não foi possível ler as preferências de guia: $e'); // pasta indisponível: o app segue com os padrões
+      return const GuideSettings();
     }
   }
 
-  Future<void> save(GuideSettings settings) async {
-    final file = await _file();
-    final temporary = File('${file.path}.part');
-    await temporary.writeAsString(jsonEncode(settings.toJson()), flush: true);
-    await temporary.rename(file.path);
-  }
+  Future<void> save(GuideSettings settings) async => SafeJson.write(await _file(), settings.toJson());
 }

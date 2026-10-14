@@ -58,7 +58,10 @@ class MidiController extends Notifier<MidiState> {
 
   Future<void> refresh() async {
     final engine = ref.read(engineProvider);
-    final saved = state.selectedId ?? await ref.read(midiPreferencesProvider).loadOutputId();
+    final midiStore = ref.read(midiPreferencesProvider);
+    final saved = state.selectedId ?? await midiStore.loadOutputId();
+    final problem = midiStore.lastProblem;
+    if (problem != null && state.selectedId == null) _reportStoreProblem(ref, problem);
     state = state.copyWith(devices: engine.listMidiOutputs(), selectedId: saved, connected: engine.midiOutputOpen);
   }
 
@@ -105,6 +108,16 @@ class MidiController extends Notifier<MidiState> {
 final midiControllerProvider = NotifierProvider<MidiController, MidiState>(MidiController.new);
 
 /// Click ligado no transporte (o motor guarda o estado; aqui fica a interface).
+/// Mostra no diagnóstico um problema de leitura de preferências. A leitura termina depois de um await: se o app (ou o teste) já
+/// descartou o container, não há onde mostrar e isso não pode virar uma exceção.
+void _reportStoreProblem(Ref ref, String problem) {
+  try {
+    ref.read(diagnosticsProvider.notifier).error(problem);
+  } on StateError {
+    debugPrint('Preferências: $problem');
+  }
+}
+
 final clickEnabledProvider = StateProvider<bool>((ref) => false);
 
 /// Console "MUTE MIDI": gatilhos MIDI suspensos (o estado vale para a sessão, não é salvo -- escolha própria).
@@ -155,6 +168,8 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
 
   Future<void> _load(WTracksEngine engine, AppPreferencesStore store) async {
     final saved = await store.load();
+    final problem = store.lastProblem;
+    if (problem != null) _reportStoreProblem(ref, problem);
     if (_touched || _disposed) return;
     state = saved;
     engine.setStereoSplit(saved.stereoSplit);
@@ -202,7 +217,10 @@ class GuideSettingsNotifier extends Notifier<GuideSettings> {
   }
 
   Future<void> _load() async {
-    final saved = await ref.read(guidePreferencesProvider).load();
+    final guideStore = ref.read(guidePreferencesProvider);
+    final saved = await guideStore.load();
+    final problem = guideStore.lastProblem;
+    if (problem != null) _reportStoreProblem(ref, problem);
     if (_touched || saved == state) return;
     state = saved;
     await ref.read(currentTrackProvider.notifier).refreshGuides();
@@ -1195,8 +1213,19 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
     final saved = await ref.read(persistenceServiceProvider).saveTrack(track);
     _savedJson[saved.id] = jsonEncode(saved.toJson());
 
-    if (ref.read(currentTrackProvider)?.id == saved.id) {
-      ref.read(currentTrackProvider.notifier).setLoadedTrack(saved);
+    // Durante a gravação o usuário pode ter editado a música: o que gravamos é o instantâneo de antes. Só os caminhos dos áudios
+    // (que o salvamento move para a pasta permanente) vêm do resultado; o resto fica como está agora, e o salvamento automático
+    // grava essa edição mais nova em seguida (o JSON guardado acima é o do instantâneo, então a diferença é detectada).
+    final now = ref.read(currentTrackProvider);
+    if (now != null && now.id == saved.id) {
+      final moved = <String, String>{
+        for (var i = 0; i < track.channels.length && i < saved.channels.length; i++)
+          if (track.channels[i].filePath != saved.channels[i].filePath) track.channels[i].filePath: saved.channels[i].filePath,
+      };
+      final merged = moved.isEmpty
+          ? now
+          : now.copyWith(channels: [for (final c in now.channels) moved.containsKey(c.filePath) ? c.copyWith(filePath: moved[c.filePath]) : c]);
+      ref.read(currentTrackProvider.notifier).setLoadedTrack(merged);
     }
 
     final index = state.indexWhere((t) => t.id == saved.id);

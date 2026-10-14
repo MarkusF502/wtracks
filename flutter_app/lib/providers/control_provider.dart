@@ -7,6 +7,7 @@ import '../models/automation_cue.dart';
 import '../models/control_mapping.dart';
 import '../services/control_mapping_store.dart';
 import 'engine_provider.dart';
+import '../services/diagnostics_log.dart';
 import 'transition_provider.dart';
 
 final controlMappingStoreProvider = Provider<ControlMappingStore>((ref) => ControlMappingStore());
@@ -58,6 +59,14 @@ class ControlNotifier extends Notifier<ControlState> {
 
   Future<void> _load(ControlMappingStore store) async {
     final (mappings, inputId) = await store.load();
+    final problem = store.lastProblem;
+    if (problem != null && !_disposed) {
+      try {
+        ref.read(diagnosticsProvider.notifier).error(problem);
+      } on StateError {
+        debugPrint('Preferências: $problem');
+      }
+    }
     if (_disposed) return;
     state = state.copyWith(mappings: mappings, inputId: inputId);
     if (inputId != null) await selectInput(inputId, persist: false);

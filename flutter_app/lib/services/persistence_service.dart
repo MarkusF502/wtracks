@@ -69,6 +69,8 @@ class PersistenceService {
     final operation = previous.then((_) async {
       final temporary = File('${file.path}.tmp');
       await temporary.writeAsString(content, flush: true);
+      // A versão anterior fica como .bak: se o arquivo novo um dia estiver ilegível, a leitura recupera a anterior.
+      if (await file.exists()) await file.copy('${file.path}.bak');
       await temporary.rename(file.path);
     });
     final settled = operation.then<void>((_) {}, onError: (Object _, StackTrace _) {});
@@ -97,6 +99,14 @@ class PersistenceService {
     final audioDir = await _audioDir(track.id);
     final usedNames = <String>{};
     final updatedChannels = <ChannelInfo>[];
+    final created = <File>[]; // cópias feitas por este salvamento (desfeitas se ele não confirmar)
+    final sources = <File>[]; // origens a apagar depois da confirmação
+
+    for (final channel in track.channels) {  // nomes já ocupados por canais que ficam onde estão
+      if (channel.filePath.startsWith('${audioDir.path}/')) usedNames.add(channel.filePath.split('/').last);
+    }
+    final reserved = {...usedNames};
+    usedNames.clear();
 
     for (var i = 0; i < track.channels.length; i++) {
       final channel = track.channels[i];
@@ -116,7 +126,7 @@ class PersistenceService {
       // Colisão de nome entre canais diferentes (ex: dois arquivos
       // "click.wav" vindos de import distintos) -- prefixa com o índice do
       // canal em vez de deixar um sobrescrever o outro silenciosamente.
-      if (usedNames.contains(destName)) {
+      if (usedNames.contains(destName) || reserved.contains(destName)) {
         destName = '${i}_$originalName';
       }
       usedNames.add(destName);
@@ -124,42 +134,85 @@ class PersistenceService {
       final destPath = '${audioDir.path}/$destName';
       final sourceFile = File(sourcePath);
       if (!await sourceFile.exists()) {
+        await _discardCopies(created);
         throw FileSystemException('Áudio do canal "${channel.label}" não encontrado', sourcePath);
       }
       try {
-        await sourceFile.rename(destPath);
-      } on FileSystemException {
-        // rename() falha ao cruzar filesystems/partições -- comum em
-        // Android entre o diretório de cache e o de app storage. Fallback
-        // pra copy + delete, conferindo o tamanho antes de apagar a origem.
-        final expected = await sourceFile.length();
-        final copy = await sourceFile.copy(destPath);
-        if (await copy.length() != expected) {
-          await copy.delete();
-          throw FileSystemException('Cópia incompleta do áudio do canal "${channel.label}"', destPath);
-        }
-        await sourceFile.delete();
+        // Copia (não move) para um arquivo parcial, confere o tamanho e só então publica o nome final: se o processo morrer aqui,
+        // a origem continua intacta e nenhum JSON aponta para um áudio incompleto.
+        await _copyVerified(sourceFile, destPath, channel.label);
+      } catch (_) {
+        await _discardCopies(created);
+        rethrow;
       }
-
+      created.add(File(destPath));
+      sources.add(sourceFile);
       updatedChannels.add(channel.copyWith(filePath: destPath));
     }
 
     final updatedTrack = track.copyWith(channels: updatedChannels);
 
-    // TODO: se o app for morto entre o move dos arquivos de áudio (acima)
-    // e a escrita do JSON (abaixo), fica uma inconsistência -- áudio já
-    // migrado mas track.json desatualizado/ausente. Cenário raro, aceitável
-    // por ora; não há transação/rollback implementado.
+    // Confirmação: o JSON é a última coisa a ser gravada. Antes dele a música ainda não existe para o app e as origens seguem
+    // no lugar; depois dele os áudios já estão no destino e só sobra apagar as origens (cópias do cache de importação).
     final jsonFile = File('${(await _tracksDir()).path}/${track.id}.json');
-    await _writeJson(jsonFile, updatedTrack.toJson());
-
+    try {
+      await _writeJson(jsonFile, updatedTrack.toJson());
+    } catch (_) {
+      await _discardCopies(created);
+      rethrow;
+    }
+    for (final source in sources) {
+      try {
+        await source.delete();
+      } on FileSystemException {
+        // Sobra de cache: não afeta a música salva.
+      }
+    }
     return updatedTrack;
+  }
+
+  Future<void> _copyVerified(File source, String destination, String label) async {
+    final partial = File('$destination.part');
+    final expected = await source.length();
+    final copy = await source.copy(partial.path);
+    if (await copy.length() != expected) {
+      await copy.delete();
+      throw FileSystemException('Cópia incompleta do áudio do canal "$label"', destination);
+    }
+    await copy.rename(destination);
+  }
+
+  /// Desfaz as cópias feitas por um salvamento que não chegou a confirmar (nunca toca nas origens).
+  Future<void> _discardCopies(List<File> copies) async {
+    for (final copy in copies) {
+      try {
+        if (await copy.exists()) await copy.delete();
+      } on FileSystemException {
+        // fica como órfão; recoverInterruptedImports limpa os parciais
+      }
+    }
+  }
+
+  /// Apaga parciais (`*.part`) deixados por um processo que morreu no meio de uma cópia.
+  Future<void> recoverInterruptedImports() async {
+    final audio = Directory('${(await _dataDir()).path}/audio');
+    if (!await audio.exists()) return;
+    await for (final entry in audio.list(recursive: true)) {
+      if (entry is File && entry.path.endsWith('.part')) {
+        try {
+          await entry.delete();
+        } on FileSystemException {
+          // tenta de novo na próxima abertura
+        }
+      }
+    }
   }
 
   /// Arquivos que falharam na última leitura em lote (caminho → erro), para o diagnóstico.
   final Map<String, String> lastLoadFailures = {};
 
   Future<List<Track>> loadAllTracks() async {
+    await recoverInterruptedImports();
     final dir = await _tracksDir();
     final entries = await dir.list().toList();
     final tracks = <Track>[];
@@ -168,9 +221,7 @@ class PersistenceService {
     for (final entry in entries) {
       if (entry is! File || !entry.path.endsWith('.json')) continue;
       try {
-        final content = await entry.readAsString();
-        final json = jsonDecode(content) as Map<String, dynamic>;
-        tracks.add(Track.fromJson(json));
+        tracks.add(await _readTrack(entry));
       } catch (e) {
         // Um arquivo corrompido não deve derrubar o carregamento das
         // demais tracks -- loga e pula.
@@ -186,11 +237,27 @@ class PersistenceService {
     final file = File('${(await _tracksDir()).path}/$id.json');
     if (!await file.exists()) return null;
     try {
-      final content = await file.readAsString();
-      return Track.fromJson(jsonDecode(content) as Map<String, dynamic>);
+      return await _readTrack(file);
     } catch (e) {
       debugPrint('PersistenceService: falha ao carregar track $id: $e');
       return null;
+    }
+  }
+
+  /// Músicas lidas da cópia anterior (`.bak`) porque o arquivo principal estava ilegível (caminho → erro do principal).
+  final Map<String, String> lastRecoveries = {};
+
+  Future<Track> _readTrack(File file) async {
+    try {
+      return Track.fromJson(jsonDecode(await file.readAsString()) as Map<String, dynamic>);
+    } on UnsupportedSchemaException {
+      rethrow; // um arquivo de versão futura não se "recupera" com uma versão antiga dele
+    } catch (e) {
+      final backup = File('${file.path}.bak');
+      if (!await backup.exists()) rethrow;
+      final recovered = Track.fromJson(jsonDecode(await backup.readAsString()) as Map<String, dynamic>);
+      lastRecoveries[file.path] = '$e';
+      return recovered;
     }
   }
 

@@ -148,17 +148,16 @@ class MainActivity : FlutterActivity() {
                 val imported = mutableListOf<String>()
                 val batchDir = File(cacheDir, "wtracks_import/${System.nanoTime()}").apply { mkdirs() }
 
-                for (uri in uris) {
-                    var name = "file_${System.currentTimeMillis()}.wav"
+                for ((index, uri) in uris.withIndex()) {
+                    var name: String? = null
                     contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                         val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                        if (cursor.moveToFirst() && nameIndex != -1) {
-                            cursor.getString(nameIndex)?.let { name = it }
-                        }
+                        if (cursor.moveToFirst() && nameIndex != -1) name = cursor.getString(nameIndex)
                     }
 
-                    val outFile = File(batchDir, name)
-                    outFile.parentFile?.mkdirs()
+                    // Cada arquivo vai para a sua própria pasta: dois URIs com o mesmo nome de exibição (pastas diferentes)
+                    // não se sobrescrevem, e o nome do provedor nunca vira caminho (sem "/", "..", controle).
+                    val outFile = File(File(batchDir, index.toString()).apply { mkdirs() }, safeFileName(name))
 
                     contentResolver.openInputStream(uri)?.use { input ->
                         FileOutputStream(outFile).use { output ->
@@ -180,4 +179,11 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
+}
+
+/** Nome de arquivo seguro a partir do DISPLAY_NAME de um provedor: só o último componente, sem controle nem pontos nas pontas. */
+internal fun safeFileName(raw: String?): String {
+    val last = (raw ?: "").substringAfterLast('/').substringAfterLast('\\')
+    val cleaned = last.filter { it.code >= 0x20 && it.code != 0x7f }.trim().trim('.').take(120)
+    return if (cleaned.isEmpty()) "file_${System.currentTimeMillis()}.wav" else cleaned
 }

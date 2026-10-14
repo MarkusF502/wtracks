@@ -353,6 +353,21 @@ class ClickSettings {
   }
 }
 
+/// A música foi gravada por uma versão mais nova do app: abrir e salvar de novo perderia campos que esta versão não conhece.
+class UnsupportedSchemaException implements FormatException {
+  final int found, supported;
+  const UnsupportedSchemaException(this.found, this.supported);
+  @override
+  String get message => 'Música de uma versão mais nova do WTracks (formato $found; esta versão entende até o $supported). '
+      'Atualize o app; o arquivo foi mantido sem alterações.';
+  @override
+  dynamic get source => null;
+  @override
+  int? get offset => null;
+  @override
+  String toString() => message;
+}
+
 /// Uma música com seus canais mapeados. [id] é o songId passado pro
 /// AudioEngine nativo em loadTrack().
 @immutable
@@ -511,7 +526,13 @@ class Track {
 
   // Campos ausentes no JSON (tracks salvas antes desta mudança) desserializam
   // como null sem quebrar -- não há chave 'artist'/'key' nesses arquivos.
-  factory Track.fromJson(Map<String, dynamic> json) => Track(
+  factory Track.fromJson(Map<String, dynamic> json) {
+    final version = (json['schemaVersion'] as num?)?.toInt() ?? 1;
+    if (version > currentSchemaVersion) throw UnsupportedSchemaException(version, currentSchemaVersion);
+    return Track._fromJson(json);
+  }
+
+  factory Track._fromJson(Map<String, dynamic> json) => Track(
         guideCues: GuideCue.fromJsonList(json['guideCues'] as List? ?? const []),
         guidesEnabled: json['guidesEnabled'] as bool? ?? true,
         timePitch: TimePitchSettings.fromJson(json['timePitch']),

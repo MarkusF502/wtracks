@@ -63,8 +63,11 @@ class FileImportService {
     ).create(recursive: true);
     final localPaths = <String>[];
 
-    for (final pickedFile in files) {
-      final localFile = File('${cacheDir.path}/${pickedFile.name}');
+    for (final (index, pickedFile) in files.indexed) {
+      // Uma pasta por arquivo: dois arquivos com o mesmo nome (de pastas diferentes) não se sobrescrevem, e o nome do provedor
+      // nunca vira caminho.
+      final fileDir = await Directory('${cacheDir.path}/$index').create(recursive: true);
+      final localFile = File('${fileDir.path}/${safeImportName(pickedFile.name)}');
 
       // Se o XFile já fornece um path (caso comum em Android), copie diretamente
       // do arquivo temporário que o plugin criou para o nosso diretório.
@@ -98,4 +101,12 @@ class FileImportService {
     }
     return importDir;
   }
+}
+
+/// Nome de arquivo seguro a partir do que o seletor informa: só o último componente, sem controle nem pontos nas pontas.
+String safeImportName(String raw) {
+  final last = raw.split('/').last.split(r'\').last;
+  final cleaned = String.fromCharCodes(last.runes.where((c) => c >= 0x20 && c != 0x7f)).trim().replaceAll(RegExp(r'^\.+|\.+$'), '');
+  final limited = cleaned.length > 120 ? cleaned.substring(cleaned.length - 120) : cleaned;
+  return limited.isEmpty ? 'file_${DateTime.now().microsecondsSinceEpoch}.wav' : limited;
 }
