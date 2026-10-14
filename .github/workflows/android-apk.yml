@@ -23,11 +23,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - uses: actions/setup-java@v4
+      # O JUCE compila no host a ferramenta juceaide antes do cross-compile; ela precisa destes cabeçalhos.
+      - name: Dependências do JUCE no host
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libfreetype-dev libfontconfig1-dev libasound2-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libcurl4-openssl-dev
+
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
