@@ -151,6 +151,18 @@ Ver `docs/playback-analysis/ui/iphone-8.6.2/`.
 
 ## Fase 2 — Transições completas e segunda música carregada (nativo grande)
 
+**Status (2026-10-14): feita**, commits nativos `2172688` e anteriores (`feat(native): second deck…`), Flutter `70125fe` e testes de
+integração `1ff4a3e`. Evidência, curvas e escolhas próprias em `docs/playback-analysis/pseudocode/second-pass/README.md` (seção "Fase 2").
+Resumo do que o texto abaixo previa e como ficou:
+- **Curvas:** Sobreposição sem curva (as duas cheias); Transição Cruzada quadrática: sai `(1−t)²`, entra `t²` (`FUN_1006513dc`).
+- **Segundo deck:** dois `AudioEngine` sobre um `SharedIo` (dispositivo, MIDI de saída e de entrada) e um `DeckSwitch`; o hand-off troca um
+  ponteiro atômico. O FFI tem o deck 1 em `wtracks_n_*`.
+- **Dart:** `SongTransition` com os 6 valores, `TransitionController` (pré-carga 20 s antes, sem laço ativo, agenda, hand-off), crossfade ao
+  vivo por toque duplo e teclas 1–9, Cue First Song, fallback quando a pré-carga falha (a próxima entra tocando, com um corte).
+- **Testes:** nativos (`TransitionTests`), Flutter (`transition_test.dart`, com ABI real) e o teste de integração
+  `transition_engine_test.dart`, que rodou no emulador com o dispositivo de áudio de verdade.
+- **Fora desta fase:** Continue Pad (Fase 8), rampa do mestre entre músicas (Fase 4), 5 s para o tipo 0xd e contagem na entrada (sem esses tipos).
+
 - **Modelo.** `SongTransition` com os 6 valores. "Cue First Song" na última música volta para a primeira. Continue Pad
   fica preso aos valores 0, 4 e 5.
 - **Dois sequenciadores** (Playback: `Sequencer` atual em +0x20 e o próximo em +0x28). O motor ganha um segundo
