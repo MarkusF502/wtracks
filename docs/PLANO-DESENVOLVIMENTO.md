@@ -151,7 +151,7 @@ Ver `docs/playback-analysis/ui/iphone-8.6.2/`.
 
 ## Fase 2 — Transições completas e segunda música carregada (nativo grande)
 
-**Status (2026-10-14): feita**, commits nativos `2172688` e anteriores (`feat(native): second deck…`), Flutter `70125fe` e testes de
+**Status (2026-10-14): feita**, commits nativos `563dc82` (segundo deck) e `2172688` (FFI), Flutter `70125fe` e testes de
 integração `1ff4a3e`. Evidência, curvas e escolhas próprias em `docs/playback-analysis/pseudocode/second-pass/README.md` (seção "Fase 2").
 Resumo do que o texto abaixo previa e como ficou:
 - **Curvas:** Sobreposição sem curva (as duas cheias); Transição Cruzada quadrática: sai `(1−t)²`, entra `t²` (`FUN_1006513dc`).
