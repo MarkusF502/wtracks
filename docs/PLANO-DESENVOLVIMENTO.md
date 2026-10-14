@@ -71,6 +71,22 @@ enviado ao GitHub). As seis transições têm comportamento definido e testado (
 4. Não foram feitos: journal de importação por conjunto de arquivos (a ordem copiar → confirmar → apagar cobre a morte do processo sem
    journal), e o teste físico de atualização A → B.
 
+## Fase C do plano de consolidação — desempenho e continuidade (2026-10-14, parcial)
+
+**Status: itens WT-06, WT-07, WT-08 e WT-10 feitos no código; o restante da fase (coordenador de pré-carga, soak de 2 h) continua aberto.**
+
+| Item | O que mudou | Teste |
+|---|---|---|
+| Medição | `RenderStats` (sem lock nem alocação): duração de cada callback do dispositivo contra o prazo `blockFrames/sampleRate`, com máximo exato, p50/p95/p99 (resolução de 2,5 %) e contagem de estouros; o deck embutido de uma transição conta dentro do callback do deck que sai. Exposto por FFI (`renderStats`, `resetRenderStats`). | `RenderStatsTests.cpp` |
+| WT-06 locks | `loadTrack`, `shutdown`, `unloadCurrentTrack`, `stop`, `setLoop`, `setTimeScale`, `resetTransportState` e `clearQueuedLoop` não destroem mais leitores, buffers e caches de laço **dentro** do `channelsLock`: trocam para variáveis locais e liberam depois do lock. | teste de contenção (recarga em loop × callback): pior callback ≈ 1,4–1,8 ms para prazo de 10 ms, 0 estouros em 3 execuções neste computador. Não houve medição "antes". |
+| WT-07 memória | Orçamento global (padrão 1 GiB) para os processamentos de tom/andamento: cada trabalho reserva uma estimativa de pico antes de decodificar e espera, com cancelamento, se a soma estouraria; trabalho maior que o orçamento roda sozinho. Substitui o paralelismo fixo por um adaptativo. | `TimeScaleTests.cpp` (serialização, pico reservado, cancelamento na fila) |
+| WT-08 cache | O cache só é reaproveitado se for um WAV inteiro: tamanho do RIFF = tamanho do arquivo, `fmt`/`data` coerentes, quadros completos e duração compatível com a origem (quando WAV) e o fator de tempo. | `time_pitch_test.dart` |
+| WT-10 release | `android-apk.yml` agora depende de `android-tests.yml` (suíte nativa, `flutter analyze`, `flutter test` e emulador); sem tudo verde nada é compilado nem publicado. Os testes também rodam em pull request. | **não verificado**: nada foi enviado ao GitHub, o workflow só foi validado como YAML |
+
+**Pendente:** processar o TimePitch por blocos (hoje a entrada inteira fica na memória, só o orçamento limita), medir o pico real de RAM no
+aparelho, coordenador de próxima música (pré-carga atrasada, falha do próximo arquivo, fallback visível), soak de duas horas, e medir
+o callback no Android (os números acima são do desktop).
+
 ## Correções ao que já está documentado
 
 1. **Transições.** `FUN_1004bad90` (transition.c, por volta da linha 10337) monta o rótulo a partir de `storedTransition`:
