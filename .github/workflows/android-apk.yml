@@ -10,6 +10,7 @@ on:
       - 'flutter_app/**'
       - 'native/**'
       - '.github/workflows/android-apk.yml'
+      - '.github/workflows/android-tests.yml'
 
 permissions:
   contents: write
@@ -19,7 +20,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Portão (WT-10): suíte nativa, análise, testes Flutter e testes no emulador. Sem eles verdes, nada é compilado nem publicado.
+  tests:
+    uses: ./.github/workflows/android-tests.yml
+
   build:
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

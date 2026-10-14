@@ -42,6 +42,8 @@ WTRACKS_API void wtracks_unload_track();
 
 // Cache misses are cumulative; the master clock holds while audio output is silent.
 WTRACKS_API uint64_t wtracks_get_underrun_count();
+WTRACKS_API void wtracks_get_render_stats(double* out8);
+WTRACKS_API void wtracks_reset_render_stats();
 
 // Prepared loop banks; invalid/oversize requests preserve the previous state.
 WTRACKS_API bool wtracks_set_loop(double startSeconds, double endSeconds, bool enabled);

@@ -298,7 +298,7 @@ class FakeEngine implements WTracksEngine {
     if (failProcessing || cancelledTokens.contains(token)) return false;
     File(output)
       ..createSync(recursive: true)
-      ..writeAsBytesSync(List.filled(100, 1));
+      ..writeAsBytesSync(validWavBytes(frames: 64));
     return true;
   }
   @override
@@ -378,6 +378,10 @@ class FakeEngine implements WTracksEngine {
   double loopStart = 0, loopEnd = 0, queuedLoopStart = 0, queuedLoopEnd = 0;
   @override
   int underrunCount = 0;
+  @override
+  RenderStatsSnapshot get renderStats => const RenderStatsSnapshot();
+  @override
+  void resetRenderStats() {}
   bool failLoop = false;
   @override
   List<double> get loopState => [loopEnabled ? 1 : 0, loopStart, loopEnd,
@@ -630,4 +634,31 @@ bool nativeEngineAvailable() {
   } catch (_) {
     return false;
   }
+}
+
+/// Mono 32-bit float WAV with [frames] silent frames, as the native renderer writes.
+List<int> validWavBytes({required int frames, int sampleRate = 48000, int channels = 1}) {
+  final blockAlign = channels * 4;
+  final dataSize = frames * blockAlign;
+  final bytes = ByteData(44 + dataSize);
+  void tag(int at, String text) {
+    for (var i = 0; i < 4; i++) {
+      bytes.setUint8(at + i, text.codeUnitAt(i));
+    }
+  }
+
+  tag(0, 'RIFF');
+  bytes.setUint32(4, 36 + dataSize, Endian.little);
+  tag(8, 'WAVE');
+  tag(12, 'fmt ');
+  bytes.setUint32(16, 16, Endian.little);
+  bytes.setUint16(20, 3, Endian.little);
+  bytes.setUint16(22, channels, Endian.little);
+  bytes.setUint32(24, sampleRate, Endian.little);
+  bytes.setUint32(28, sampleRate * blockAlign, Endian.little);
+  bytes.setUint16(32, blockAlign, Endian.little);
+  bytes.setUint16(34, 32, Endian.little);
+  tag(36, 'data');
+  bytes.setUint32(40, dataSize, Endian.little);
+  return bytes.buffer.asUint8List();
 }

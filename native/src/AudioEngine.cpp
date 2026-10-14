@@ -1,5 +1,6 @@
 #include "../include/AudioEngine.h"
 #include <map>
+#include <chrono>
 
 namespace wtracks
 {
@@ -1404,6 +1405,17 @@ void AudioEngine::releaseResources()
 
 void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
 {
+    // Only the callback the device makes is timed; the deck mixed in underneath is part of that same budget.
+    const auto begin=std::chrono::steady_clock::now();
+    renderBlock(info);
+    if (info.numSamples > 0 && currentSampleRate > 0) {
+        const auto elapsed=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-begin).count();
+        renderStats.record(elapsed,static_cast<int64_t>(1e9*info.numSamples/currentSampleRate));
+    }
+}
+
+void AudioEngine::renderBlock(const juce::AudioSourceChannelInfo& info)
+{
     bool scheduled;
     { const juce::SpinLock::ScopedLockType lock(transitionLock); scheduled=transition.next != nullptr; }
     if (!scheduled) { renderOwn(info); return; }
@@ -1443,7 +1455,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     if (count > 0) {
         juce::AudioBuffer<float> view(transitionScratch.getArrayOfWritePointers(),channelsOut,count);
         juce::AudioSourceChannelInfo incoming(&view,0,count);
-        t.next->getNextAudioBlock(incoming);
+        t.next->renderBlock(incoming);
         const bool crossfade=t.kind == TransitionKind::Crossfade;
         const double length=static_cast<double>(juce::jmax<int64_t>(1,t.length));
         for (int i=0;i<count;++i) {

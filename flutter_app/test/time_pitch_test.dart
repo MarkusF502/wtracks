@@ -116,6 +116,44 @@ void main() {
       expect(again.any((p) => File(p).existsSync()), false);
     });
 
+    test('a damaged cached rendering is rendered again instead of reused', () async {
+      final engine = FakeEngine();
+      final service = TimePitchService(directoryResolver: () async => cache);
+      final track = _trackWith(dir).copyWith(timePitch: const TimePitchSettings(semitones: 2));
+      final paths = await service.prepare(engine, track);
+      expect(engine.processedRequests.length, 2);
+      final good = File(paths[0]).readAsBytesSync();
+
+      for (final damaged in <List<int>>[
+        good.sublist(0, good.length - 7), // truncated mid-frame
+        good.sublist(0, 44), // header only, no audio
+        List.filled(good.length, 1), // not a WAV at all
+        [...good.sublist(0, 4), 0, 0, 0, 0, ...good.sublist(8)], // RIFF size never finalized
+      ]) {
+        File(paths[0]).writeAsBytesSync(damaged);
+        final before = engine.processedRequests.length;
+        expect(await service.prepare(engine, track), paths);
+        expect(engine.processedRequests.length, before + 1, reason: 'only the damaged stem is rendered');
+        expect(File(paths[0]).readAsBytesSync(), good);
+      }
+    });
+
+    test('a rendering whose duration does not match the source and tempo is rejected', () async {
+      final engine = FakeEngine();
+      final service = TimePitchService(directoryResolver: () async => cache);
+      // 1 s of source at 48 kHz stretched by 2: the fake writes 64 frames, far from 2 s.
+      File('${dir.path}/stem0.wav').writeAsBytesSync(validWavBytes(frames: 48000));
+      final track = Track(id: 'song', title: 'Song', channels: [ChannelInfo(label: 'C0', filePath: '${dir.path}/stem0.wav')])
+          .copyWith(timePitch: const TimePitchSettings(tempoRatio: 0.5));
+      final paths = await service.prepare(engine, track);
+      File(paths[0]).writeAsBytesSync(validWavBytes(frames: 96000)); // exactly 2 s
+      await service.prepare(engine, track);
+      expect(engine.processedRequests.length, 1, reason: 'a rendering of the right length is cached');
+      File(paths[0]).writeAsBytesSync(validWavBytes(frames: 48000)); // 1 s: wrong for tempo 0.5
+      await service.prepare(engine, track);
+      expect(engine.processedRequests.length, 2);
+    });
+
     test('native failure, missing source and invalid settings throw without publishing', () async {
       final engine = FakeEngine()..failProcessing = true;
       final service = TimePitchService(directoryResolver: () async => cache);

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import '../models/track.dart';
 import '../native/wtracks_bindings.dart';
@@ -8,6 +9,13 @@ class TimePitchCancelled implements Exception {
   const TimePitchCancelled();
   @override
   String toString() => 'Processamento cancelado';
+}
+
+class WavInfo {
+  final int channels;
+  final int sampleRate;
+  final int frames;
+  const WavInfo({required this.channels, required this.sampleRate, required this.frames});
 }
 
 class TimePitchFailure implements Exception {
@@ -71,7 +79,7 @@ class TimePitchService {
     onProgress?.call(0);
     final pending = <int>[
       for (var i = 0; i < outputs.length; i++)
-        if (!await _usable(outputs[i])) i,
+        if (!await _usable(outputs[i], track.channels[i].filePath, settings.timeFactor)) i,
     ];
     done = outputs.length - pending.length;
     if (pending.isEmpty) onProgress?.call(1);
@@ -115,9 +123,58 @@ class TimePitchService {
     return outputs;
   }
 
-  Future<bool> _usable(String path) async {
-    final file = File(path);
-    return await file.exists() && await file.length() > 44;
+  /// Um rendering em cache só é reaproveitado se for um WAV inteiro: cabeçalho coerente com o tamanho do arquivo,
+  /// quadros completos e, quando a origem também é WAV, duração compatível com o fator de tempo pedido.
+  Future<bool> _usable(String path, String sourcePath, double timeFactor) async {
+    final rendered = await readWavInfo(path);
+    if (rendered == null || rendered.frames <= 0) return false;
+    final source = await readWavInfo(sourcePath);
+    if (source == null || source.sampleRate <= 0 || rendered.sampleRate <= 0) return true;
+    final expected = source.frames / source.sampleRate * timeFactor;
+    final actual = rendered.frames / rendered.sampleRate;
+    return (actual - expected).abs() <= 0.05 + expected * 0.02;
+  }
+
+  /// Lê o cabeçalho de um WAV e confere que ele descreve o arquivo inteiro; devolve null se estiver truncado,
+  /// inconsistente ou não for WAV.
+  static Future<WavInfo?> readWavInfo(String path) async {
+    RandomAccessFile? handle;
+    try {
+      final file = File(path);
+      if (!await file.exists()) return null;
+      handle = await file.open();
+      final length = await handle.length();
+      final head = await handle.read(length < 4096 ? length : 4096);
+      if (head.length < 12) return null;
+      final data = ByteData.sublistView(Uint8List.fromList(head));
+      String tag(int at) => String.fromCharCodes(head.sublist(at, at + 4));
+      if (tag(0) != 'RIFF' || tag(8) != 'WAVE') return null;
+      // O tamanho do RIFF é gravado ao fechar o arquivo: diferente do real = truncado ou nunca finalizado.
+      final riffEnd = data.getUint32(4, Endian.little) + 8;
+      if (riffEnd > length || length - riffEnd > 1) return null;
+      int? channels, sampleRate, blockAlign;
+      var at = 12;
+      while (at + 8 <= head.length) {
+        final size = data.getUint32(at + 4, Endian.little);
+        final body = at + 8;
+        if (tag(at) == 'fmt ') {
+          if (size < 16 || body + 16 > head.length) return null;
+          channels = data.getUint16(body + 2, Endian.little);
+          sampleRate = data.getUint32(body + 4, Endian.little);
+          blockAlign = data.getUint16(body + 12, Endian.little);
+        } else if (tag(at) == 'data') {
+          if (channels == null || sampleRate == null || blockAlign == null || channels < 1 || blockAlign < 1) return null;
+          if (body + size > length || size % blockAlign != 0) return null;
+          return WavInfo(channels: channels, sampleRate: sampleRate, frames: size ~/ blockAlign);
+        }
+        at = body + size + (size & 1);
+      }
+      return null;
+    } on FileSystemException {
+      return null;
+    } finally {
+      await handle?.close();
+    }
   }
 
   /// Apaga as versões processadas de uma música (ex.: ao excluí-la).

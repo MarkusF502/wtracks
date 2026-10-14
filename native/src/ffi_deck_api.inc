@@ -286,6 +286,15 @@ WTRACKS_API double WT(get_loop_end)() { return ENGINE ? ENGINE->getLoopEnd() : 0
 WTRACKS_API double WT(get_queued_loop_start)() { return ENGINE ? ENGINE->getQueuedLoopStart() : 0; }
 WTRACKS_API double WT(get_queued_loop_end)() { return ENGINE ? ENGINE->getQueuedLoopEnd() : 0; }
 WTRACKS_API uint64_t WT(get_underrun_count)() { return ENGINE ? ENGINE->getUnderrunCount() : 0; }
+// out8 = callbacks, overruns, maxMs, maxLoad, p50Load, p95Load, p99Load, deadlineMs (load = duração do callback / prazo).
+WTRACKS_API void WT(get_render_stats)(double* out8)
+{
+    if (!out8) return;
+    const auto s=ENGINE ? ENGINE->getRenderStats() : RenderStats::Snapshot{};
+    const double v[8]={static_cast<double>(s.callbacks),static_cast<double>(s.overruns),s.maxMs,s.maxLoad,s.p50Load,s.p95Load,s.p99Load,s.lastDeadlineMs};
+    for (int i=0;i<8;++i) out8[i]=v[i];
+}
+WTRACKS_API void WT(reset_render_stats)() { if (ENGINE) ENGINE->resetRenderStats(); }
 
 WTRACKS_API bool WT(configure_click)(double bpm, int numerator, int denominator, int unit, double offset, double accent, double quarter, double eighth, double sixteenth)
 {

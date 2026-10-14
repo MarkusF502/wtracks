@@ -224,6 +224,14 @@ class MixState {
       Object.hash(Object.hashAll(volumes), Object.hashAll(mutes), master, Object.hashAll(busVolumes), Object.hashAll(busMutes));
 }
 
+/// Carga = duração do callback / prazo (blockFrames / sampleRate); percentis com resolução de 2,5 %.
+class RenderStatsSnapshot {
+  final int callbacks, overruns;
+  final double maxMs, maxLoad, p50Load, p95Load, p99Load, deadlineMs;
+  const RenderStatsSnapshot({this.callbacks = 0, this.overruns = 0, this.maxMs = 0, this.maxLoad = 0, this.p50Load = 0,
+      this.p95Load = 0, this.p99Load = 0, this.deadlineMs = 0});
+}
+
 class WTracksEngine {
   /// Número de buckets de amplitude gerados por [generateWaveformPeaksAsync]
   /// -- grande o suficiente para preencher telas largas em landscape sem
@@ -266,6 +274,8 @@ class WTracksEngine {
   late final _IsPlayingDart _getQueuedLoopEnabled;
   late final _GetPositionDart _getLoopStart, _getLoopEnd, _getQueuedLoopStart, _getQueuedLoopEnd;
   late final _GetCounterDart _getUnderrunCount;
+  late final _LoopSnapshotDart _getRenderStats;
+  late final void Function() _resetRenderStats;
   late final _LoopSnapshotDart _getLoopState;
 
   late final _ProcessTimePitchDart _processTimePitch;
@@ -493,6 +503,8 @@ class WTracksEngine {
     _injectMidiInput = _lib.lookupFunction<_InjectNative, _InjectDart>('${_p}inject_midi_input');
     _setGuidesEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_guides_enabled');
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('${_p}get_underrun_count');
+    _getRenderStats = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('${_p}get_render_stats');
+    _resetRenderStats = _lib.lookupFunction<Void Function(), void Function()>('${_p}reset_render_stats');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
       '${_p}set_click_gain',
     );
@@ -1110,6 +1122,17 @@ class WTracksEngine {
   double get queuedLoopStart => _getQueuedLoopStart();
   double get queuedLoopEnd => _getQueuedLoopEnd();
   int get underrunCount => _getUnderrunCount();
+
+  /// Duração do callback de áudio contra o prazo desde o último [resetRenderStats] (WT-06).
+  RenderStatsSnapshot get renderStats {
+    final values = calloc<Double>(8);
+    try {
+      _getRenderStats(values);
+      return RenderStatsSnapshot(callbacks: values[0].toInt(), overruns: values[1].toInt(), maxMs: values[2], maxLoad: values[3],
+          p50Load: values[4], p95Load: values[5], p99Load: values[6], deadlineMs: values[7]);
+    } finally { calloc.free(values); }
+  }
+  void resetRenderStats() => _resetRenderStats();
 
   Future<bool> loadClickBankAsync(List<String?> paths) =>
       _isolateOnDeck(deck, (engine) => engine.loadClickBank(paths));

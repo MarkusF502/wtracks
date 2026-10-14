@@ -62,6 +62,7 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
         tests/FadeOutTests.cpp
         tests/PlayRangeTests.cpp
         tests/TransitionTests.cpp
+        tests/RenderStatsTests.cpp
         tests/MeterTests.cpp
         tests/BusTests.cpp
         tests/MidiEventTests.cpp

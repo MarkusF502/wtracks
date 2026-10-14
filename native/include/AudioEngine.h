@@ -7,6 +7,7 @@
 #include <array>
 #include <atomic>
 #include "ClickTimeline.h"
+#include "RenderStats.h"
 #include "GuideTimeline.h"
 #include "Preroll.h"
 #include "MixerStage.h"
@@ -115,6 +116,9 @@ public:
     double getTotalLengthSeconds() const;
     bool isPlaying() const;
     uint64_t getUnderrunCount() const;
+    // Duração do callback contra o prazo numSamples/sampleRate (WT-06): máximo, percentis e estouros desde o último reset.
+    RenderStats::Snapshot getRenderStats() const { return renderStats.snapshot(); }
+    void resetRenderStats() { renderStats.reset(); }
     // repeats: number of passes before playback continues past the loop end (0 = loop until disabled).
     bool setLoop(double startSeconds, double endSeconds, bool enabled, int repeats = 0);
     bool enqueueLoop(double startSeconds, double endSeconds, int repeats = 0);
@@ -287,6 +291,8 @@ private:
     juce::TimeSliceThread readAheadThread { "WTracks read ahead" };
     mutable std::recursive_mutex controlMutex;
     std::atomic<uint64_t> underrunCount { 0 };
+    RenderStats renderStats;
+    void renderBlock(const juce::AudioSourceChannelInfo& info);  // mix without timing: the incoming deck of a transition
 
     struct LoopCache {
         double start=0, end=0;
