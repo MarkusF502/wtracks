@@ -55,11 +55,51 @@ struct Bus
     GainRamp ramp;
 };
 
+// Everything two decks have to share: the audio device and its callback, the MIDI output and the MIDI input. The song engine
+// that plays now ("deck 0") is the one the device calls; the engine preloaded for the next song ("deck 1") renders through it
+// during an Overlap/Crossfade and takes the device over at the hand-off (AudioEngine::activate).
+class AudioEngine;
+
+// The only source the device ever sees: it forwards to the active deck, so the hand-off is an atomic pointer swap that never
+// re-prepares (and never flushes) the engine that takes over.
+class DeckSwitch : public juce::AudioSource
+{
+public:
+    void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
+    void releaseResources() override;
+    void getNextAudioBlock(const juce::AudioSourceChannelInfo& info) override;
+    void add(AudioEngine* engine);
+    void remove(AudioEngine* engine);
+    std::atomic<AudioEngine*> current { nullptr };
+    int preparedBlock = 0;
+    double preparedRate = 0;
+private:
+    std::mutex membersMutex;
+    std::vector<AudioEngine*> members;
+};
+
+struct SharedIo
+{
+    juce::AudioDeviceManager deviceManager;
+    DeckSwitch deckSwitch;
+    juce::AudioSourcePlayer audioSourcePlayer;
+    MidiRouter midiRouter;
+    MidiInputQueue midiInputQueue;
+    std::unique_ptr<MidiInputPort> midiInput;
+    AudioEngine* active = nullptr;  // the engine the device calls
+};
+
+// How the outgoing song hands over to the incoming one (Playback transitions 2 and 3; AutoLink is a 64 ms Overlap).
+enum class TransitionKind { Overlap, Crossfade };
+
 class AudioEngine : public juce::AudioSource
 {
 public:
     AudioEngine();
+    // A second deck: shares the device, MIDI output and MIDI input of `io` (see SharedIo).
+    explicit AudioEngine(std::shared_ptr<SharedIo> io);
     ~AudioEngine() override;
+    std::shared_ptr<SharedIo> sharedIo() const { return io; }
 
     bool initialise(int sampleRate, int bufferSize);
     void shutdown();
@@ -138,7 +178,7 @@ public:
     // Return to zero (Playback FUN_10086a1c0): drops the live and queued loops and brings the fade back. Does not touch
     // play/pause, the position, MUTE MIDI or the preset loops.
     void resetTransportState();
-    enum TransportEvent : uint32_t { EndReached = 1 };
+    enum TransportEvent : uint32_t { EndReached = 1, TransitionStarted = 2, TransitionFinished = 4 };
     // Events raised by the audio thread since the last poll (bitmask of TransportEvent).
     uint32_t pollTransportEvents();
     // Peak meters since the previous call (and reset): post-fader per channel (<= 64) and per output after the master
@@ -221,11 +261,29 @@ public:
     void releaseResources() override;
     void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
 
+    // ---- Song transitions (Playback Sequencer: the next song is a second sequencer; Overlap = transition 2, Crossfade = 3) ----
+    // `next` is another engine on the same SharedIo, already loaded and configured. While this engine plays, once its playhead
+    // reaches `startSeconds` (song time; < 0 = right now) and no loop is active, `next` starts from its own start point and is mixed
+    // into this engine's output sample-exactly for `durationSeconds`: Overlap keeps both at full level (this song simply ends
+    // underneath); Crossfade fades this song with (1-t)^2 and the next one with t^2 (Playback FUN_1006513dc; the original steps the
+    // curve every 0.2 s, ours follows it per sample). This song's own click and guides are cut when it starts (own choice: two
+    // click tracks at once are useless on stage). Raises TransitionStarted / TransitionFinished.
+    bool scheduleTransition(AudioEngine* next, TransitionKind kind, double startSeconds, double durationSeconds);
+    void cancelTransition();     // drops it; a running one stops `next` at once
+    // -1 = none or not started, 0..1 = running, 1 = finished and waiting for the hand-off.
+    double getTransitionProgress() const;
+    bool isTransitionScheduled() const;
+    // Hand-off: the device calls this engine directly from now on, and the outgoing engine is released from its mix.
+    void activate();
+    bool isActive() const;
+    void finishTransitionAsOutgoing();  // call after next.activate(): forgets the mix without touching `next`
+
 private:
-    juce::AudioDeviceManager deviceManager;
+    std::shared_ptr<SharedIo> io;
+    juce::AudioDeviceManager& deviceManager;
     juce::AudioFormatManager formatManager;
     juce::MixerAudioSource mixerSource;
-    juce::AudioSourcePlayer audioSourcePlayer;
+    juce::AudioSourcePlayer& audioSourcePlayer;
     juce::TimeSliceThread readAheadThread { "WTracks read ahead" };
     mutable std::recursive_mutex controlMutex;
     std::atomic<uint64_t> underrunCount { 0 };
@@ -249,6 +307,21 @@ private:
     void parkStreamsAt(double seconds);
     std::vector<Channel> channels;
     mutable juce::SpinLock channelsLock;
+
+    struct Transition {
+        AudioEngine* next = nullptr;
+        TransitionKind kind = TransitionKind::Overlap;
+        int64_t trigger = -1, length = 0, elapsed = 0;  // trigger in this engine's processed samples, -1 = at once
+        bool started = false, finished = false;
+    };
+    Transition transition;
+    mutable juce::SpinLock transitionLock;
+    juce::AudioBuffer<float> transitionScratch;
+    std::atomic<bool> internalSilenced { false };  // click and guides cut (this song is the outgoing one)
+    void renderOwn(const juce::AudioSourceChannelInfo& info);
+    int64_t songEndSampleLocked() const;  // caller holds channelsLock
+    static constexpr int kTransitionChannels = 16;
+    void startDriven() noexcept { endFadeTriggered=false; playing=true; }
 
     std::atomic<bool> playing { false };
     std::atomic<int64_t> currentSamplePosition { 0 };
@@ -290,7 +363,7 @@ private:
     double userTimecodeOnset = 0.0;
     MidiClockTimeline midiClock;
     CueTimeline cueTimeline;
-    MidiRouter midiRouter;
+    MidiRouter& midiRouter;
     std::atomic<bool> midiClockEnabled { false }, midiClockRunning { false }, midiCuesMuted { false };
     std::array<std::atomic<uint32_t>, 1024> cueQueue {};
     std::atomic<uint64_t> cueHead { 0 }, cueTail { 0 }, cueDropped { 0 };
@@ -304,8 +377,8 @@ private:
     void chaseCuesNow();                                         // last program/control change of each channel before the playhead
     uint64_t loopJumps = 0, loopJumpsSeen = 0;
     int loopWraps = 0;  // repeats of the active loop since it began (disableLoop cues)
-    MidiInputQueue midiInputQueue;
-    std::unique_ptr<MidiInputPort> midiInput;
+    MidiInputQueue& midiInputQueue;
+    std::unique_ptr<MidiInputPort>& midiInput;
     void clearCueQueue();
     GuideTimeline guideTimeline;
     Preroll preroll;

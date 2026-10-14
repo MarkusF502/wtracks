@@ -30,15 +30,23 @@ std::shared_ptr<const GuideTimeline::Sound> decodeGuideSound(juce::AudioFormatMa
 }
 }
 
-AudioEngine::AudioEngine()
+AudioEngine::AudioEngine() : AudioEngine(std::make_shared<SharedIo>()) {}
+
+AudioEngine::AudioEngine(std::shared_ptr<SharedIo> shared)
+    : io(std::move(shared)), deviceManager(io->deviceManager), audioSourcePlayer(io->audioSourcePlayer),
+      midiRouter(io->midiRouter), midiInputQueue(io->midiInputQueue), midiInput(io->midiInput)
 {
     formatManager.registerBasicFormats();
     readAheadThread.startThread();
+    io->deckSwitch.add(this);
+    if (io->deckSwitch.preparedRate > 0) AudioEngine::prepareToPlay(io->deckSwitch.preparedBlock, io->deckSwitch.preparedRate);
 }
 
 AudioEngine::~AudioEngine()
 {
+    cancelTransition();
     shutdown();
+    io->deckSwitch.remove(this);
     readAheadThread.stopThread(10000);
 }
 
@@ -63,7 +71,9 @@ bool AudioEngine::initialise(int sampleRate, int bufferSize)
     }
     setLastError(EngineErrorCode::None, "");
 
-    audioSourcePlayer.setSource(this);
+    io->active = this;
+    io->deckSwitch.current = this;
+    audioSourcePlayer.setSource(&io->deckSwitch);
     deviceManager.addAudioCallback(&audioSourcePlayer);
 
     return true;
@@ -73,12 +83,16 @@ void AudioEngine::shutdown()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     stop();
-    midiInput.reset();
-    midiRouter.close();
-
-    audioSourcePlayer.setSource(nullptr);
-    deviceManager.removeAudioCallback(&audioSourcePlayer);
-    deviceManager.closeAudioDevice();
+    // The device, the MIDI output and the MIDI input belong to the deck that plays; the other deck only lets go of its songs.
+    if (io->active == this || io->active == nullptr) {
+        midiInput.reset();
+        midiRouter.close();
+        audioSourcePlayer.setSource(nullptr);
+        deviceManager.removeAudioCallback(&audioSourcePlayer);
+        deviceManager.closeAudioDevice();
+        io->deckSwitch.current = nullptr;
+        io->active = nullptr;
+    }
 
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     channels.clear();
@@ -242,6 +256,8 @@ void AudioEngine::play()
         if (!playing.load()) { beginPreroll(); endFadeTriggered=false; started=true; }
         playing = true;
     }
+    { const juce::SpinLock::ScopedLockType lock(transitionLock);  // a running mix resumes with it
+      if (transition.started && transition.next != nullptr) transition.next->playing=true; }
     if (started) chaseCuesNow();
 }
 
@@ -339,6 +355,8 @@ bool AudioEngine::isPrerolling() const { const juce::SpinLock::ScopedLockType lo
 void AudioEngine::pause()
 {
     playing = false;
+    { const juce::SpinLock::ScopedLockType lock(transitionLock);
+      if (transition.started && transition.next != nullptr) transition.next->playing=false; }
     { const juce::SpinLock::ScopedLockType lock(channelsLock); preroll.cancel(); }
     stopMidiClock();
     releaseHeldNotesNow();
@@ -348,6 +366,7 @@ void AudioEngine::stop()
 {
     const std::lock_guard<std::recursive_mutex> control(controlMutex);
     playing=false;
+    cancelTransition();
     stopMidiClock();
     { const juce::SpinLock::ScopedLockType lock(channelsLock);
       loopEnabled=false; queuedLoopEnabled=false; activeLoop.reset(); queuedLoop.reset(); fade.reset(); }
@@ -737,7 +756,97 @@ void AudioEngine::resetTransportState()
     fade.reset(); endFadeTriggered=false;
 }
 
-uint32_t AudioEngine::pollTransportEvents() { return transportEvents.exchange(0); }
+int64_t AudioEngine::songEndSampleLocked() const
+{
+    if (channels.empty()) return 0;
+    const auto& first=channels.front();
+    int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
+    if (rangeEnd > 0) end=juce::jmin(end,static_cast<int64_t>(std::llround(rangeEnd*timeScale*currentSampleRate)));  // custom song end
+    return end;
+}
+
+bool AudioEngine::scheduleTransition(AudioEngine* next, TransitionKind kind, double startSeconds, double durationSeconds)
+{
+    if (next == nullptr || next == this || next->io != io || !std::isfinite(startSeconds) || !std::isfinite(durationSeconds)
+        || durationSeconds < 0.01 || durationSeconds > 60) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid transition"); return false;
+    }
+    cancelTransition();
+    next->cancelTransition();
+    if (next->getChannelCount() == 0 || next->isPlaying()) { setLastError(EngineErrorCode::FormatMismatch,"The next song is not ready"); return false; }
+    next->seekToSeconds(next->rangeStart);  // parked at its own start point until the mix reaches it
+    const juce::SpinLock::ScopedLockType lock(transitionLock);
+    transition=Transition{};
+    transition.next=next; transition.kind=kind;
+    transition.length=juce::jmax<int64_t>(1,static_cast<int64_t>(std::llround(durationSeconds*currentSampleRate)));
+    transition.trigger=startSeconds < 0 ? -1 : static_cast<int64_t>(std::llround(startSeconds*timeScale*currentSampleRate));
+    return true;
+}
+
+void AudioEngine::cancelTransition()
+{
+    const juce::SpinLock::ScopedLockType lock(transitionLock);
+    if (transition.next == nullptr) return;
+    if (transition.started) transition.next->pause();
+    transition=Transition{};
+    internalSilenced=false;
+}
+
+void AudioEngine::finishTransitionAsOutgoing()
+{
+    const juce::SpinLock::ScopedLockType lock(transitionLock);
+    transition=Transition{};
+    internalSilenced=false;
+}
+
+double AudioEngine::getTransitionProgress() const
+{
+    const juce::SpinLock::ScopedLockType lock(transitionLock);
+    if (transition.next == nullptr || !transition.started) return -1.0;
+    return juce::jmin(1.0,static_cast<double>(transition.elapsed)/static_cast<double>(juce::jmax<int64_t>(1,transition.length)));
+}
+
+bool AudioEngine::isTransitionScheduled() const { const juce::SpinLock::ScopedLockType lock(transitionLock); return transition.next != nullptr; }
+
+void AudioEngine::activate()
+{
+    io->active=this;
+    io->deckSwitch.current=this;
+}
+
+bool AudioEngine::isActive() const { return io->deckSwitch.current.load() == this; }
+
+void DeckSwitch::add(AudioEngine* engine) { const std::lock_guard<std::mutex> lock(membersMutex); members.push_back(engine); }
+void DeckSwitch::remove(AudioEngine* engine)
+{
+    AudioEngine* expected=engine; current.compare_exchange_strong(expected,nullptr);
+    const std::lock_guard<std::mutex> lock(membersMutex); members.erase(std::remove(members.begin(),members.end(),engine),members.end());
+}
+void DeckSwitch::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
+{
+    preparedBlock=samplesPerBlockExpected; preparedRate=sampleRate;
+    std::vector<AudioEngine*> copy; { const std::lock_guard<std::mutex> lock(membersMutex); copy=members; }
+    for (auto* engine : copy) engine->prepareToPlay(samplesPerBlockExpected,sampleRate);
+}
+void DeckSwitch::releaseResources()
+{
+    std::vector<AudioEngine*> copy; { const std::lock_guard<std::mutex> lock(membersMutex); copy=members; }
+    for (auto* engine : copy) engine->releaseResources();
+}
+void DeckSwitch::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
+{
+    if (auto* engine=current.load()) engine->getNextAudioBlock(info); else info.clearActiveBufferRegion();
+}
+
+uint32_t AudioEngine::pollTransportEvents()
+{
+    const auto events=transportEvents.exchange(0);
+    if (events & TransitionStarted) {  // the incoming song starts mid-way: bring its devices to the right patches
+        AudioEngine* next; { const juce::SpinLock::ScopedLockType lock(transitionLock); next=transition.next; }
+        if (next != nullptr && next->rangeStart > 0) next->chaseCuesNow();
+    }
+    return events;
+}
 
 int AudioEngine::takeMeters(float* channelPeaks, int capacity, float* outputPeaks, int outputCapacity)
 {
@@ -1264,6 +1373,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
         guideScratch.setSize(1,samplesPerBlockExpected);
         busScratch.setSize(2*kMaxBuses,samplesPerBlockExpected);
         fadeGains.assign(static_cast<size_t>(samplesPerBlockExpected),1.0f);
+        transitionScratch.setSize(kTransitionChannels,samplesPerBlockExpected);
         timecodeScratch.setSize(1,samplesPerBlockExpected);
 
         for (auto& channel : channels)
@@ -1294,6 +1404,64 @@ void AudioEngine::releaseResources()
 
 void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
 {
+    bool scheduled;
+    { const juce::SpinLock::ScopedLockType lock(transitionLock); scheduled=transition.next != nullptr; }
+    if (!scheduled) { renderOwn(info); return; }
+
+    const int64_t blockStart=currentSamplePosition.load();
+    const bool wasPlaying=playing.load();
+    renderOwn(info);
+    if (info.buffer == nullptr || info.numSamples <= 0) return;
+
+    const juce::SpinLock::ScopedLockType lock(transitionLock);
+    auto& t=transition;
+    if (t.next == nullptr) return;
+    const int n=info.numSamples, channelsOut=juce::jmin(info.buffer->getNumChannels(),transitionScratch.getNumChannels());
+    int from=0;  // first sample of this block that belongs to the transition
+    if (!t.started) {
+        bool fire=false, hold=false, stillPlaying;
+        int64_t end, here;
+        { const juce::SpinLock::ScopedLockType own(channelsLock);
+          hold=loopEnabled; stillPlaying=playing.load(); here=currentSamplePosition.load(); end=songEndSampleLocked(); }
+        if (t.trigger < 0) fire=true;
+        else if (!hold) {
+            if (blockStart >= t.trigger) fire=true;
+            else if (here > t.trigger || (wasPlaying && !stillPlaying)) { fire=true; from=static_cast<int>(juce::jlimit<int64_t>(0,n-1,t.trigger-blockStart)); }
+            if (fire && t.trigger >= 0) {  // never run past the end of this song
+                const int64_t remaining=end-juce::jmax(t.trigger,blockStart);
+                if (remaining > 0 && remaining < t.length) t.length=remaining;
+            }
+        }
+        if (!fire) return;
+        t.started=true; t.elapsed=0;
+        internalSilenced=true;
+        t.next->startDriven();
+        transportEvents.fetch_or(TransitionStarted);
+    }
+    transitionScratch.clear();
+    const int count=juce::jmin(n-from,transitionScratch.getNumSamples());
+    if (count > 0) {
+        juce::AudioBuffer<float> view(transitionScratch.getArrayOfWritePointers(),channelsOut,count);
+        juce::AudioSourceChannelInfo incoming(&view,0,count);
+        t.next->getNextAudioBlock(incoming);
+        const bool crossfade=t.kind == TransitionKind::Crossfade;
+        const double length=static_cast<double>(juce::jmax<int64_t>(1,t.length));
+        for (int i=0;i<count;++i) {
+            const double x=juce::jmin(1.0,static_cast<double>(t.elapsed+i)/length);
+            const float inGain=crossfade ? static_cast<float>(x*x) : 1.0f;
+            const float outGain=crossfade ? static_cast<float>((1.0-x)*(1.0-x)) : 1.0f;
+            for (int c=0;c<channelsOut;++c) {
+                float* out=info.buffer->getWritePointer(c,info.startSample+from+i);
+                *out=*out*outGain+view.getReadPointer(c)[i]*inGain;
+            }
+        }
+        t.elapsed+=count;
+        if (!t.finished && t.elapsed >= t.length) { t.finished=true; transportEvents.fetch_or(TransitionFinished); }
+    }
+}
+
+void AudioEngine::renderOwn(const juce::AudioSourceChannelInfo& info)
+{
     info.clearActiveBufferRegion();
     if (!playing.load() && midiClockRunning.exchange(false)) {  // pause/EOF seen by the audio thread: realtime-safe path
         const uint8_t stop=MidiClockTimeline::kStop; midiRouter.push(juce::Time::getMillisecondCounterHiRes(),0,44100.0,&stop,1);
@@ -1301,9 +1469,7 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
     if (!playing.load() || info.buffer == nullptr || info.numSamples <= 0) return;
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (!playing.load() || channels.empty() || !isPrepared || preparedBlockSize <= 0) return;
-    const auto& first=channels.front();
-    int64_t end=static_cast<int64_t>(std::llround(first.readerSource->getTotalLength()/first.fileSampleRate*currentSampleRate));
-    if (rangeEnd > 0) end=juce::jmin(end,static_cast<int64_t>(std::llround(rangeEnd*timeScale*currentSampleRate)));  // custom song end
+    const int64_t end=songEndSampleLocked();
     const int rampFrames=GainRamp::framesFor(currentSampleRate);
     const double blockHostMs=juce::Time::getMillisecondCounterHiRes();
     const bool automating=automationEnabled.load();
@@ -1422,10 +1588,11 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& info)
         // Click, guides and count-in tails share one mono bus that feeds every output and never fades (Playback keeps
         // click and guide channels out of the fade).
         guideScratch.clear();
-        clickTimeline.render(guideScratch,0,count,position,currentSampleRate,clickEnabled.load());
-        guideTimeline.render(guideScratch.getWritePointer(0),count,position,currentSampleRate,guidesEnabled.load(),guideWrapSample());
+        const bool internalOn=!internalSilenced.load(std::memory_order_relaxed);  // an outgoing song's click and guides are cut
+        clickTimeline.render(guideScratch,0,count,position,currentSampleRate,clickEnabled.load() && internalOn);
+        guideTimeline.render(guideScratch.getWritePointer(0),count,position,currentSampleRate,guidesEnabled.load() && internalOn,guideWrapSample());
         float* internal[1]={guideScratch.getWritePointer(0)};
-        preroll.render(internal,1,0,count,clickTimeline,currentSampleRate,clickEnabled.load(),guidesEnabled.load());
+        preroll.render(internal,1,0,count,clickTimeline,currentSampleRate,clickEnabled.load() && internalOn,guidesEnabled.load() && internalOn);
         for(int output=0;output<(split ? 1 : outputs);++output)
             info.buffer->addFrom(output,info.startSample+written,guideScratch,0,0,count);
         if (midiRouter.isOpen()) {
