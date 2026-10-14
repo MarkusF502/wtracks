@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/diagnostics_log.dart';
 import '../models/time_pitch_settings.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
@@ -47,7 +48,15 @@ class _TimePitchSheetState extends ConsumerState<TimePitchSheet> {
         );
         return;
       }
-      await ref.read(trackLibraryProvider.notifier).saveCurrent();
+      try {
+        await ref.read(trackLibraryProvider.notifier).saveCurrent();
+      } catch (e) {
+        ref.read(diagnosticsProvider.notifier).error('Falha ao salvar tom e andamento: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tom e andamento aplicados, mas não salvos: $e')));
+        }
+        return;
+      }
       if (mounted) Navigator.of(context).pop();
     } finally {
       if (mounted) setState(() => _busy = false);

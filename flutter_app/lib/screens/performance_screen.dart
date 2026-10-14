@@ -28,6 +28,8 @@ import 'remote_screen.dart';
 import 'import_screen.dart';
 import '../providers/control_provider.dart';
 import '../providers/meter_provider.dart';
+import '../services/diagnostics_log.dart';
+import 'diagnostics_screen.dart';
 
 // Tela única no modelo do Playback (guia do usuário, docs/playback-analysis/ui/helpcenter): barra superior, faixa da
 // setlist, waveform das seções e o painel de faixas/buses com o console e o Master. Biblioteca, setlists, edição da
@@ -70,6 +72,21 @@ class PerformanceScreen extends ConsumerWidget {
     final track = ref.watch(currentTrackProvider);
     // NÃO observamos transportProvider aqui: ele muda a cada 100ms e reconstruiria a tela inteira, mixer incluído.
     ref.watch(controlProvider.select((c) => c.inputOpen)); // mantém a leitura da entrada MIDI mapeada
+    // Mantém a biblioteca viva: é ela que grava automaticamente cada mudança da música aberta.
+    ref.watch(trackLibraryProvider.select((library) => library.length));
+    // Falhas de leitura/gravação nunca passam caladas.
+    ref.listen<String?>(persistenceAlertProvider, (_, message) {
+      if (message == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'Detalhes',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DiagnosticsScreen())),
+        ),
+      ));
+      Future.microtask(() => ref.read(persistenceAlertProvider.notifier).state = null);
+    });
 
     return Scaffold(
       backgroundColor: _bg,
@@ -162,8 +179,12 @@ class _AddSongCard extends StatelessWidget {
 /// Escolhe uma música da biblioteca. Na setlist em execução entra na posição [insertAt]; sem setlist, substitui a
 /// música aberta (escolha própria: o WTracks não tem "setlist atual" sempre aberta como o Playback).
 Future<void> _addSong(BuildContext context, WidgetRef ref, int? insertAt) async {
-  final chosen = await showDialog<Track>(context: context, builder: (_) => const _AddSongDialog());
-  if (chosen == null || !context.mounted) return;
+  final picked = await showDialog<Track>(context: context, builder: (_) => const _AddSongDialog());
+  if (picked == null || !context.mounted) return;
+  // A importação já deixa a música carregada (e o salvamento automático move o áudio do cache): usa a versão atual.
+  final current = ref.read(currentTrackProvider);
+  final alreadyLoaded = current?.id == picked.id;
+  final chosen = alreadyLoaded ? current! : picked;
   final session = ref.read(setlistSessionProvider);
   if (session != null && insertAt != null) {
     if (!await ref.read(setlistSessionProvider.notifier).insertTrack(insertAt, chosen) && context.mounted) {
@@ -171,7 +192,7 @@ Future<void> _addSong(BuildContext context, WidgetRef ref, int? insertAt) async 
     }
     return;
   }
-  final ok = await ref.read(currentTrackProvider.notifier).load(chosen);
+  final ok = alreadyLoaded || await ref.read(currentTrackProvider.notifier).load(chosen);
   if (ok) ref.read(setlistSessionProvider.notifier).end();
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha ao carregar "${chosen.title}".')));
@@ -728,12 +749,14 @@ class _SongMenuDialog extends ConsumerWidget {
     }
 
     final click = song.clickSettings;
+    // O menu fecha antes das ações terminarem: elas usam o container do app, não o `ref` deste diálogo.
+    final reader = ProviderReader.of(context);
     return _SheetDialog(
       title: song.title,
       trailing: TextButton(
         onPressed: () {
           navigator.pop();
-          _save(navigator.context, ref);
+          _save(navigator.context, reader.read);
         },
         child: const Text('Salvar', style: TextStyle(color: Color(0xFF0A84FF), fontWeight: FontWeight.w600)),
       ),
@@ -741,14 +764,14 @@ class _SongMenuDialog extends ConsumerWidget {
         _SheetSection(header: 'MÚSICA', children: [
           _SheetRow(label: 'Nome', detail: song.title, onTap: () {
             navigator.pop();
-            _renameTrack(navigator.context, ref, song);
+            _renameTrack(navigator.context, reader.read, song);
           }),
         ]),
         _SheetSection(header: 'TOM E ANDAMENTO', children: [
           _SheetRow(label: 'Tom e andamento', detail: song.key ?? '', onTap: () => sheet(TimePitchSheet(trackId: song.id))),
           _SheetRow(label: 'Metrônomo', detail: '${click.bpm.round()} BPM · ${click.timeSignatureNumerator}/${click.timeSignatureDenominator}', onTap: () {
             navigator.pop();
-            showMetronomeSheet(navigator.context, ref, song, ref.read(transportProvider).isPlaying);
+            showMetronomeSheet(navigator.context, reader, song, reader.read(transportProvider).isPlaying);
           }),
           _SheetRow(label: 'Mapa de andamento', onTap: () => push(TempoMapScreen(trackId: song.id))),
         ]),
@@ -771,7 +794,17 @@ class _SongMenuDialog extends ConsumerWidget {
   }
 }
 
-Future<void> _renameTrack(BuildContext context, WidgetRef ref, Track track) async {
+/// Lê providers sem depender do widget que abriu a ação (o menu pode fechar antes de ela terminar).
+typedef ProviderRead = T Function<T>(ProviderListenable<T> provider);
+
+/// Leitor de providers que sobrevive ao widget que abriu a ação (usa o container do app).
+class ProviderReader {
+  final ProviderRead read;
+  const ProviderReader(this.read);
+  factory ProviderReader.of(BuildContext context) => ProviderReader(ProviderScope.containerOf(context, listen: false).read);
+}
+
+Future<void> _renameTrack(BuildContext context, ProviderRead read, Track track) async {
   final newTitle = await showDialog<String>(
     context: context,
     builder: (ctx) => DialogTextController(
@@ -795,19 +828,16 @@ Future<void> _renameTrack(BuildContext context, WidgetRef ref, Track track) asyn
   if (!context.mounted) return;
   final trimmed = newTitle?.trim();
   if (trimmed == null || trimmed.isEmpty || trimmed == track.title) return;
-  ref.read(currentTrackProvider.notifier).renameCurrent(trimmed);
-  // Se a música já estava salva na biblioteca, persiste o novo nome também.
-  if (ref.read(trackLibraryProvider).any((t) => t.id == track.id)) {
-    await ref.read(trackLibraryProvider.notifier).saveCurrent();
-  }
+  read(currentTrackProvider.notifier).renameCurrent(trimmed); // o salvamento automático grava
 }
 
-Future<void> _save(BuildContext context, WidgetRef ref) async {
+Future<void> _save(BuildContext context, ProviderRead read) async {
   final messenger = ScaffoldMessenger.of(context);
   try {
-    await ref.read(trackLibraryProvider.notifier).saveCurrent();
+    await read(trackLibraryProvider.notifier).saveCurrent();
     messenger.showSnackBar(const SnackBar(content: Text('Música salva.')));
   } catch (e) {
+    read(diagnosticsProvider.notifier).error('Falha ao salvar: $e');
     messenger.showSnackBar(SnackBar(content: Text('Falha ao salvar: $e')));
   }
 }
@@ -849,7 +879,7 @@ class _TempoDisplay extends ConsumerWidget {
     final position = t == null || t.tempoChanges.isEmpty ? 0.0 : ref.watch(transportProvider.select((s) => s.positionSeconds));
     final segment = t == null ? null : TempoSegment.at(position, t.clickSettings, t.tempoChanges);
     return InkWell(
-      onTap: t == null ? null : () => showMetronomeSheet(context, ref, t, ref.read(transportProvider).isPlaying),
+      onTap: t == null ? null : () => showMetronomeSheet(context, ProviderReader(ref.read), t, ref.read(transportProvider).isPlaying),
       child: SizedBox(
         width: 46,
         child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -865,7 +895,7 @@ class _TempoDisplay extends ConsumerWidget {
 }
 
 /// Metrônomo: BPM, tap tempo, compasso, timbre, ganhos das subdivisões e offset do 1º tempo.
-void showMetronomeSheet(BuildContext context, WidgetRef ref, Track track, bool isPlaying) {
+void showMetronomeSheet(BuildContext context, ProviderReader ref, Track track, bool isPlaying) {
     double tempBpm = track.clickSettings.bpm;
     bool calibrated = track.clickSettings.calibrated;
     // Vive no escopo de _showBpmDialog (fora do StatefulBuilder) pra
@@ -1284,10 +1314,7 @@ class _SetlistRow extends ConsumerWidget {
       ]),
     );
     if (choice == null) return;
-    ref.read(currentTrackProvider.notifier).setTransition(choice);
-    try {
-      await ref.read(trackLibraryProvider.notifier).saveCurrent();
-    } catch (_) {}
+    ref.read(currentTrackProvider.notifier).setTransition(choice); // o salvamento automático grava
   }
 }
 
@@ -1513,10 +1540,7 @@ class _WaveformViewState extends ConsumerState<_WaveformView> {
 
   Future<void> _updateSections(List<SongSection> sections) async {
     final notifier = ref.read(currentTrackProvider.notifier);
-    if (!notifier.updateSections(widget.track.id, sections)) return;
-    try {
-      await ref.read(trackLibraryProvider.notifier).saveCurrent();
-    } catch (_) {}
+    notifier.updateSections(widget.track.id, sections); // o salvamento automático grava
   }
 
   Future<void> _deleteSection(SongSection section) async {

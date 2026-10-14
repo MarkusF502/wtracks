@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/track.dart';
 import 'engine_provider.dart';
+import '../services/diagnostics_log.dart';
 
 const _uuid = Uuid();
 
@@ -16,8 +17,20 @@ class SetlistLibraryNotifier extends Notifier<List<Setlist>> {
   }
 
   Future<void> _load() async {
-    final setlists = await ref.read(persistenceServiceProvider).loadAllSetlists();
-    state = setlists;
+    final persistence = ref.read(persistenceServiceProvider);
+    try {
+      state = await persistence.loadAllSetlists();
+    } catch (e) {
+      _report('Falha ao ler as setlists: $e');
+    }
+    for (final entry in persistence.lastLoadFailures.entries) {
+      if (entry.key.contains('/setlists/')) _report('Setlist ilegível ignorada: ${entry.key} (${entry.value})');
+    }
+  }
+
+  void _report(String message) {
+    ref.read(diagnosticsProvider.notifier).error(message);
+    ref.read(persistenceAlertProvider.notifier).state = message;
   }
 
   Future<void> refresh() => _load();
@@ -86,7 +99,14 @@ class SetlistEditorNotifier extends Notifier<Setlist?> {
 
   Future<void> _persist(Setlist updated) async {
     state = updated;
-    await ref.read(persistenceServiceProvider).saveSetlist(updated);
+    try {
+      await ref.read(persistenceServiceProvider).saveSetlist(updated);
+    } catch (e) {
+      final message = 'Falha ao salvar a setlist "${updated.name}": $e';
+      ref.read(diagnosticsProvider.notifier).error(message);
+      ref.read(persistenceAlertProvider.notifier).state = message;
+      return;
+    }
     ref.read(setlistLibraryProvider.notifier).syncSetlist(updated);
   }
 

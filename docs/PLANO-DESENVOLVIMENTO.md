@@ -42,6 +42,26 @@ no fim.
 
 ## Fase 0 — Salvamento no Android (bloqueador, antes de tudo)
 
+**Status (2026-10-14): itens 1–3 feitos, 4–5 pendentes.**
+
+Causa encontrada:
+- A tela de importação só carregava a música, sem gravar.
+- O "Salvar" ficava escondido em ≡ → Editar música…, e mexer no mixer nunca gravava.
+- As falhas não apareciam: nem o usuário nem o código viam a perda.
+
+Correções:
+- Salvamento automático de toda mudança da música aberta (`TrackLibraryNotifier`; espera o carregamento terminar e
+  ignora o eco do próprio salvamento).
+- Avisos na tela com "Detalhes" e registro em Ajustes → Diagnóstico (copiável).
+- Cópia do áudio conferida pelo tamanho, e erro claro quando o áudio de um canal não existe.
+- Falhas de leitura da biblioteca e das setlists passam a ser avisadas.
+- O menu da música e o metrônomo não usam mais o `ref` de um diálogo já fechado.
+- A tela de tom e andamento avisa quando não consegue salvar.
+- "Adicionar música → Importar" usa a música já carregada, em vez de recarregar pelos caminhos antigos do cache.
+
+Teste: `test/persistence_autosave_test.dart` (importar → editar → setlist → reabrir o app, com gravação real em
+disco).
+
 Relato do teste no Android (2026-10-14): músicas novas, setlists e edições não ficam salvas. Também não deu para testar
 tom e andamento, que só se aplicam depois de salvar.
 

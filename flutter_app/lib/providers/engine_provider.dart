@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -22,6 +23,7 @@ import '../models/tempo_change.dart';
 import '../models/time_pitch_settings.dart';
 import 'setlist_provider.dart';
 import 'waveform_provider.dart';
+import '../services/diagnostics_log.dart';
 import '../native/wtracks_bindings.dart';
 import '../services/persistence_service.dart';
 import '../services/click_resource_service.dart';
@@ -268,6 +270,9 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     ref.onDispose(() { _disposed = true; _generation++; });
     return null;
   }
+
+  /// Conclui quando as operações nativas pendentes (carregamento etc.) terminam.
+  Future<void> get idle => _pending;
 
   /// Serialize native loads: every isolate addresses the same C++ engine.
   /// A superseded result must not publish UI state or mixer settings.
@@ -1023,13 +1028,77 @@ final persistenceServiceProvider = Provider<PersistenceService>((ref) => Persist
 class TrackLibraryNotifier extends Notifier<List<Track>> {
   @override
   List<Track> build() {
+    // Salvamento automático (Playback não tem "Salvar"): toda mudança na música aberta vai para o disco.
+    ref.listen<Track?>(currentTrackProvider, (_, next) {
+      if (next != null) _scheduleAutosave();
+    });
     _load();
     return [];
   }
 
   Future<void> _load() async {
-    final tracks = await ref.read(persistenceServiceProvider).loadAllTracks();
-    state = tracks;
+    final persistence = ref.read(persistenceServiceProvider);
+    try {
+      final tracks = await persistence.loadAllTracks();
+      for (final track in tracks) {
+        _savedJson[track.id] = jsonEncode(track.toJson());
+      }
+      state = tracks;
+    } catch (e) {
+      _report('Falha ao ler a biblioteca: $e');
+    }
+    final failures = {...persistence.lastLoadFailures}..removeWhere((path, _) => !path.contains('/tracks/'));
+    for (final entry in failures.entries) {
+      _report('Música ilegível ignorada: ${entry.key} (${entry.value})');
+    }
+  }
+
+  void _report(String message) {
+    ref.read(diagnosticsProvider.notifier).error(message);
+    ref.read(persistenceAlertProvider.notifier).state = message;
+  }
+
+  /// Último JSON gravado de cada música: evita regravar quando nada mudou (inclusive o eco do próprio salvamento).
+  final Map<String, String> _savedJson = {};
+  bool _autosaving = false, _dirty = false;
+
+  /// Pendente enquanto há gravação automática em curso (testes esperam por ela).
+  Future<void> autosaveIdle = Future.value();
+
+  void _scheduleAutosave() {
+    if (_autosaving) {
+      _dirty = true;
+      return;
+    }
+    _autosaving = true;
+    autosaveIdle = _runAutosave();
+  }
+
+  Future<void> _runAutosave() async {
+    try {
+      do {
+        _dirty = false;
+        await Future<void>.value(); // junta as mudanças do mesmo quadro
+        final current = ref.read(currentTrackProvider.notifier);
+        if (current.loadingTrackId != null) {
+          // Carregando: grava quando o motor terminar (a importação chega aqui).
+          await current.idle;
+          _dirty = true;
+          continue;
+        }
+        final track = ref.read(currentTrackProvider);
+        if (track == null) continue;
+        if (_savedJson[track.id] == jsonEncode(track.toJson())) continue;
+        try {
+          await saveCurrent();
+        } catch (e) {
+          _report('Falha ao salvar "${track.title}": $e');
+          return; // não insiste em loop; a próxima edição tenta de novo
+        }
+      } while (_dirty);
+    } finally {
+      _autosaving = false;
+    }
   }
 
   Future<void> refresh() => _load();
@@ -1043,6 +1112,7 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
     if (track == null) return;
 
     final saved = await ref.read(persistenceServiceProvider).saveTrack(track);
+    _savedJson[saved.id] = jsonEncode(saved.toJson());
 
     if (ref.read(currentTrackProvider)?.id == saved.id) {
       ref.read(currentTrackProvider.notifier).setLoadedTrack(saved);

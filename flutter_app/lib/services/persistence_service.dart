@@ -123,13 +123,21 @@ class PersistenceService {
 
       final destPath = '${audioDir.path}/$destName';
       final sourceFile = File(sourcePath);
+      if (!await sourceFile.exists()) {
+        throw FileSystemException('Áudio do canal "${channel.label}" não encontrado', sourcePath);
+      }
       try {
         await sourceFile.rename(destPath);
       } on FileSystemException {
         // rename() falha ao cruzar filesystems/partições -- comum em
         // Android entre o diretório de cache e o de app storage. Fallback
-        // pra copy + delete.
-        await sourceFile.copy(destPath);
+        // pra copy + delete, conferindo o tamanho antes de apagar a origem.
+        final expected = await sourceFile.length();
+        final copy = await sourceFile.copy(destPath);
+        if (await copy.length() != expected) {
+          await copy.delete();
+          throw FileSystemException('Cópia incompleta do áudio do canal "${channel.label}"', destPath);
+        }
         await sourceFile.delete();
       }
 
@@ -148,10 +156,14 @@ class PersistenceService {
     return updatedTrack;
   }
 
+  /// Arquivos que falharam na última leitura em lote (caminho → erro), para o diagnóstico.
+  final Map<String, String> lastLoadFailures = {};
+
   Future<List<Track>> loadAllTracks() async {
     final dir = await _tracksDir();
     final entries = await dir.list().toList();
     final tracks = <Track>[];
+    lastLoadFailures.removeWhere((path, _) => path.contains('/tracks/'));
 
     for (final entry in entries) {
       if (entry is! File || !entry.path.endsWith('.json')) continue;
@@ -163,6 +175,7 @@ class PersistenceService {
         // Um arquivo corrompido não deve derrubar o carregamento das
         // demais tracks -- loga e pula.
         debugPrint('PersistenceService: falha ao carregar ${entry.path}: $e');
+        lastLoadFailures[entry.path] = '$e';
       }
     }
 
@@ -206,6 +219,7 @@ class PersistenceService {
     final dir = await _setlistsDir();
     final entries = await dir.list().toList();
     final setlists = <Setlist>[];
+    lastLoadFailures.removeWhere((path, _) => path.contains('/setlists/'));
 
     for (final entry in entries) {
       if (entry is! File || !entry.path.endsWith('.json')) continue;
@@ -214,6 +228,7 @@ class PersistenceService {
         if (setlist != null) setlists.add(setlist);
       } catch (e) {
         debugPrint('PersistenceService: falha ao carregar ${entry.path}: $e');
+        lastLoadFailures[entry.path] = '$e';
       }
     }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
+import 'diagnostics_screen.dart';
 import 'guide_settings_sheet.dart';
 import 'remote_screen.dart';
 import '../widgets/dialog_text_controller.dart';
@@ -31,6 +32,13 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: const Text('Somente saída estéreo'),
           value: settings.stereoSplit,
           onChanged: (v) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(stereoSplit: v)),
+        ),
+        ListTile(
+          key: const Key('diagnostics'),
+          leading: const Icon(Icons.bug_report_outlined),
+          title: const Text('Diagnóstico'),
+          subtitle: const Text('Falhas de leitura e gravação desta sessão'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DiagnosticsScreen())),
         ),
         SwitchListTile(
           key: const Key('waveform-grid'),
