@@ -6,7 +6,7 @@ Data: 14/10/2026. Análise de produto, evidências estáticas e planejamento; ne
 
 O Playback é uma referência forte de player para apresentações: integra reprodução multitrack, mapa de música, click, guias, mixer, buses, transições, automação, MIDI e timecode em um fluxo de palco. Seu valor está na coordenação dessas funções, e não apenas no número de recursos.
 
-As oportunidades mais relevantes para o WTracks são autonomia sobre arquivos próprios, recuperação de dados, previsibilidade de tempo, preparação de apresentações e clareza do estado do aplicativo. A prioridade deve ser confiabilidade antes de ampliar recursos ou perseguir semelhança visual.
+As oportunidades mais relevantes para o WTracks são autonomia sobre arquivos próprios, recuperação de dados, previsibilidade de tempo, preparação de apresentações, clareza do estado do aplicativo e acesso autorizado ao ecossistema MultiTracks em plataformas não atendidas pelo Playback. A prioridade deve ser confiabilidade antes de ampliar recursos ou perseguir semelhança visual.
 
 O WTracks já possui grande parte do núcleo. O trabalho futuro deve consolidar essa base, corrigir riscos próprios e escolher explicitamente onde seguir o Playback e onde oferecer um comportamento melhor.
 
@@ -35,7 +35,7 @@ Fontes locais principais: [cobertura](coverage-report.md), [contratos](subsystem
 | Flexibilidade musical | Loops, reordenação, guias e automação | Coordenar tudo no mesmo relógio musical |
 | Integração técnica | Buses, MIDI, LTC e interfaces de áudio | Separar sinal para público, banda e equipamentos |
 | Preparação | Arranjos, mapas e repertórios reutilizáveis | Reduzir configuração repetida e variações acidentais |
-| Ecossistema | Conteúdo, colaboração e integração MultiTracks | Reconhecer o valor; concentrar WTracks em arquivos locais |
+| Ecossistema | Conteúdo, colaboração e integração MultiTracks | Preservar arquivos locais e acrescentar integração autorizada de conta, biblioteca e conteúdo |
 
 O [guia oficial](https://helpcenter.multitracks.com/en/articles/4944485-playback-user-guide) descreve o fluxo integrado de transporte, mapas, mixer e MIDI. O pacote local confirma modelos e subsistemas correspondentes. Não há fundamento para reduzir o Playback a um player simples.
 
@@ -131,6 +131,10 @@ Três contratos devem orientar as mudanças:
 2. **Sessão de palco:** estado selecionado/preparando/pronto/tocando/em transição/erro; nenhum resultado obsoleto substitui o atual; prontidão reflete os dois decks e seus recursos.
 3. **Motor previsível:** buffers e agendas preparados, ownership explícito, orçamento de memória, despacho MIDI fora do render e política definida para underrun, seek, loop e perda de dispositivo.
 
+Um quarto contrato passa a existir para conteúdo remoto:
+
+4. **Acesso autorizado e revogável:** conta e organização explícitas, entitlement decidido pelo servidor, downloads em armazenamento privado, expiração e revogação respeitadas, nenhuma credencial em logs/backup e nenhuma dependência de rede no callback de áudio.
+
 Separar identidade do dispositivo, perfil de roteamento, arranjo musical e estado transitório. Não salvar automaticamente um fade momentâneo ou posição de reprodução como edição de arranjo sem decisão explícita.
 
 ## 6. Plano por fases e critérios de aprovação
@@ -205,6 +209,31 @@ Antecipar assinatura estável/versionamento na Fase B; não aguardar as funciona
 
 **Aprovação:** tentativas e flood são limitados; cliente revogado não controla transporte; comandos concorrentes preservam ordem definida; publicação falha quando regressão relevante é introduzida; reinstalação/atualização e restauração são ensaiadas antes da release.
 
+### Fase H — integração MultiTracks autorizada
+
+**Autorização relatada:** em 2026-10-14, o responsável pelo projeto informou que um desenvolvedor-chefe da
+MultiTracks/Playback autorizou o WTracks a usar o endpoint empregado pelo Playback para acessar a biblioteca e baixar
+tracks, inclusive Playback Rentals. A implementação pode ser planejada e desenvolvida com essa premissa. Antes da
+distribuição pública, registrar por escrito o escopo da exceção aos termos gerais: endpoints, plataformas, produtos,
+dispositivos, marca-d'água, expiração, limites de conta, suporte e uso de marca.
+
+Executar esta fase depois da Fase B e da base de stems dinâmicos da Fase E. Catálogo/biblioteca somente leitura pode ser
+prototipado antes, isolado atrás de `MultiTracksContentProvider`. Reutilizar OAuth/MCP oficial onde houver capacidade;
+usar o endpoint do Playback apenas para entitlement e áudio não expostos oficialmente. Senhas nunca passam pelo WTracks;
+tokens ficam no armazenamento seguro da plataforma.
+
+Separar quatro domínios: identidade/organização; catálogo e biblioteca; entitlement/dispositivo/Rental; download e cache.
+O servidor é a autoridade para direito de uso, expiração, transferência e revogação. Downloads usam staging, validação e
+publicação atômica; URLs assinadas e tokens não são persistidos em logs. AppTracks e Rentals ficam no armazenamento
+privado, não entram no backup/exportação e são baixadas novamente após restauração se ainda autorizadas. Arquivos locais
+e compras WAV/M4A exportáveis mantêm o fluxo portátil já existente.
+
+**Aprovação:** sincronizar a organização correta; diferenciar item na biblioteca de áudio liberado; download interrompido
+não publica música parcial; repetição após timeout não consome Rental duas vezes; aparelho, transferência, revogação e
+expiração são respeitados; Rental expirada deixa de tocar e é removida; troca de conta não vaza dados; backup não contém
+áudio protegido ou credenciais; mudança incompatível do endpoint desativa apenas a integração remota. Testar com conta e
+servidor autorizados, além de Android físico, sem usar áudio comercial em fixtures ou CI.
+
 ## 7. Política de testes e entrega
 
 Cada bloco: problema e contrato → implementação pequena → regressão significativa → revisão do diff → validação → commits separados quando nativo e Flutter forem independentes. Não descartar mudanças prévias. Correções de segurança/dados devem preceder aprimoramentos visuais.
@@ -230,9 +259,14 @@ Repetir testes de concorrência quando o risco justificar; medir render separado
 - Qualidade TimePitch: corpus com bateria, baixo, voz, teclas e mix estéreo; avaliar transientes, fase, duração e som com mudanças grandes/pequenas.
 - Playback: caracterizar MIDI por taxa/tempo longo, início das guias, LTC e transições em aparelho; não classificar riscos estáticos como bugs confirmados.
 - Pad, compatibilidade Playback Remote e funções cloud não são pré-requisitos para consolidar o núcleo local.
+- Integração MultiTracks: documentar a autorização por escrito antes da distribuição; confirmar janela offline, política
+  de exclusão, identidade de dispositivo WTracks, idempotência de Rentals, ambiente de homologação e canal de suporte para
+  mudanças do endpoint. Nenhuma dessas pendências autoriza embutir credenciais ou desativar controles de licença.
 
 ## 9. Cobertura da solicitação
 
 Produto e arquitetura: analisados com evidências locais e fontes oficiais. Fraquezas técnicas: identificadas com distinção entre observação e consequência inferida. UX: avaliação das referências e código, pendente de testes de operadores. Dados, segurança local, desempenho e distribuição: achados estáticos e plano com critérios. Comparação auditiva, estabilidade física e equivalência iOS: pendentes.
 
-Próximo bloco recomendado: **Fase A seguida de Fase B**, respeitando o trabalho de transições em andamento. Só depois avançar desempenho/dispositivos e preparação/UX. Não foram alterados código, configuração, banco ou histórico do WTracks nesta análise.
+Próximo bloco recomendado: concluir as pendências da **Fase B**, avançar a base de stems dinâmicos da Fase E e então
+executar a **Fase H** em incrementos: biblioteca somente leitura → compras autorizadas → Rentals. Não foram alterados
+código, configuração, banco ou histórico do WTracks nesta atualização do planejamento.

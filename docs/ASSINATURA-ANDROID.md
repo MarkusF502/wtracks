@@ -22,7 +22,26 @@ a anterior, o que apaga a biblioteca. Por isso:
 
 Não oriente ninguém a desinstalar antes do passo 2.
 
-## 2. Gerar a chave (uma vez, na sua máquina)
+### Resultado medido em 2026-10-14 (aparelho do desenvolvedor)
+
+O app instalado está assinado com `CN=Android Debug`, SHA-256 `EA:84:12:96:99:31:01:20:0E:94:36:88:CE:A0:BA:84:89:B7:E0:65:FB:A7:BC:02:F9:9B:CC:8A:12:40:1E:C6`.
+É **exatamente** a chave `~/.android/debug.keystore` da máquina de desenvolvimento (alias `androiddebugkey`, válida até 2053): o app foi
+instalado por uma build local. Consequências:
+
+- builds locais continuam atualizando o app sem apagar nada;
+- os APKs do CI **não** atualizam esse app (o runner gera uma chave de debug nova a cada execução);
+- **não é preciso migrar agora**: dá para adotar essa mesma chave como a chave estável (opção A abaixo).
+
+| Opção | Quando | Contra |
+|---|---|---|
+| **A. Adotar `~/.android/debug.keystore` como chave de release** | agora, sem perder dados | a senha padrão (`android`) é pública: quem tiver a chave pode assinar um APK que o Android aceita como atualização. Para um app pessoal instalado por sideload o risco é baixo, e o atualizador interno ainda confere o certificado esperado |
+| **B. Chave nova com senha forte** | quando o backup/restauração estiver ensaiado | exige backup → desinstalar → instalar → restaurar uma única vez |
+
+Para a opção A: copie `~/.android/debug.keystore` para um lugar seguro **agora** (cofre de senhas/pendrive cifrado; sem ela nenhuma atualização
+futura será aceita), e cadastre os secrets do passo 3 com `alias=androiddebugkey` e as senhas `android`; a variável
+`WTRACKS_RELEASE_CERT_SHA256` é `EA84129699310120E943688CEA0BA8489B7E065FBA7BC02F99BCC8A12401EC6` sem espaços (ver abaixo).
+
+## 2. Gerar a chave (opção B; uma vez, na sua máquina)
 
 ```
 keytool -genkeypair -v -keystore wtracks-release.jks -alias wtracks -keyalg RSA -keysize 4096 -validity 10000

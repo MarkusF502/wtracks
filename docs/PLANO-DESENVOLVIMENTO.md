@@ -4,9 +4,13 @@ Base: pacote de evidências em `docs/playback-analysis/`, ou seja, o pseudocódi
 áudio, o modelo Core Data 145, 1472 textos de interface, 208 nibs/storyboards e o guia do usuário em
 `ui/helpcenter/`. A comparação foi feita com o código em `native/` e `flutter_app/` em 2026-10-14.
 
-Continuam fora do escopo: contas, nuvem, compras e aluguéis, downloads de conteúdo MultiTracks, anúncios, Planning
-Center, licenças de igreja, a loja MultiTracks e a importação de cues da nuvem. O download de APK para atualizar o
-próprio WTracks está no escopo, conforme a Fase 0.1.
+Continuam fora do escopo: anúncios, Planning Center, licenças de igreja, reprodução do RehearsalMix e a loja completa
+MultiTracks dentro do WTracks. **Contas, biblioteca, direitos de uso, compras já existentes, AppTracks e Playback
+Rentals passam a fazer parte do escopo pela Fase 6.1**, usando o endpoint empregado pelo Playback. O responsável pelo
+projeto informou em 2026-10-14 que recebeu autorização direta de um desenvolvedor-chefe da MultiTracks/Playback para
+essa integração. Antes de distribuir a funcionalidade, registrar por escrito o escopo dessa autorização (endpoint,
+plataformas, produtos, identificação de dispositivo, marca-d'água, expiração, limites e suporte). O download de APK
+para atualizar o próprio WTracks permanece no escopo, conforme a Fase 0.1.
 
 Regras de sempre:
 - Dart não agenda nada de áudio.
@@ -33,6 +37,7 @@ F (UX de palco) → G (remoto e distribuição). Como as duas listas se encaixam
 | Fase E — preparação, arranjos, undo (WT-11) | Fases 3 e 6 |
 | Fase F — UX de palco e acessibilidade (WT-12, WT-15) | Fase 7 |
 | Fase G — remoto e distribuição (WT-13) | Fase 10, Fase 0.1 |
+| Fase H — integração MultiTracks autorizada | Fase 6.1 |
 
 A Fase 3 (mapa da música, Live ReOrder, arranjos) só recomeça depois da Fase B.
 
@@ -414,6 +419,104 @@ Resumo do que o texto abaixo previa e como ficou:
   - notas, data, duplicar, Salvar como nova e Sobrescrever;
   - limpeza das setlists antigas;
   - "Cue First Song" ligado à Fase 2.
+
+## Fase 6.1 — Conta MultiTracks, biblioteca e downloads autorizados
+
+**Autorização relatada:** em 2026-10-14, o responsável pelo WTracks informou ter recebido autorização direta de um
+desenvolvedor-chefe da MultiTracks/Playback para utilizar no WTracks o endpoint de download empregado pelo Playback,
+incluindo conteúdo da biblioteca e Playback Rentals. Essa autorização permite planejar e desenvolver a integração,
+mas não substitui o registro escrito necessário antes de publicar builds para terceiros.
+
+### 6.1.1 — Contrato, proveniência e limites
+
+- Registrar separadamente, sem segredos, a versão observada do Playback, hosts, rotas, métodos, cabeçalhos,
+  identificadores de dispositivo, estados e esquemas de resposta. Marcar o que foi observado no binário/tráfego, o que
+  foi informado pela MultiTracks e o que é decisão do WTracks.
+- Obter confirmação escrita sobre: produtos permitidos (compras, AppTracks e Rentals), plataformas autorizadas,
+  distribuição pública, uso da marca, suporte, telemetria/relatórios, limites de aparelhos, transferência e revogação.
+- Tratar URLs assinadas, tokens, chaves e identificadores de conta como segredo. Não incluir capturas com credenciais,
+  URLs reutilizáveis, conteúdo de áudio ou dados pessoais no Git, fixtures, logs, backup ou diagnóstico.
+- Encapsular o protocolo em `MultiTracksContentProvider`, para que mudanças do endpoint não contaminem biblioteca,
+  persistência nem motor de áudio. O motor recebe apenas arquivos locais já autorizados e validados.
+- Manter compatibilidade com o MCP/OAuth oficial para catálogo, biblioteca e setlists quando ele oferecer o contrato
+  necessário; o endpoint do Playback fica limitado às operações ainda não públicas, principalmente entitlement e áudio.
+
+### 6.1.2 — Conta, organização e sessão
+
+- Tela "Conectar ao MultiTracks" com autenticação no navegador/OAuth quando suportada pelo servidor. O WTracks não
+  captura nem persiste a senha da conta.
+- Seleção explícita da organização e exibição do usuário/organização ativos. Trocar de organização invalida consultas e
+  downloads em andamento da organização anterior.
+- Tokens ficam no armazenamento seguro da plataforma (Android Keystore, Keychain no futuro e Secret Service/keyring no
+  desktop). Nunca em preferências JSON, argumentos de processo ou relatório de diagnóstico.
+- Renovação serializada de sessão, cancelamento por geração e logout completo. Respostas atrasadas de uma sessão antiga
+  não podem publicar biblioteca, entitlement ou arquivos na sessão atual.
+
+### 6.1.3 — Biblioteca e direitos de uso
+
+- Sincronizar catálogo da organização, compras, AppTracks, conteúdo próprio, Rentals ativas e metadados necessários ao
+  arranjo. Biblioteca não significa automaticamente que o áudio está liberado: cada item exibe produto, entitlement,
+  dispositivo, disponibilidade, expiração e motivo de bloqueio.
+- Persistir IDs remotos estáveis separados dos IDs locais. Uma música importada manualmente não é mesclada por título
+  com a versão remota; vinculação exige confirmação ou identificador inequívoco.
+- Cache de metadados com versão e data da última sincronização. Modo offline mostra claramente estado possivelmente
+  desatualizado e nunca cria ou prolonga um direito de uso localmente.
+- Operações que consomem crédito de Rental exigem confirmação, chave de idempotência e reconciliação após timeout, para
+  que uma repetição de rede não gaste dois créditos.
+
+### 6.1.4 — Registro de dispositivo e Playback Rentals
+
+- Reproduzir somente o fluxo de dispositivo autorizado pela MultiTracks: registrar/listar o aparelho, associar Rental,
+  transferir quando permitido e refletir revogação. Não fabricar identidade de iPhone/iPad/Playback.
+- Usar um identificador próprio e estável do WTracks, reinstalável apenas conforme o contrato aprovado. A interface deve
+  deixar claro em qual aparelho a Rental foi ativada antes de consumir o crédito.
+- Aplicar a expiração fornecida pelo servidor. Rental expirada fica indisponível e seu áudio é removido de forma segura;
+  relógio local alterado, ausência de rede ou falha de exclusão não podem renovar acesso.
+- Transferência, reembolso, revogação, remoção da organização e logout interrompem novos usos conforme o estado retornado
+  pelo serviço. Definir com a MultiTracks a janela offline e a frequência de revalidação.
+
+### 6.1.5 — Download, validação e importação
+
+- Download em diretório privado de staging, com retomada quando o servidor permitir, limite de tamanho, timeout,
+  cancelamento e progresso por arquivo/conjunto. URL assinada expirada deve ser renovada pelo provider, não gravada.
+- Validar status, tipo, tamanho, checksum quando fornecido e estrutura do pacote antes da publicação. Preservar a
+  marca-d'água recebida como conteúdo opaco; nunca transcodificar ou remover proteção como parte da importação.
+- Publicar atomicamente só depois de todos os stems obrigatórios passarem. Falha, falta de espaço, fechamento do app ou
+  troca de conta não deixam música parcial utilizável.
+- Converter o manifesto remoto em faixas dinâmicas, click, guia, tom, BPM, compasso, seções e arte quando disponíveis.
+  Diferenças de duração/sample rate seguem a validação da Fase 6 e não são silenciosamente corrigidas.
+- Compras WAV/M4A baixáveis e arquivos locais continuam portáveis conforme a licença. AppTracks/Rentals baixadas pelo
+  endpoint ficam no armazenamento privado e não são exportadas pelo compartilhamento, backup ou restauração do WTracks;
+  o backup guarda somente referência e metadados não sensíveis para novo download após autenticação.
+
+### 6.1.6 — Falhas, segurança e observabilidade
+
+- Erros distinguem autenticação, permissão da organização, produto sem entitlement, Rental expirada, aparelho incorreto,
+  processamento pendente, URL expirada, rede, disco, pacote inválido e mudança incompatível do protocolo.
+- Sanitizar logs: sem token, cookie, senha, URL assinada, e-mail completo, hash de autenticação ou payload de áudio.
+  Diagnóstico exportável inclui correlação opaca, operação, estado HTTP categorizado e versão do contrato.
+- Rate limit, backoff com jitter e circuit breaker para evitar bloquear conta ou sobrecarregar o serviço. Nenhuma chamada
+  de rede ocorre no callback de áudio.
+- Fixar HTTPS e validar o host normalmente; pinning só será usado se fornecido e mantido pela MultiTracks, com estratégia
+  de rotação. Não embutir segredo compartilhado recuperável no APK.
+
+### 6.1.7 — Entregas e critérios de aprovação
+
+1. **Contrato reproduzível:** fixtures totalmente sanitizadas cobrem login, organização, biblioteca e entitlement; nenhuma
+   fixture contém segredo ou áudio comercial.
+2. **Biblioteca somente leitura:** conectar, escolher organização, listar e pesquisar, sem download nem consumo de crédito.
+3. **Compra autorizada:** baixar uma compra elegível, interromper/retomar, validar, importar, reabrir e tocar offline dentro
+   do período autorizado.
+4. **Rental:** confirmar consumo uma única vez, associar ao aparelho correto, baixar, tocar, revalidar e bloquear/remover
+   ao expirar. Testar timeout após confirmação sem duplicar cobrança.
+5. **Mudanças de conta:** logout, troca de organização, revogação e transferência descartam operações obsoletas e não
+   expõem conteúdo entre contas.
+6. **Dados:** backup não contém áudio protegido nem credenciais; restauração solicita login e baixa novamente apenas o que
+   ainda estiver autorizado.
+7. **Compatibilidade:** erro de schema/endpoint desconhecido desativa a integração com mensagem clara, sem afetar músicas
+   locais nem o modo palco.
+8. **Liberação:** testes unitários e de integração com servidor de homologação/conta autorizada; Android físico para
+   download, expiração, background e falta de espaço. Publicação pública somente após confirmação escrita do escopo.
 
 ## Fase 7 — Ajustes e interface restante
 
