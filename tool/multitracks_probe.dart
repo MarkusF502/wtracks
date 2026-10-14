@@ -10,6 +10,7 @@
 // - Não imprime nem grava a senha, o userHash, cabeçalhos de autenticação ou cookies.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 const _appName = 'WTracks';
 
@@ -62,9 +63,17 @@ Future<void> main(List<String> args) async {
     return (response.statusCode, json);
   }
 
+  final deviceId = await _deviceIdentifier();
+  say('Identificador do aparelho de teste: $deviceId (fica em ~/.config/wtracks-probe/device-id; o login pode registrar o aparelho '
+      '"${options.deviceName}" na sua conta MultiTracks)');
   Object? login;
   try {
     final (status, json) = await post('authenticate', {
+      // O servidor respondeu "Username, password and device identifier are required fields.": o nome exato da chave do identificador não
+      // aparece no binário (nomes com mais de 15 caracteres não são decodificados); envia as variantes prováveis, o servidor ignora as outras.
+      'deviceIdentifier': deviceId,
+      'deviceID': deviceId,
+      'deviceId': deviceId,
       'username': username,
       'password': password,
       'language': options.language,
@@ -119,6 +128,22 @@ Future<void> main(List<String> args) async {
   }
   client.close();
   await _finish(options, out);
+}
+
+/// Um identificador estável para este computador (gerado uma vez): um novo a cada execução criaria um aparelho novo na conta a cada teste.
+Future<String> _deviceIdentifier() async {
+  final dir = Directory('${Platform.environment['HOME'] ?? '.'}/.config/wtracks-probe');
+  final file = File('${dir.path}/device-id');
+  if (await file.exists()) {
+    final saved = (await file.readAsString()).trim();
+    if (saved.isNotEmpty) return saved;
+  }
+  final random = Random.secure();
+  String hex(int n) => List.generate(n, (_) => random.nextInt(16).toRadixString(16)).join();
+  final id = '${hex(8)}-${hex(4)}-4${hex(3)}-${(8 + random.nextInt(4)).toRadixString(16)}${hex(3)}-${hex(12)}'.toUpperCase();
+  await dir.create(recursive: true);
+  await file.writeAsString(id);
+  return id;
 }
 
 Iterable<String> _headerNames(HttpClientResponse response) {

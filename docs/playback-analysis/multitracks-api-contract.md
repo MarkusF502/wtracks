@@ -37,6 +37,17 @@ A lista é um **piso**: nomes com mais de 15 caracteres podem não ter sido deco
 | Rentals | `rentalID`, `expireDate`, `targetAppID`, `transferCount`, `contentID`, `status`, `rentalsPlan`/`items` |
 | Conteúdo | `contentID`, `contentType`, `download`, `stemKeyID`, `redeem…`, `metadata`, `previewURL`, `songState`, `stems`, `genre` |
 
+## Resposta de `authenticate` medida em 2026-10-14 (primeira chamada real, tentativa sem identificador do aparelho) [M]
+
+O host `https://api.multitracks.com/playback/` respondeu (HTTP 200, JSON, servidor ASP.NET atrás do Azure). **Erros vêm com HTTP 200**: o
+resultado está no corpo (`result`, `errorCode`, `message`, `messageTitle`, `button`, `url`). Mensagem recebida: *"Username, password and device
+identifier are required fields."* — ou seja, o login exige também um **identificador do aparelho** (o nome exato da chave não está no binário; a
+ferramenta de teste envia `deviceIdentifier`, `deviceID` e `deviceId`). Esquema (valores redigidos): `customerID`, `userID`, `userAccessID`, `appID`,
+`firstName`, `lastName`, `hash` (null neste erro; é onde virá o hash da sessão), `appSubscriptionLevel`, `hasOldPro`, `appSubscriptionDateExpiration`,
+`appSubscriptionExpiration`, `subscriptionReceipt`, `siteID`, `appSubscriptionType`, `internal`, `countryID`, `restricted`, `rentalsLicenseID`,
+`teamSharingLicenseID`, `appLicenseID`, `latestVersion`, `organizations`, `cloudPro`, `planningCenter`, `playbackSnapshot`, `mtCompleteEnabled`,
+`mtCompleteEngineer`, `result`, `errorCode`, `message`, `messageTitle`, `button`, `url`, `isAdmin`, `roleID`.
+
 ## Fluxo provável [I]
 
 1. `authenticate` com usuário/senha devolve o usuário (`userHash`, organizações, direitos). **A senha vai no corpo da requisição**; não há OAuth
