@@ -29,6 +29,9 @@ class PersistenceService {
   PersistenceService({Future<Directory> Function()? rootDirectoryResolver})
       : rootDirectoryResolver = rootDirectoryResolver ?? getApplicationSupportDirectory;
 
+  /// A pasta `wtracks_data` (tracks, setlists, audio, preferências) — o que o backup guarda e a restauração substitui.
+  Future<Directory> dataDirectory() => _dataDir();
+
   Future<Directory> _dataDir() async {
     final supportDir = await rootDirectoryResolver();
     final dir = Directory('${supportDir.path}/wtracks_data');

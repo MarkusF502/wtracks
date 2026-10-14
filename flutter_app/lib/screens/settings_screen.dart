@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/engine_provider.dart';
 import '../theme/app_colors.dart';
+import 'backup_screen.dart';
 import 'diagnostics_screen.dart';
 import 'guide_settings_sheet.dart';
 import 'remote_screen.dart';
@@ -60,6 +61,13 @@ class SettingsScreen extends ConsumerWidget {
           help: 'Arquivos guidecue-section|count-<idioma>-<gênero>-<nome>.wav',
           value: settings.customGuidesDirectory,
           onChanged: (path) => ref.read(appSettingsProvider.notifier).apply(settings.copyWith(customGuidesDirectory: path)),
+        ),
+        ListTile(
+          key: const Key('backup'),
+          leading: const Icon(Icons.backup_outlined),
+          title: const Text('Backup e restauração'),
+          subtitle: const Text('Músicas, áudios, setlists e preferências num arquivo .zip'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BackupScreen())),
         ),
         ListTile(
           leading: const Icon(Icons.settings_remote_outlined),

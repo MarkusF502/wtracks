@@ -43,6 +43,29 @@ Baseline verificado em `7850128` + este commit, com a biblioteca nativa recém-c
 real (`transition_engine_test`) passou no emulador `wtracks_phase5`. O CI Android e o APK ainda não rodaram nestes commits (nada foi
 enviado ao GitHub). As seis transições têm comportamento definido e testado (`transition_test.dart`, `TransitionTests.cpp`).
 
+## Fase B do plano de consolidação — dados e atualização segura (2026-10-14)
+
+**Status: feita no código, com pendências que dependem de você** (itens WT-01…05 e WT-14 do plano de consolidação).
+
+| Item | O que mudou | Teste |
+|---|---|---|
+| WT-02 importação | `saveTrack` copia o áudio para `.part`, confere o tamanho, publica o nome final, grava o JSON **por último** e só então apaga as origens. Qualquer falha desfaz as cópias e deixa as origens intactas. Parciais órfãos são limpos ao ler a biblioteca. | `data_safety_test.dart` |
+| WT-03 nomes | Cada arquivo escolhido vai para a sua pasta e o nome do provedor é reduzido a um nome de arquivo seguro (Android em Kotlin `safeFileName`, desktop em `safeImportName`). | `data_safety_test.dart` (Dart); o Kotlin compila e roda no emulador, mas o seletor em si precisa de toque (teste manual) |
+| WT-04 autosave | Uma gravação que termina depois de uma edição mais nova só devolve os **caminhos** dos áudios; a edição nova fica e é gravada em seguida. | `data_safety_test.dart` (barreira de I/O) |
+| WT-05 preferências | `SafeJson`: escrita serializada, `.bak` da versão anterior, leitura com recuperação; arquivo ilegível vai para `.corrupt` e o problema aparece no Diagnóstico (não parece mais "reset de fábrica"). Vale para as 4 preferências e para o JSON das músicas/setlists. | `data_safety_test.dart` |
+| WT-14 versão futura | Música com `schemaVersion` maior que o suportado não abre, **nunca é regravada** e aparece como ilegível com a explicação. | `data_safety_test.dart` |
+| Backup/restauração | Ajustes → Backup e restauração: zip com manifesto (SHA-256 e tamanho de cada arquivo), caminhos de áudio relativos (portátil), conferido por inteiro **antes** de ser entregue; a restauração confere de novo, extrai para uma pasta de preparo, valida cada música e só então troca a pasta de dados, deixando a anterior ao lado. Recusa formato mais novo, manifesto ausente e caminhos fora da pasta. Android grava/abre pelo seletor do sistema (SAF), sem permissão de armazenamento. | `backup_test.dart`, `backup_flow_test.dart`, `integration_test/backup_test.dart` (emulador) |
+| WT-01 assinatura | `build.gradle.kts` assina com a chave de `key.properties`/`WTRACKS_KEYSTORE_*`; o workflow lê os secrets, conferir o certificado dos APKs e reprova se não for o esperado. Sem chave, cai na de debug com aviso. Passo a passo em `docs/ASSINATURA-ANDROID.md`. | verificado com `signingReport` (com e sem chave, e com `WTRACKS_REQUIRE_RELEASE_SIGNING`) |
+
+**Pendente (precisa de você):**
+1. Descobrir com que chave o app instalado no seu aparelho foi assinado (passo 1 de `docs/ASSINATURA-ANDROID.md`). Builds de debug do CI
+   têm chave diferente a cada execução; nesse caso a primeira instalação com a chave estável pede **backup → desinstalar → instalar →
+   restaurar**. O backup agora existe; ensaie a restauração antes.
+2. Gerar a chave de release e cadastrar os secrets no GitHub (passo 3 do mesmo documento).
+3. O restante da Fase 0.1 (manifesto `update.json`, download, `PackageInstaller`) continua não implementado.
+4. Não foram feitos: journal de importação por conjunto de arquivos (a ordem copiar → confirmar → apagar cobre a morte do processo sem
+   journal), e o teste físico de atualização A → B.
+
 ## Correções ao que já está documentado
 
 1. **Transições.** `FUN_1004bad90` (transition.c, por volta da linha 10337) monta o rótulo a partir de `storedTransition`:

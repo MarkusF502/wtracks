@@ -24,6 +24,10 @@ class MainActivity : FlutterActivity() {
     private var pendingResult: MethodChannel.Result? = null
     private val PICK_FILES_REQUEST_CODE = 1001
     private val NOTIFICATION_REQUEST_CODE = 1002
+    private val CREATE_BACKUP_REQUEST_CODE = 1003
+    private val OPEN_BACKUP_REQUEST_CODE = 1004
+    private var backupResult: MethodChannel.Result? = null
+    private var backupSource: String? = null
     private var permissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +65,46 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+
+        // Backup: o usuário escolhe onde gravar / qual arquivo restaurar pelo seletor do sistema (SAF), sem permissão de armazenamento.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "wtracks/backup").setMethodCallHandler { call, result ->
+            if (backupResult != null) {
+                result.error("BUSY", "Backup picker already active", null)
+                return@setMethodCallHandler
+            }
+            when (call.method) {
+                "saveBackup" -> {
+                    val source = call.argument<String>("source")
+                    val name = call.argument<String>("name") ?: "wtracks-backup.zip"
+                    if (source == null) { result.error("ARGS", "source missing", null); return@setMethodCallHandler }
+                    backupResult = result
+                    backupSource = source
+                    try {
+                        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "application/zip"
+                            putExtra(Intent.EXTRA_TITLE, name)
+                        }, CREATE_BACKUP_REQUEST_CODE)
+                    } catch (e: Exception) {
+                        backupResult = null; backupSource = null
+                        result.error("LAUNCH_FAILED", e.message, e.toString())
+                    }
+                }
+                "pickBackup" -> {
+                    backupResult = result
+                    try {
+                        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                        }, OPEN_BACKUP_REQUEST_CODE)
+                    } catch (e: Exception) {
+                        backupResult = null
+                        result.error("LAUNCH_FAILED", e.message, e.toString())
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
 
             // Adicione isso no seu configureFlutterEngine, logo abaixo do channel do file_picker
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "wtracks/background").setMethodCallHandler { call, result ->
@@ -105,7 +149,9 @@ class MainActivity : FlutterActivity() {
 
     // Recebe o resultado do seletor clássico
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == PICK_FILES_REQUEST_CODE) {
+        if (requestCode == CREATE_BACKUP_REQUEST_CODE || requestCode == OPEN_BACKUP_REQUEST_CODE) {
+            handleBackupResult(requestCode, resultCode, data?.data)
+        } else if (requestCode == PICK_FILES_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
                 val uris = mutableListOf<Uri>()
                 
@@ -176,6 +222,40 @@ class MainActivity : FlutterActivity() {
                 Handler(Looper.getMainLooper()).post {
                     result.error("IMPORT_FAILED", e.message, e.toString())
                 }
+            }
+        }
+    }
+
+    /** Copia o backup pronto para o destino escolhido (ou o arquivo escolhido para o cache) fora da thread da interface. */
+    private fun handleBackupResult(requestCode: Int, resultCode: Int, uri: Uri?) {
+        val result = backupResult
+        val source = backupSource
+        backupResult = null
+        backupSource = null
+        if (result == null) return
+        if (resultCode != Activity.RESULT_OK || uri == null) {
+            result.success(null) // cancelado
+            return
+        }
+        thread(name = "wtracks-backup") {
+            try {
+                val answer: String = if (requestCode == CREATE_BACKUP_REQUEST_CODE) {
+                    val input = File(source ?: throw java.io.IOException("origem do backup ausente"))
+                    contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                        input.inputStream().use { it.copyTo(output) }
+                    } ?: throw java.io.IOException("openOutputStream retornou null para $uri")
+                    uri.toString()
+                } else {
+                    val dir = File(cacheDir, "wtracks_backup_pick/${System.nanoTime()}").apply { mkdirs() }
+                    val out = File(dir, "restore.zip")
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(out).use { input.copyTo(it) }
+                    } ?: throw java.io.IOException("openInputStream retornou null para $uri")
+                    out.absolutePath
+                }
+                Handler(Looper.getMainLooper()).post { result.success(answer) }
+            } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post { result.error("BACKUP_IO", e.message, e.toString()) }
             }
         }
     }

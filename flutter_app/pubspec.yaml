@@ -37,6 +37,8 @@ dependencies:
   path_provider: ^2.1.4
   flutter_riverpod: ^2.6.1
   uuid: ^4.5.1
+  archive: ^3.6.1   # backup/restauração (zip)
+  crypto: ^3.0.6    # SHA-256 do manifesto do backup
 
 dev_dependencies:
   integration_test:
