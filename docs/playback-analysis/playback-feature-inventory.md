@@ -65,8 +65,10 @@ Own:
 
 Divergences still open (from the guide):
 - The Fade button fades tracks out *and back in* while click, guide and pad keep playing. Ours ends in a pause.
-- AutoLink, Overlap and Crossfade transitions are missing. Values 3 and 4 seen in `FUN_1002da058` are likely Overlap and Crossfade.
+- AutoLink, Overlap, Crossfade and Cue First Song transitions are missing. `storedTransition` is decoded in `FUN_1004bad90` (transition.c ~10337): 0 Cue Next Song, 1 AutoLink, 2 Overlap, 3 Crossfade, 4 Stay In Song, 5 Cue First Song; Continue Pad applies to 0/4/5 (mask 0x31). See `docs/PLANO-DESENVOLVIMENTO.md`.
 - Live crossfade between songs and Live ReOrder are missing.
 - Pad Player and arrangements are missing.
 - Settings are not yet a single tabbed panel (General / Tracks / Buses / MIDI / About).
 - The song menu still links to separate screens instead of editing in place.
+
+Development plan with the remaining gaps and the second Ghidra pass list: `docs/PLANO-DESENVOLVIMENTO.md`.

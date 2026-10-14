@@ -43,6 +43,8 @@ próprias por item em `docs/playback-analysis/playback-feature-inventory.md`.
 
 ## Pendências
 
+Plano completo (fases 1–10 e a lista da segunda passada no Ghidra): `docs/PLANO-DESENVOLVIMENTO.md`.
+
 - Tela de performance v2 (tela única, a partir do guia do usuário em `docs/playback-analysis/ui/helpcenter/`), capturas em
   `docs/ui-performance/`. Faltam: ajustes num painel de abas, menu da música editando no lugar, fade que volta,
   transições AutoLink/Overlap/Crossfade, crossfade ao vivo, Live ReOrder, arranjos, pad — ver o fim do inventário.
