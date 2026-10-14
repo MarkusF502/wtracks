@@ -129,6 +129,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               label: _defaultChannelSlots[slot].$1,
               filePath: channels[slot]!.localPath,
               volume: defaultVolume,
+              isClickOrGuide: ChannelInfo.labelIsClickOrGuide(_defaultChannelSlots[slot].$1),
             ),
       ];
 

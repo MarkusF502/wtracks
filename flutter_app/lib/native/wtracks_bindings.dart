@@ -116,6 +116,8 @@ typedef _ChannelFlagNative = Void Function(Int32, Bool);
 typedef _ChannelFlagDart = void Function(int, bool);
 typedef _DoubleBoolNative = Bool Function(Double);
 typedef _DoubleBoolDart = bool Function(double);
+typedef _SetFadeNative = Bool Function(Bool, Double);
+typedef _SetFadeDart = bool Function(bool, double);
 typedef _EventsNative = Uint32 Function();
 typedef _EventsDart = int Function();
 typedef _TakeMetersNative = Int32 Function(Pointer<Float>, Int32, Pointer<Float>, Int32);
@@ -294,8 +296,11 @@ class WTracksEngine {
   late final _SetClickEnabledDart _setAutomationEnabled;
   late final _MixStateDart _getMixState;
   late final _ChannelFlagDart _setChannelSoloMuted;
-  late final _DoubleBoolDart _startFadeOut;
-  late final _VoidDart _cancelFadeOut;
+  late final _SetFadeDart _setFade;
+  late final _IsPlayingDart _getFadeDown;
+  late final _EnqueueLoopDart _setPlayRange;
+  late final _LoopSnapshotDart _getPlayRange;
+  late final _VoidDart _resetTransportState;
   late final _DoubleBoolDart _setEndFade;
   late final _ChannelFlagDart _setChannelExcludedFromFade;
   late final _GetPositionDart _getFadeGain;
@@ -442,8 +447,11 @@ class WTracksEngine {
     _setAutomationEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('wtracks_set_automation_enabled');
     _getMixState = _lib.lookupFunction<_MixStateNative, _MixStateDart>('wtracks_get_mix_state');
     _setChannelSoloMuted = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_channel_solo_muted');
-    _startFadeOut = _lib.lookupFunction<_DoubleBoolNative, _DoubleBoolDart>('wtracks_start_fade_out');
-    _cancelFadeOut = _lib.lookupFunction<_VoidNative, _VoidDart>('wtracks_cancel_fade_out');
+    _setFade = _lib.lookupFunction<_SetFadeNative, _SetFadeDart>('wtracks_set_fade');
+    _getFadeDown = _lib.lookupFunction<_IsPlayingNative, _IsPlayingDart>('wtracks_get_fade_down');
+    _setPlayRange = _lib.lookupFunction<_EnqueueLoopNative, _EnqueueLoopDart>('wtracks_set_play_range');
+    _getPlayRange = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_play_range');
+    _resetTransportState = _lib.lookupFunction<_VoidNative, _VoidDart>('wtracks_reset_transport_state');
     _setEndFade = _lib.lookupFunction<_DoubleBoolNative, _DoubleBoolDart>('wtracks_set_end_fade');
     _setChannelExcludedFromFade = _lib.lookupFunction<_ChannelFlagNative, _ChannelFlagDart>('wtracks_set_channel_excluded_from_fade');
     _getFadeGain = _lib.lookupFunction<_GetPositionNative, _GetPositionDart>('wtracks_get_fade_gain');
@@ -827,17 +835,32 @@ class WTracksEngine {
 
   void setAutomationEnabled(bool enabled) => _setAutomationEnabled(enabled);
 
-  /// Fade de saída em [seconds] (só tocando); termina pausando e gera [transportEventFadeFinished].
-  bool startFadeOut(double seconds) => _startFadeOut(seconds);
-  void cancelFadeOut() => _cancelFadeOut();
+  /// Botão de fade (liga/desliga): [down] leva o som a zero em [seconds] a partir do nível atual, senão volta ao cheio.
+  /// Não pausa nem gera evento; parado, vale na hora. Pausa e seek mantêm o nível; parar, RTZ e música nova o devolvem.
+  bool setFade(bool down, double seconds) => _setFade(down, seconds);
+  /// O botão de fade está ligado (o alvo é o silêncio).
+  bool get fadeDown => _getFadeDown();
+  /// Início e fim personalizados da música em segundos de música (0/0 = arquivo inteiro).
+  bool setPlayRange(double startSeconds, double endSeconds) => _setPlayRange(startSeconds, endSeconds);
+  (double, double) get playRange {
+    final out = calloc<Double>(2);
+    try {
+      _getPlayRange(out);
+      return (out[0], out[1]);
+    } finally {
+      calloc.free(out);
+    }
+  }
+  /// RTZ: descarta laço ao vivo e enfileirado e devolve o fade; não mexe em play/pause, posição, MUTE MIDI nem nos laços predefinidos.
+  void resetTransportState() => _resetTransportState();
   /// Fade nos últimos [seconds] da música (0 desliga).
   bool setEndFade(double seconds) => _setEndFade(seconds);
   void setChannelExcludedFromFade(int channelIndex, bool excluded) => _setChannelExcludedFromFade(channelIndex, excluded);
-  /// Ganho do fade manual em curso (1..0) ou -1.
+  /// Ganho atual do fade (1 = cheio).
   double get fadeGain => _getFadeGain();
-  /// Eventos desde a última leitura: [transportEventEndReached] | [transportEventFadeFinished].
+  /// Eventos desde a última leitura: [transportEventEndReached].
   int pollTransportEvents() => _pollTransportEvents();
-  static const transportEventEndReached = 1, transportEventFadeFinished = 2;
+  static const transportEventEndReached = 1;
 
   /// Áreas cortadas (segundos da música) que a reprodução pula; decodifica pontes de áudio — use a versão async.
   bool configureSkips(List<(double, double)> areas) {

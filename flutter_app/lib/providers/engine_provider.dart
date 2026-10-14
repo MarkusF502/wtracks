@@ -368,7 +368,10 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           return false;
         }
         engine.setAutomationEnabled(track.automationEnabled);
-        engine.setEndFade(track.endFade ? Track.fadeSeconds : 0);
+        engine.setEndFade(_endFadeFor(track));
+        if (!engine.setPlayRange(track.startSeconds ?? 0, track.endSeconds ?? 0)) {
+          engine.setPlayRange(0, 0); // início/fim gravados que não valem mais (arquivo trocado): música inteira
+        }
         engine.setMidiClockEnabled(track.midiClockEnabled);
         if (!engine.configureTimecode(track.timecode)) {
           engine.unloadTrack();
@@ -382,7 +385,7 @@ class CurrentTrackNotifier extends Notifier<Track?> {
         for (var i = 0; i < track.channels.length; i++) {
           engine.setChannelVolume(i, track.channels[i].volume);
           engine.setChannelRoute(i, track.channels[i].route);
-          engine.setChannelExcludedFromFade(i, track.channels[i].excludeFromFade);
+          engine.setChannelExcludedFromFade(i, track.channels[i].fadeExcluded);
         }
         engine.setMasterVolume(track.masterVolume);
         _syncEffectiveMutes();
@@ -699,16 +702,30 @@ class CurrentTrackNotifier extends Notifier<Track?> {
   void setEndFade(bool enabled) {
     final track = state;
     if (track == null) return;
-    ref.read(engineProvider).setEndFade(enabled ? Track.fadeSeconds : 0);
-    state = track.copyWith(endFade: enabled);
+    final next = track.copyWith(endFade: enabled);
+    ref.read(engineProvider).setEndFade(_endFadeFor(next));
+    state = next;
+  }
+
+  /// Fade de fim em segundos para o motor. O Playback não o dispara quando a música seguinte entra por crossfade
+  /// (FUN_1004f2edc); ainda não há transição Crossfade aqui — gancho para a Fase 2.
+  double _endFadeFor(Track track) => track.endFade ? Track.fadeSeconds : 0;
+
+  /// Início e fim personalizados da música (`null` = arquivo inteiro). Recusa início negativo ou fim antes do início.
+  bool setSongRange(double? start, double? end) {
+    final track = state;
+    if (track == null) return false;
+    if (!ref.read(engineProvider).setPlayRange(start ?? 0, end ?? 0)) return false;
+    state = track.copyWith(startSeconds: start == 0 ? null : start, endSeconds: end == 0 ? null : end);
+    return true;
   }
 
   void setChannelExcludedFromFade(int index, bool excluded) {
     final track = state;
     if (track == null || index < 0 || index >= track.channels.length) return;
-    ref.read(engineProvider).setChannelExcludedFromFade(index, excluded);
     final channels = [...track.channels];
     channels[index] = channels[index].copyWith(excludeFromFade: excluded);
+    ref.read(engineProvider).setChannelExcludedFromFade(index, channels[index].fadeExcluded);
     state = track.copyWith(channels: channels);
   }
 
@@ -1201,12 +1218,12 @@ class TransportState {
   final int underrunCount;
   /// Contagem do pré-roll de seção em curso (a posição espera no início da seção).
   final bool prerolling;
-  /// Fade de saída em curso (botão de transporte).
-  final bool fading;
+  /// O botão de fade está ligado (o som vai ou está em silêncio; a música continua tocando).
+  final bool faded;
   const TransportState({this.positionSeconds = 0, this.lengthSeconds = 0, this.isPlaying = false,
     this.loopEnabled = false, this.loopStart = 0, this.loopEnd = 0,
     this.queuedLoopEnabled = false, this.queuedLoopStart = 0, this.queuedLoopEnd = 0, this.underrunCount = 0,
-    this.prerolling = false, this.fading = false, this.loopPass = 0, this.loopRepeats = 0});
+    this.prerolling = false, this.faded = false, this.loopPass = 0, this.loopRepeats = 0});
   /// Volta atual do laço (1..) e repetições (0 = até soltar).
   final int loopPass, loopRepeats;
   bool activeSection(SongSection section) => loopEnabled &&
@@ -1218,10 +1235,10 @@ class TransportState {
       other.positionSeconds == positionSeconds && other.lengthSeconds == lengthSeconds && other.isPlaying == isPlaying &&
       other.loopEnabled == loopEnabled && other.loopStart == loopStart && other.loopEnd == loopEnd &&
       other.queuedLoopEnabled == queuedLoopEnabled && other.queuedLoopStart == queuedLoopStart && other.queuedLoopEnd == queuedLoopEnd && other.underrunCount == underrunCount &&
-      other.prerolling == prerolling && other.fading == fading && other.loopPass == loopPass && other.loopRepeats == loopRepeats;
+      other.prerolling == prerolling && other.faded == faded && other.loopPass == loopPass && other.loopRepeats == loopRepeats;
   @override
   int get hashCode => Object.hash(positionSeconds, lengthSeconds, isPlaying, loopEnabled, loopStart, loopEnd,
-      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling, fading, loopPass, loopRepeats);
+      queuedLoopEnabled, queuedLoopStart, queuedLoopEnd, underrunCount, prerolling, faded, loopPass, loopRepeats);
 }
 
 class TransportNotifier extends Notifier<TransportState> {
@@ -1270,7 +1287,7 @@ class TransportNotifier extends Notifier<TransportState> {
       lengthSeconds: engine.totalLengthSeconds, isPlaying: engine.isPlaying,
       loopEnabled: loop[0] == 1, loopStart: loop[1], loopEnd: loop[2],
       queuedLoopEnabled: loop[3] == 1, queuedLoopStart: loop[4], queuedLoopEnd: loop[5],
-      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling, fading: engine.fadeGain >= 0,
+      underrunCount: engine.underrunCount, prerolling: engine.isPrerolling, faded: engine.fadeDown,
       loopPass: pass.$1, loopRepeats: pass.$2);
   }
   void refresh() { final next = _snapshot(ref.read(engineProvider)); if (next != state) state = next; }
@@ -1325,11 +1342,24 @@ class TransportNotifier extends Notifier<TransportState> {
 
   void seekTo(double seconds) => ref.read(engineProvider).seekToSeconds(seconds);
 
-  /// Botão de transporte "5 Second Fade Out": termina pausando (e a setlist segue a transição da música).
-  bool fadeOut() {
-    final ok = ref.read(engineProvider).startFadeOut(Track.fadeSeconds);
+  /// Botão de transporte "5 Second Fade Out": liga/desliga. Ligado, o som vai a zero em 5 s e a música segue tocando;
+  /// desligado, volta ao cheio a partir do nível atual. Não pausa nem avança a setlist (Playback FUN_10086ba58).
+  bool fadeToggle() {
+    final engine = ref.read(engineProvider);
+    final ok = engine.setFade(!engine.fadeDown, Track.fadeSeconds);
     refresh();
     return ok;
+  }
+
+  /// Botão RTZ (Playback FUN_10086a1c0): volta ao início da música (o ponto de início personalizado), descarta laços ao
+  /// vivo e enfileirados, solta o fade e preparação de laço. Não para a música nem toca no MUTE MIDI (o Playback só reativa
+  /// o MIDI Out cortado por crossfade; gancho para a Fase 2) e os laços predefinidos das seções continuam valendo.
+  void returnToZero() {
+    ref.read(currentTrackProvider.notifier).cancelLoopPreparation();
+    final engine = ref.read(engineProvider);
+    engine.resetTransportState();
+    engine.seekToSeconds(ref.read(currentTrackProvider)?.startSeconds ?? 0);
+    refresh();
   }
 }
 

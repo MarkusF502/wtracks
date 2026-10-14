@@ -19,6 +19,7 @@ import 'midi_screen.dart';
 import 'tempo_map_screen.dart';
 import 'mixer_automation_screen.dart';
 import 'song_ending_sheet.dart';
+import 'song_range_sheet.dart';
 import 'buses_screen.dart';
 import 'control_mapping_screen.dart';
 import 'library_screen.dart';
@@ -470,14 +471,14 @@ class _TransportButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isPlaying = ref.watch(transportProvider.select((t) => t.isPlaying));
     final prerolling = ref.watch(transportProvider.select((t) => t.prerolling));
-    final fading = ref.watch(transportProvider.select((t) => t.fading));
+    final faded = ref.watch(transportProvider.select((t) => t.faded));
     final notifier = ref.read(transportProvider.notifier);
     final playColor = prerolling ? kStageYellow : kStageGreen;
     return Row(children: [
       Expanded(
         child: _BarButton(
           tooltip: 'Voltar ao início',
-          onTap: () => notifier.seekTo(0),
+          onTap: notifier.returnToZero,
           child: CustomPaint(size: const Size(30, 26), painter: _RtzIconPainter(_textDim)),
         ),
       ),
@@ -496,9 +497,9 @@ class _TransportButtons extends ConsumerWidget {
       Expanded(
         child: _BarButton(
           tooltip: 'Fade de 5 segundos',
-          highlighted: fading,
-          onTap: () => notifier.fadeOut(),
-          child: CustomPaint(size: const Size(40, 24), painter: _FadeIconPainter(fading ? kStageOrange : const Color(0xFF919191))),
+          highlighted: faded,
+          onTap: () => notifier.fadeToggle(),
+          child: CustomPaint(size: const Size(40, 24), painter: _FadeIconPainter(faded ? kStageOrange : const Color(0xFF919191))),
         ),
       ),
     ]);
@@ -776,6 +777,7 @@ class _SongMenuDialog extends ConsumerWidget {
           _SheetRow(label: 'Mapa de andamento', onTap: () => push(TempoMapScreen(trackId: song.id))),
         ]),
         _SheetSection(header: 'DURAÇÃO', children: [
+          _SheetRow(label: 'Início e fim da música', detail: song.startSeconds == null && song.endSeconds == null ? '' : 'personalizado', onTap: () => sheet(const SongRangeSheet())),
           _SheetRow(label: 'Fim da música e fade', detail: song.endFade ? 'Fade de 5 s' : '', onTap: () => sheet(const SongEndingSheet())),
         ]),
         _SheetSection(header: 'MAPA DA MÚSICA', children: [
@@ -842,7 +844,7 @@ Future<void> _save(BuildContext context, ProviderRead read) async {
   }
 }
 
-/// Tempo atual grande e "decorrido / duração" embaixo (Playback: "00:00" sobre "0:00 / 4:43"). Toque abre a edição.
+/// Tempo atual grande e "decorrido / duração" embaixo (Playback: "00:00" sobre "0:00 / 4:43"). Toque edita o início e o fim.
 class _TimeBox extends ConsumerWidget {
   final bool empty, narrow;
   const _TimeBox({this.empty = false, this.narrow = false});
@@ -854,9 +856,9 @@ class _TimeBox extends ConsumerWidget {
     const figures = [FontFeature.tabularFigures()];
     final track = ref.read(currentTrackProvider);
     return _BarButton(
-      tooltip: 'Editar música',
+      tooltip: 'Início e fim da música',
       width: narrow ? 80 : 92,
-      onTap: empty || track == null ? null : () => _showSongMenu(context, ref, track),
+      onTap: empty || track == null ? null : () => showModalBottomSheet<void>(context: context, builder: (_) => const SongRangeSheet()),
       child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(empty ? '--:--' : _clock(position),
             style: const TextStyle(color: _text, fontSize: 22, fontWeight: FontWeight.w300, fontFeatures: figures)),

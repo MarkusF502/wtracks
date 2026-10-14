@@ -101,19 +101,35 @@ class FakeEngine implements WTracksEngine {
   void setAutomationEnabled(bool enabled) => automationEnabled = enabled;
   @override
   MixState mixState() => mix;
-  double fadeGainValue = -1;
+  bool fadeDownValue = false;
   int pendingEvents = 0;
   double endFadeSeconds = 0;
   final excludedFromFade = <int>{};
   @override
-  bool startFadeOut(double seconds) {
-    calls.add('fadeOut($seconds)');
-    if (!playing) return false;
-    fadeGainValue = 1;
+  bool setFade(bool down, double seconds) {
+    calls.add('fade($down,$seconds)');
+    fadeDownValue = down;
     return true;
   }
   @override
-  void cancelFadeOut() => fadeGainValue = -1;
+  bool get fadeDown => fadeDownValue;
+  double playRangeStart = 0, playRangeEnd = 0;
+  @override
+  bool setPlayRange(double startSeconds, double endSeconds) {
+    if (startSeconds < 0 || endSeconds < 0 || (endSeconds > 0 && endSeconds <= startSeconds)) return false;
+    calls.add('range($startSeconds,$endSeconds)');
+    playRangeStart = startSeconds;
+    playRangeEnd = endSeconds;
+    return true;
+  }
+  @override
+  (double, double) get playRange => (playRangeStart, playRangeEnd);
+  @override
+  void resetTransportState() {
+    calls.add('resetTransport');
+    fadeDownValue = false;
+    loopEnabled = false; loopStart = 0; loopEnd = 0; clearQueuedLoop();
+  }
   @override
   bool setEndFade(double seconds) {
     endFadeSeconds = seconds;
@@ -123,7 +139,7 @@ class FakeEngine implements WTracksEngine {
   void setChannelExcludedFromFade(int channelIndex, bool excluded) =>
       excluded ? excludedFromFade.add(channelIndex) : excludedFromFade.remove(channelIndex);
   @override
-  double get fadeGain => fadeGainValue;
+  double get fadeGain => fadeDownValue ? 0 : 1;
   List<double> channelPeaks = [];
   List<double> outputPeaks = [0, 0];
   @override

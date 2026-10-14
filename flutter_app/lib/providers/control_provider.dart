@@ -158,7 +158,7 @@ Future<void> performControlAction(Ref ref, ControlAction action) async {
     case ControlAction.previousSong:
       await ref.read(setlistSessionProvider.notifier).previous();
     case ControlAction.fadeOut:
-      transport.fadeOut();
+      transport.fadeToggle();
     case ControlAction.toggleClick:
       final enabled = !ref.read(clickEnabledProvider);
       ref.read(clickEnabledProvider.notifier).state = enabled;

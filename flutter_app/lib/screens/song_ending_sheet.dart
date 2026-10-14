@@ -68,8 +68,9 @@ class SongEndingSheet extends ConsumerWidget {
                 key: Key('exclude-fade-$i'),
                 dense: true,
                 title: Text(track.channels[i].label),
-                value: track.channels[i].excludeFromFade,
-                onChanged: (v) {
+                subtitle: track.channels[i].isClickOrGuide ? const Text('Click e guia nunca entram no fade') : null,
+                value: track.channels[i].fadeExcluded,
+                onChanged: track.channels[i].isClickOrGuide ? null : (v) {
                   notifier.setChannelExcludedFromFade(i, v ?? false);
                   _save(context, ref);
                 },

@@ -107,6 +107,9 @@ class ChannelInfo {
   final bool soloed; // conceito só do Dart -- o AudioEngine não tem solo nativo
   final ChannelRoute route;
   final bool excludeFromFade; // não enfraquece no fade de saída
+  /// Canal de click ou de guia (slots Click/Guia da importação): fica fora do fade, como no Playback
+  /// (`MetadataTrack.clickorguide`; a exceção dos partID 1 e 8 ainda não foi decifrada — escolha própria).
+  final bool isClickOrGuide;
   final String? busId; // bus da música (null = direto para a sua saída)
 
   const ChannelInfo({
@@ -117,8 +120,15 @@ class ChannelInfo {
     this.soloed = false,
     this.route = ChannelRoute.stereo,
     this.excludeFromFade = false,
+    this.isClickOrGuide = false,
     this.busId,
   });
+
+  /// Músicas gravadas antes do campo: o slot só ficou no rótulo.
+  static bool labelIsClickOrGuide(String label) => const {'click', 'guia', 'guide'}.contains(label.trim().toLowerCase());
+
+  /// O que vale no motor: o fade não o enfraquece.
+  bool get fadeExcluded => excludeFromFade || isClickOrGuide;
 
   ChannelInfo copyWith({
     String? label,
@@ -128,6 +138,7 @@ class ChannelInfo {
     bool? soloed,
     ChannelRoute? route,
     bool? excludeFromFade,
+    bool? isClickOrGuide,
     Object? busId = _keep,
   }) {
     return ChannelInfo(
@@ -138,6 +149,7 @@ class ChannelInfo {
       soloed: soloed ?? this.soloed,
       route: route ?? this.route,
       excludeFromFade: excludeFromFade ?? this.excludeFromFade,
+      isClickOrGuide: isClickOrGuide ?? this.isClickOrGuide,
       busId: identical(busId, _keep) ? this.busId : busId as String?,
     );
   }
@@ -152,6 +164,7 @@ class ChannelInfo {
         'soloed': soloed,
         'route': route.name,
         'excludeFromFade': excludeFromFade,
+        'isClickOrGuide': isClickOrGuide,
         if (busId != null) 'busId': busId,
       };
 
@@ -163,6 +176,7 @@ class ChannelInfo {
         soloed: json['soloed'] as bool? ?? false,
         route: ChannelRoute.parse(json['route']),
         excludeFromFade: json['excludeFromFade'] as bool? ?? false,
+        isClickOrGuide: json['isClickOrGuide'] as bool? ?? labelIsClickOrGuide(json['label'] as String),
         busId: json['busId'] as String?,
       );
 }
@@ -321,6 +335,9 @@ class Track {
   /// Transição na setlist e fade de saída nos últimos 5 s (SongArrangement.endFade).
   final SongTransition transition;
   final bool endFade;
+  /// Início e fim personalizados da música em segundos (SongArrangement.storedStartTime/EndTime); `null` = arquivo inteiro.
+  /// Na Fase 3 migram para o arranjo (`SongArrangement`).
+  final double? startSeconds, endSeconds;
   static const fadeSeconds = 5.0; // "5 Second Fade Out"
   final bool midiClockEnabled;
   final TimecodeSettings timecode;
@@ -348,6 +365,8 @@ class Track {
     this.automationEnabled = true,
     this.transition = SongTransition.cueNextSong,
     this.endFade = false,
+    this.startSeconds,
+    this.endSeconds,
     this.midiClockEnabled = false,
     this.timecode = const TimecodeSettings(),
     this.tempoChanges = const [],
@@ -375,6 +394,8 @@ class Track {
     bool? automationEnabled,
     SongTransition? transition,
     bool? endFade,
+    Object? startSeconds = _keepBank,
+    Object? endSeconds = _keepBank,
     bool? midiClockEnabled,
     TimecodeSettings? timecode,
     List<TempoChange>? tempoChanges,
@@ -399,6 +420,8 @@ class Track {
       automationEnabled: automationEnabled ?? this.automationEnabled,
       transition: transition ?? this.transition,
       endFade: endFade ?? this.endFade,
+      startSeconds: identical(startSeconds, _keepBank) ? this.startSeconds : (startSeconds as num?)?.toDouble(),
+      endSeconds: identical(endSeconds, _keepBank) ? this.endSeconds : (endSeconds as num?)?.toDouble(),
       midiClockEnabled: midiClockEnabled ?? this.midiClockEnabled,
       timecode: timecode ?? this.timecode,
       tempoChanges: tempoChanges ?? this.tempoChanges,
@@ -435,6 +458,8 @@ class Track {
         'automationEnabled': automationEnabled,
         'transition': transition.name,
         'endFade': endFade,
+        if (startSeconds != null) 'startSeconds': startSeconds,
+        if (endSeconds != null) 'endSeconds': endSeconds,
         'midiClockEnabled': midiClockEnabled,
         'timecode': timecode.toJson(),
         'tempoChanges': tempoChanges.map((c) => c.toJson()).toList(),
@@ -461,6 +486,8 @@ class Track {
         automationEnabled: json['automationEnabled'] as bool? ?? true,
         transition: SongTransition.parse(json['transition']),
         endFade: json['endFade'] as bool? ?? false,
+        startSeconds: (json['startSeconds'] as num?)?.toDouble(),
+        endSeconds: (json['endSeconds'] as num?)?.toDouble(),
         midiClockEnabled: json['midiClockEnabled'] as bool? ?? false,
         timecode: TimecodeSettings.fromJson(json['timecode']),
         tempoChanges: TempoChange.fromJsonList(json['tempoChanges'] as List? ?? const []),

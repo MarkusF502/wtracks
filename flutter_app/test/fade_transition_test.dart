@@ -57,16 +57,34 @@ void main() {
       expect(c.read(currentTrackProvider)!.transition, SongTransition.stayInSong);
     });
 
-    test('fade button needs playback; the transport reports the running fade', () async {
-      final engine = FakeEngine();
+    test('fade button is an on/off switch that keeps the song playing', () async {
+      final engine = FakeEngine()..playing = true;
       final c = container(engine, InMemoryPersistence());
       c.read(currentTrackProvider.notifier).setLoadedTrack(sampleTrack(id: 's'));
       final transport = c.read(transportProvider.notifier);
-      expect(transport.fadeOut(), false);
-      engine.playing = true;
-      expect(transport.fadeOut(), true);
-      expect(engine.calls, contains('fadeOut(5.0)'));
-      expect(c.read(transportProvider).fading, true);
+      expect(transport.fadeToggle(), true);
+      expect(engine.calls, contains('fade(true,5.0)'));
+      expect(c.read(transportProvider).faded, true);
+      expect(engine.playing, true);
+      expect(transport.fadeToggle(), true);
+      expect(engine.calls, contains('fade(false,5.0)'));
+      expect(c.read(transportProvider).faded, false);
+    });
+
+    test('return to zero rewinds to the start point, drops the live loop and the fade, and leaves play and MUTE MIDI alone', () async {
+      final engine = FakeEngine()..playing = true;
+      final c = container(engine, InMemoryPersistence());
+      c.read(currentTrackProvider.notifier).setLoadedTrack(sampleTrack(id: 's').copyWith(startSeconds: 12));
+      final transport = c.read(transportProvider.notifier);
+      engine.midiCuesMuted = true;
+      transport.fadeToggle();
+      engine.calls.clear();
+      transport.returnToZero();
+      expect(engine.calls, ['resetTransport', 'seek(12.0)']);
+      expect(engine.playing, true);
+      expect(c.read(transportProvider).faded, false);
+      expect(engine.calls.contains('stop'), false);
+      expect(engine.midiCuesMuted, true);
     });
 
     test('song end follows the transition: cue the next song, stay, or stop at the last one', () async {
@@ -135,7 +153,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Fade de 5 segundos'));
     await tester.pump(const Duration(milliseconds: 150));
-    expect(engine.calls, contains('fadeOut(5.0)'));
+    expect(engine.calls, contains('fade(true,5.0)'));
 
     await tester.tap(find.byTooltip('Mais'));
     await tester.pumpAndSettle();
@@ -162,21 +180,29 @@ void main() {
   });
 
   group('native FFI', () {
-    test('real ABI: fade needs playback, end fade is validated, events start empty', () async {
+    test('real ABI: the fade switch works stopped, the end fade is validated, ranges are checked, events start empty', () async {
       final dir = await Directory.systemTemp.createTemp('fade-ffi-');
       addTearDown(() => dir.delete(recursive: true));
       final song = writeSineWav('${dir.path}/song.wav', seconds: 2);
       final engine = WTracksEngine()..initialise();
       addTearDown(engine.shutdown);
       expect(await engine.loadTrackAsync('fade-ffi', [song.path]), true, reason: engine.lastError);
-      expect(engine.startFadeOut(5), false);
-      expect(engine.fadeGain, -1);
+      expect(engine.fadeDown, false);
+      expect(engine.fadeGain, 1);
+      expect(engine.setFade(true, 5), true); // stopped: applies at once
+      expect(engine.fadeDown, true);
+      expect(engine.fadeGain, 0);
+      expect(engine.setFade(true, 0), false);
+      engine.resetTransportState();
+      expect(engine.fadeDown, false);
       expect(engine.setEndFade(5), true);
       expect(engine.setEndFade(-1), false);
-      expect(engine.startFadeOut(0), false);
+      expect(engine.setPlayRange(0.5, 1.5), true);
+      expect(engine.playRange, (0.5, 1.5));
+      expect(engine.currentPositionSeconds, closeTo(0.5, 1e-3)); // the waiting song follows its start
+      expect(engine.setPlayRange(1, 1), false);
       engine.setChannelExcludedFromFade(0, true);
       expect(engine.pollTransportEvents(), 0);
-      engine.cancelFadeOut();
     }, skip: !nativeEngineAvailable() ? 'Native library unavailable' : false);
   });
 }
