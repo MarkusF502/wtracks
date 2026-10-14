@@ -1,6 +1,7 @@
 # Testes de integração no emulador Android (Fase 0 do plano: o salvamento no Android).
 # - persistence_test.dart: importar -> editar -> setlist -> "reabrir o app" mantém tudo (motor falso; isola o salvamento).
 # - engine_init_test.dart: o motor nativo (JUCE) carrega e inicializa no Android.
+# - transition_engine_test.dart: duas músicas com o motor real (dois decks, dispositivo de áudio, Crossfade e hand-off).
 # Os dois importam helpers de flutter_app/test/harness/ por caminho relativo (../test/harness/...).
 name: Android tests
 
@@ -64,4 +65,4 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: flutter_app
-          script: flutter test integration_test/engine_init_test.dart integration_test/persistence_test.dart
+          script: flutter test integration_test/engine_init_test.dart integration_test/persistence_test.dart integration_test/transition_engine_test.dart
