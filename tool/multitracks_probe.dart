@@ -71,9 +71,13 @@ Future<void> main(List<String> args) async {
     final (status, json) = await post('authenticate', {
       // O servidor respondeu "Username, password and device identifier are required fields.": o nome exato da chave do identificador não
       // aparece no binário (nomes com mais de 15 caracteres não são decodificados); envia as variantes prováveis, o servidor ignora as outras.
+      // Nomes de chave encontrados no binário perto dos campos do login: deviceID, deviceUUID, deviceIdentifier, identifierForVendor.
       'deviceIdentifier': deviceId,
       'deviceID': deviceId,
       'deviceId': deviceId,
+      'deviceUUID': deviceId,
+      'uuid': deviceId,
+      'identifierForVendor': deviceId,
       'username': username,
       'password': password,
       'language': options.language,

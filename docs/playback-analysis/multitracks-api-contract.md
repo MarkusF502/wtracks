@@ -48,6 +48,14 @@ ferramenta de teste envia `deviceIdentifier`, `deviceID` e `deviceId`). Esquema 
 `teamSharingLicenseID`, `appLicenseID`, `latestVersion`, `organizations`, `cloudPro`, `planningCenter`, `playbackSnapshot`, `mtCompleteEnabled`,
 `mtCompleteEngineer`, `result`, `errorCode`, `message`, `messageTitle`, `button`, `url`, `isAdmin`, `roleID`.
 
+### Nomes de chave vistos no binário (strings de reflexão do Swift) [O]
+
+Perto dos campos do login aparecem, em sequência: `username`, `password`, `pushToken`, `receipt`, `production` e, em outro grupo, `organization`, `resultID`, `errorCodeID`,
+`responseMessageTitle`, `responseMessage`, `responseButtonTitle`, `responseButtonURL`, `customerID`, `userID`, `userHash`, `pushToken`, `application`, `platform`, `deviceID`, `deviceName`,
+`android`, `windows`, `title`, `build`, `language`. Outras strings: `deviceUUID`, `deviceIdentifier`, `identifierForVendor`, `deviceLimit`, `threeDeviceLogins`,
+`rentalsOtherDevices`, `rentalsThisDevice`, `playbackDeviceKeychainStorageFailed` (o Playback guarda a identidade do aparelho no Keychain). **[I]** `platform` pode ser
+validado contra uma lista (`ios`, `android`, `windows`…); há um limite de aparelhos por conta (`deviceLimit`, "três logins de aparelho").
+
 ## Fluxo provável [I]
 
 1. `authenticate` com usuário/senha devolve o usuário (`userHash`, organizações, direitos). **A senha vai no corpo da requisição**; não há OAuth
