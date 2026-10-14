@@ -412,6 +412,11 @@ Resumo do que o texto abaixo previa e como ficou:
 
 ## Fase 6 — Biblioteca, setlists e importação
 
+**Status parcial (2026-10-14): stems dinâmicos feitos** (pré-requisito da Fase 6.1). A importação aceita 1–64 arquivos WAV/AIFF/FLAC,
+sugere nome e tipo pelo nome do arquivo (`stem_detection.dart`: Click, Guia, Bateria, Baixo, Teclas, Pad, Violão, Guitarra, Backing vocal, Voz,
+Cordas/Sopros), põe click e guia primeiro, numera nomes repetidos e deixa renomear, trocar click/guia, remover e arrastar para reordenar.
+Testes: `stem_import_test.dart`. Continuam pendentes: pasta e .zip, busca/ordenação da biblioteca, tom com enarmonia e as melhorias de setlist.
+
 - **Importação:** pastas, .zip e AIFF, com número livre de faixas e detecção de click e guia pelo nome
   (`MetadataTrack.clickorguide`, `vocal`). Hoje são 8 WAVs fixos.
 - **Biblioteca:** busca e ordenação; tom com enarmonia (`MetadataKey`).

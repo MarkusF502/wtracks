@@ -4,7 +4,12 @@ import 'dart:async';
 
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'services/stem_detection.dart';
 import 'package:path_provider/path_provider.dart';
+
+/// O serviço de seleção de arquivos (substituível nos testes).
+final fileImportServiceProvider = Provider<FileImportService>((ref) => FileImportService());
 
 /// Porta pro Flutter o mesmo princípio que validamos no MainComponent.cpp:
 /// no Android, arquivos escolhidos pelo seletor do sistema podem vir de
@@ -45,9 +50,9 @@ class FileImportService {
         // fall through to file_selector fallback
       }
     }
-    const XTypeGroup typeGroup = XTypeGroup(
-      label: 'Audio WAV',
-      extensions: <String>['wav'],
+    final XTypeGroup typeGroup = XTypeGroup(
+      label: 'Áudio (WAV, AIFF, FLAC)',
+      extensions: importableAudioExtensions,
     );
 
     final List<XFile> files = await openFiles(

@@ -6,30 +6,49 @@ import '../file_import_service.dart';
 import '../models/track.dart';
 import '../models/engine_error.dart';
 import '../providers/engine_provider.dart';
+import '../services/stem_detection.dart';
+import '../widgets/dialog_text_controller.dart';
 
 const _uuid = Uuid();
 
+/// Máximo de canais por música (limite do motor: medidores e automação de 64 canais).
+const maxImportChannels = 64;
 
-/// Um arquivo já importado (copiado pro cache local) esperando ser
-/// mapeado a um canal.
-class _ImportedFile {
-  final String name; // nome de exibição (sem extensão)
+/// Um arquivo já importado (copiado pro cache local) que vai virar um canal.
+class ImportStem {
+  final String id;
   final String localPath;
+  final String label;
+  final bool isClickOrGuide;
 
-  _ImportedFile({required this.name, required this.localPath});
+  /// 0 = click, 1 = guia, 2 = outro (ordem sugerida; ver [StemGuess.rank]).
+  final int rank;
+  const ImportStem({required this.id, required this.localPath, required this.label, required this.isClickOrGuide, required this.rank});
+
+  ImportStem copyWith({String? label, bool? isClickOrGuide}) =>
+      ImportStem(id: id, localPath: localPath, label: label ?? this.label, isClickOrGuide: isClickOrGuide ?? this.isClickOrGuide, rank: rank);
 }
 
-const _defaultChannelSlots = [
-  ('Click', Color(0xFFFF3B4E)),
-  ('Guia', Color(0xFFFFC107)),
-  ('Bateria', Color(0xFFF5A020)),
-  ('Baixo', Color(0xFFA78BFA)),
-  ('Teclas', Color(0xFF00C896)),
-  ('Guitarra', Color(0xFF5B7CF5)),
-  ('Pad', Color(0xFFF03060)),
-  ('Voz Ref', Color(0xFF00E5FF)),
-];
-
+/// Junta os arquivos novos aos já escolhidos. Enquanto o usuário não reordenou, click e guia sobem para o início; depois da primeira
+/// reordenação manual os novos entram no fim, sem mexer no que ele arrumou. Nomes repetidos ganham um número.
+List<ImportStem> mergeImportedStems(List<ImportStem> current, List<String> newPaths, {required bool keepOrder}) {
+  final added = [
+    for (final path in newPaths)
+      () {
+        final guess = guessStem(path);
+        return ImportStem(id: _uuid.v4(), localPath: path, label: guess.label, isClickOrGuide: guess.isClickOrGuide, rank: guess.rank);
+      }()
+  ];
+  final all = [...current, ...added];
+  if (!keepOrder) {
+    final indexed = all.indexed.toList()..sort((a, b) => a.$2.rank != b.$2.rank ? a.$2.rank.compareTo(b.$2.rank) : a.$1.compareTo(b.$1));
+    all
+      ..clear()
+      ..addAll(indexed.map((e) => e.$2));
+  }
+  final labels = uniqueLabels([for (final stem in all) stem.label]);
+  return [for (var i = 0; i < all.length; i++) all[i].copyWith(label: labels[i])];
+}
 
 class ImportScreen extends ConsumerStatefulWidget {
   const ImportScreen({super.key});
@@ -39,19 +58,14 @@ class ImportScreen extends ConsumerStatefulWidget {
 }
 
 class _ImportScreenState extends ConsumerState<ImportScreen> {
-  final _fileImportService = FileImportService();
   final _titleController = TextEditingController(text: 'Música importada');
 
-  final List<_ImportedFile> _files = [];
-  // index do arquivo -> index do slot de canal que ele foi mapeado para
-  final Map<int, int> _mapping = {};
-
-  int? _selectedFileIndex;
+  List<ImportStem> _stems = [];
+  bool _reordered = false;
   bool _isImporting = false;
   bool _isFinalizing = false;
   String? _error;
 
-  
   Future<void> _pickFiles() async {
     if (_isFinalizing) return; // Bloqueia toques duplos
 
@@ -61,15 +75,18 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     });
 
     try {
-      final localPaths = await _fileImportService.pickAndImportChannelFiles();
+      final localPaths = await ref.read(fileImportServiceProvider).pickAndImportChannelFiles();
       if (!mounted) return;
+      final room = maxImportChannels - _stems.length;
+      final accepted = localPaths.where((p) => isImportableAudio(p)).toList();
+      final skipped = localPaths.length - accepted.length;
       setState(() {
-        for (final path in localPaths) {
-          final fileName = path.split('/').last;
-          final displayName =
-              fileName.contains('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
-          _files.add(_ImportedFile(name: displayName, localPath: path));
-        }
+        _stems = mergeImportedStems(_stems, accepted.take(room).toList(), keepOrder: _reordered);
+        final notes = [
+          if (skipped > 0) '$skipped arquivo${skipped == 1 ? '' : 's'} ignorado${skipped == 1 ? '' : 's'} (só WAV, AIFF e FLAC)',
+          if (accepted.length > room) '${accepted.length - room} fora do limite de $maxImportChannels canais',
+        ];
+        _error = notes.isEmpty ? null : notes.join('; ');
       });
     } catch (e) {
       if (!mounted) return;
@@ -79,35 +96,40 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     }
   }
 
-
-  void _onFileTap(int fileIndex) {
+  void _reorder(int oldIndex, int newIndex) {
     if (_isFinalizing) return;
     setState(() {
-      _selectedFileIndex = _selectedFileIndex == fileIndex ? null : fileIndex;
+      final list = [..._stems];
+      if (newIndex > oldIndex) newIndex -= 1;
+      list.insert(newIndex, list.removeAt(oldIndex));
+      _stems = list;
+      _reordered = true;
     });
   }
 
-  void _onChannelTap(int slotIndex) {
-    if (_isFinalizing) return;
-    
-    if (_selectedFileIndex != null) {
-      setState(() {
-        // Um arquivo só pode estar mapeado a um canal por vez.
-        _mapping.removeWhere((_, mappedSlot) => mappedSlot == slotIndex);
-        _mapping[_selectedFileIndex!] = slotIndex;
-        _selectedFileIndex = null;
-      });
-      return;
-    }
-
-    // Sem arquivo selecionado: tocar num canal já mapeado desmapeia.
-    final mappedFileIndex =
-        _mapping.entries.where((e) => e.value == slotIndex).map((e) => e.key).firstOrNull;
-    if (mappedFileIndex != null) {
-      setState(() => _mapping.remove(mappedFileIndex));
-    }
+  Future<void> _rename(int index) async {
+    final stem = _stems[index];
+    final label = await showDialog<String>(
+      context: context,
+      builder: (ctx) => DialogTextController(
+        initialText: stem.label,
+        builder: (controller) => AlertDialog(
+          title: const Text('Nome do canal'),
+          content: TextField(key: const Key('stem-name'), controller: controller, autofocus: true),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('OK')),
+          ],
+        ),
+      ),
+    );
+    if (label == null || label.isEmpty || !mounted) return;
+    setState(() => _stems = [..._stems]..[index] = stem.copyWith(label: label));
   }
 
+  void _toggleClickOrGuide(int index) => setState(() => _stems = [..._stems]..[index] = _stems[index].copyWith(isClickOrGuide: !_stems[index].isClickOrGuide));
+
+  void _remove(int index) => setState(() => _stems = [..._stems]..removeAt(index));
 
   Future<void> _finalize() async {
     setState(() {
@@ -117,20 +139,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
     // Envolvemos tudo num try-catch para capturar falhas silenciosas do Dart
     try {
-      final channels = <int, _ImportedFile>{
-        for (final entry in _mapping.entries) entry.value: _files[entry.key],
-      };
-
       final defaultVolume = ref.read(appSettingsProvider).defaultChannelVolume;
       final channelInfos = <ChannelInfo>[
-        for (var slot = 0; slot < _defaultChannelSlots.length; slot++)
-          if (channels[slot] != null)
-            ChannelInfo(
-              label: _defaultChannelSlots[slot].$1,
-              filePath: channels[slot]!.localPath,
-              volume: defaultVolume,
-              isClickOrGuide: ChannelInfo.labelIsClickOrGuide(_defaultChannelSlots[slot].$1),
-            ),
+        for (final stem in _stems)
+          ChannelInfo(label: stem.label, filePath: stem.localPath, volume: defaultVolume, isClickOrGuide: stem.isClickOrGuide),
       ];
 
       final title = _titleController.text.trim();
@@ -177,7 +189,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mappedCount = _mapping.length;
+    final count = _stems.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFF07070E),
@@ -212,55 +224,36 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           Padding(
             padding: const EdgeInsets.all(12),
             child: FilledButton.icon(
-              onPressed: (_isImporting || _isFinalizing) ? null : _pickFiles,
+              key: const Key('add-files'),
+              onPressed: (_isImporting || _isFinalizing || count >= maxImportChannels) ? null : _pickFiles,
               icon: _isImporting
-                  ? const SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.add),
-              label: const Text('Adicionar arquivos (.wav)'),
+              label: const Text('Adicionar arquivos (WAV, AIFF, FLAC)'),
             ),
           ),
-          const _SectionHeader(label: 'ARQUIVOS IMPORTADOS'),
+          const _SectionHeader(label: 'CANAIS — ARRASTE PARA REORDENAR, TOQUE NO NOME PARA RENOMEAR'),
           Expanded(
-            flex: 45,
-            child: _files.isEmpty
-                ? const Center(
-                    child: Text('Nenhum arquivo importado ainda.',
-                        style: TextStyle(color: Color(0xFF55556A))))
-                : ListView.builder(
+            child: _stems.isEmpty
+                ? const Center(child: Text('Nenhum arquivo importado ainda.', style: TextStyle(color: Color(0xFF55556A))))
+                : ReorderableListView.builder(
+                    buildDefaultDragHandles: false,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    itemCount: _files.length,
-                    itemBuilder: (context, index) => _FileRow(
-                      name: _files[index].name,
-                      isSelected: _selectedFileIndex == index,
-                      isUsed: _mapping.containsKey(index),
-                      onTap: () => _onFileTap(index),
-                    ),
+                    itemCount: _stems.length,
+                    onReorderItem: _reorder,
+                    itemBuilder: (context, index) {
+                      final stem = _stems[index];
+                      return _StemRow(
+                        key: ValueKey(stem.id),
+                        index: index,
+                        stem: stem,
+                        fileName: stem.localPath.split('/').last,
+                        onRename: () => _rename(index),
+                        onToggleClickOrGuide: () => _toggleClickOrGuide(index),
+                        onRemove: () => _remove(index),
+                      );
+                    },
                   ),
-          ),
-          const _SectionHeader(label: 'TOQUE NUM ARQUIVO, DEPOIS NUM CANAL'),
-          Expanded(
-            flex: 55,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              itemCount: _defaultChannelSlots.length,
-              itemBuilder: (context, slotIndex) {
-                final (label, color) = _defaultChannelSlots[slotIndex];
-                final mappedFileIndex = _mapping.entries
-                    .where((e) => e.value == slotIndex)
-                    .map((e) => e.key)
-                    .firstOrNull;
-                final mappedFile = mappedFileIndex != null ? _files[mappedFileIndex] : null;
-
-                return _ChannelRow(
-                  label: label,
-                  color: color,
-                  mappedFileName: mappedFile?.name,
-                  isTarget: _selectedFileIndex != null,
-                  onTap: () => _onChannelTap(slotIndex),
-                );
-              },
-            ),
           ),
           SafeArea(
             top: false,
@@ -268,14 +261,13 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Text('$mappedCount/${_defaultChannelSlots.length} canais',
-                      style: const TextStyle(color: Color(0xFF8888A8))),
+                  Text('$count/$maxImportChannels canais', style: const TextStyle(color: Color(0xFF8888A8))),
                   const Spacer(),
                   FilledButton(
-                    onPressed: (mappedCount > 0 && !_isFinalizing) ? _finalize : null,
+                    key: const Key('finalize-import'),
+                    onPressed: (count > 0 && !_isFinalizing) ? _finalize : null,
                     child: _isFinalizing
-                        ? const SizedBox(
-                            width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Text('Finalizar Importação'),
                   ),
                 ],
@@ -310,98 +302,46 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _FileRow extends StatelessWidget {
-  final String name;
-  final bool isSelected;
-  final bool isUsed;
-  final VoidCallback onTap;
+class _StemRow extends StatelessWidget {
+  final int index;
+  final ImportStem stem;
+  final String fileName;
+  final VoidCallback onRename, onToggleClickOrGuide, onRemove;
 
-  const _FileRow({
-    required this.name,
-    required this.isSelected,
-    required this.isUsed,
-    required this.onTap,
+  const _StemRow({
+    super.key,
+    required this.index,
+    required this.stem,
+    required this.fileName,
+    required this.onRename,
+    required this.onToggleClickOrGuide,
+    required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isSelected
-        ? const Color(0xFF00E5FF)
-        : isUsed
-            ? const Color(0x00FF8850)
-            : const Color(0xFF1E1E2E);
-    final background = isSelected
-        ? const Color(0xFF00E5FF).withValues(alpha: 0.1)
-        : isUsed
-            ? const Color(0xFF0F2A0F)
-            : const Color(0xFF111119);
-
+    final accent = stem.isClickOrGuide ? const Color(0xFFFFC107) : const Color(0xFF00E5FF);
     return Card(
-      color: background,
+      color: const Color(0xFF111119),
       margin: const EdgeInsets.symmetric(vertical: 3),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8), side: BorderSide(color: borderColor, width: 1.5)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: accent.withValues(alpha: 0.35))),
       child: ListTile(
-        onTap: onTap,
-        leading: Icon(Icons.audiotrack,
-            color: isUsed ? const Color(0xFF00FF88) : const Color(0xFF8888A8)),
-        title: Text(name,
-            style: TextStyle(
-                color: isSelected
-                    ? const Color(0xFF00E5FF)
-                    : isUsed
-                        ? const Color(0xFFAAEEBB)
-                        : const Color(0xFFC8C8E0))),
-        trailing: isUsed ? const Icon(Icons.check, color: Color(0xFF00FF88)) : null,
-      ),
-    );
-  }
-}
-
-class _ChannelRow extends StatelessWidget {
-  final String label;
-  final Color color;
-  final String? mappedFileName;
-  final bool isTarget;
-  final VoidCallback onTap;
-
-  const _ChannelRow({
-    required this.label,
-    required this.color,
-    required this.mappedFileName,
-    required this.isTarget,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final mapped = mappedFileName != null;
-    final borderColor = isTarget
-        ? color.withValues(alpha: 0.6)
-        : mapped
-            ? color.withValues(alpha: 0.5)
-            : const Color(0xFF1E1E2E);
-
-    return Card(
-      color: mapped ? const Color(0xFF111130) : const Color(0xFF0F0F1A),
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8), side: BorderSide(color: borderColor, width: 1.5)),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(width: 4, height: 30, color: color.withValues(alpha: mapped ? 1 : 0.25)),
-        title: Text(label.toUpperCase(),
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-                color: mapped ? const Color(0xFFF0F0FA) : const Color(0xFF44445A))),
-        subtitle: Text(
-          mappedFileName ?? (isTarget ? 'Toque para mapear' : '— vazio —'),
-          style: TextStyle(
-              fontSize: 10, color: mapped ? const Color(0xFF8888A8) : color.withValues(alpha: 0.7)),
+        leading: ReorderableDragStartListener(index: index, child: const Icon(Icons.drag_handle, color: Color(0xFF8888A8))),
+        title: InkWell(
+          key: Key('stem-label-$index'),
+          onTap: onRename,
+          child: Text(stem.label, style: const TextStyle(color: Color(0xFFF0F0FA), fontWeight: FontWeight.w600)),
         ),
-        trailing: mapped ? Icon(Icons.check, color: color) : null,
+        subtitle: Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF8888A8))),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          FilterChip(
+            key: Key('stem-click-$index'),
+            label: const Text('Click/guia'),
+            selected: stem.isClickOrGuide,
+            onSelected: (_) => onToggleClickOrGuide(),
+          ),
+          IconButton(key: Key('stem-remove-$index'), icon: const Icon(Icons.close), tooltip: 'Remover', onPressed: onRemove),
+        ]),
       ),
     );
   }
