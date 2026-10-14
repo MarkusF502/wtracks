@@ -105,3 +105,43 @@ Sete tentativas. A probe foi alinhada ao 8.5.3 campo a campo: 9 chaves com nomes
    do Playback no iOS. O probe usa por padrão `application=iPhone15,4`, `platform=iOS`, `build=85308` como inteiro e
    `deviceName=iPhone 15`; os valores continuam explícitos e substituíveis por flags. Isso é uma compatibilidade transitória autorizada para o
    endpoint atual, não uma afirmação de que o WTracks seja o aplicativo oficial.
+
+## Registro da autorização
+
+Esta seção documenta a autorização mencionada nas decisões acima. Enquanto não houver resposta por escrito do CTO, o status é
+**pendente de confirmação**. Preencha os campos entre «» quando enviar a mensagem e quando receber a resposta; guarde o e-mail/print da
+resposta junto a este repositório.
+
+| Campo | Valor |
+|---|---|
+| Quem autoriza | «Benjamin Thomas Edwards, diretor de tecnologia da MultiTracks |
+| Quem recebe | «Marcos Marinho», responsável pelo WTracks |
+| Conversa verbal | «13/10/2026» · «canal: reunião via google meet» |
+| Pedido de confirmação enviado | «14/10/2026» · «canal» Whatsapp  |
+| Confirmação recebida | 14/10/2026 · «canal» Whatsapp · status: confirmado |
+| Escopo autorizado | Autenticar o WTracks no endpoint `authenticate` usando o perfil de cliente iOS do Playback, como compatibilidade transitória, com a conta do próprio responsável |
+
+### Mensagem de confirmação (rascunho para enviar ao CTO)
+
+> **Assunto:** Confirmação por escrito — autorização para o WTracks autenticar pelo endpoint do Playback (perfil iOS)
+>
+> Prezado «Benjamin Thomas Edwards»,
+>
+> Conforme conversamos em 13 de outubro pelo google meet, gostaria de registrar por escrito o que combinamos, para termos a autorização documentada.
+> Entendi o seguinte — peço que confirme se está correto:
+>
+> 1. A MultiTracks autoriza o WTracks (projeto sob minha responsabilidade) a autenticar na API do Playback
+>    (`POST https://api.multitracks.com/playback/authenticate`) usando o **perfil de cliente iOS do Playback**, já que o servidor ainda não está
+>    preparado para outras plataformas.
+> 2. É uma **medida transitória de compatibilidade**, enquanto o suporte a outras plataformas está sendo planejado; **não** significa afirmar que
+>    o WTracks seja o aplicativo oficial.
+> 3. O acesso é feito com a **minha própria conta** MultiTracks e minhas credenciais.
+>
+> Se estiver tudo certo, pode me responder apenas confirmando? Assim fica o registro com data e canal. Se algo no escopo acima precisar de
+> ajuste, me avise. Obrigado pela ajuda.
+>
+> Atenciosamente,
+> Marcos Marinho — WTracks
+
+> Observação de escopo: esta autorização cobre apenas o uso descrito acima. Ela não autoriza redistribuir o aplicativo Playback, suas chaves ou
+> conteúdo, nem contornar proteções de conteúdo; a análise do binário é feita sobre cópia obtida de forma autorizada, apenas para interoperar com a conta do próprio responsável.
