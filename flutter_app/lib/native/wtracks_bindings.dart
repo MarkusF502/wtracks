@@ -232,6 +232,21 @@ class RenderStatsSnapshot {
       this.p95Load = 0, this.p99Load = 0, this.deadlineMs = 0});
 }
 
+/// Configuração efetivamente entregue pelo dispositivo e por prepareToPlay -- não o pedido feito em [WTracksEngine.initialise].
+/// [deviceXruns] = contagem do próprio dispositivo (Oboe), -1 quando o tipo de dispositivo não informa.
+class AudioConfigSnapshot {
+  final int requestedRate, requestedBuffer, deviceRate, deviceBuffer, preparedRate, preparedBlock, channels, deviceXruns, outputLatencyFrames;
+  final double deadlineMs, fileRate, resampleRatio;
+  const AudioConfigSnapshot({this.requestedRate = 0, this.requestedBuffer = 0, this.deviceRate = 0, this.deviceBuffer = 0,
+      this.preparedRate = 0, this.preparedBlock = 0, this.channels = 0, this.deviceXruns = -1, this.outputLatencyFrames = 0,
+      this.deadlineMs = 0, this.fileRate = 0, this.resampleRatio = 0});
+  factory AudioConfigSnapshot.fromList(List<double> v) => AudioConfigSnapshot(
+      requestedRate: v[0].round(), requestedBuffer: v[1].round(), deviceRate: v[2].round(), deviceBuffer: v[3].round(),
+      preparedRate: v[4].round(), preparedBlock: v[5].round(), deadlineMs: v[6], channels: v[7].round(), fileRate: v[8],
+      resampleRatio: v[9], deviceXruns: v[10].round(), outputLatencyFrames: v[11].round());
+  bool get resampling => fileRate > 0 && resampleRatio > 0 && (resampleRatio - 1).abs() > 1e-9;
+}
+
 class WTracksEngine {
   /// Número de buckets de amplitude gerados por [generateWaveformPeaksAsync]
   /// -- grande o suficiente para preencher telas largas em landscape sem
@@ -276,6 +291,9 @@ class WTracksEngine {
   late final _GetCounterDart _getUnderrunCount;
   late final _LoopSnapshotDart _getRenderStats;
   late final void Function() _resetRenderStats;
+  late final _LoopSnapshotDart _getAudioConfig;
+  late final bool Function(int) _setBufferSize;
+  late final int Function(Pointer<Int32>, int) _getAvailableBufferSizes;
   late final void Function(int) _setTimePitchBudget;
   late final _LoopSnapshotDart _getLoopState;
 
@@ -506,6 +524,10 @@ class WTracksEngine {
     _getUnderrunCount = _lib.lookupFunction<_GetCounterNative, _GetCounterDart>('${_p}get_underrun_count');
     _getRenderStats = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('${_p}get_render_stats');
     _resetRenderStats = _lib.lookupFunction<Void Function(), void Function()>('${_p}reset_render_stats');
+    _getAudioConfig = _lib.lookupFunction<_LoopSnapshotNative, _LoopSnapshotDart>('wtracks_get_audio_config');
+    _setBufferSize = _lib.lookupFunction<Bool Function(Int32), bool Function(int)>('wtracks_set_buffer_size');
+    _getAvailableBufferSizes =
+        _lib.lookupFunction<Int32 Function(Pointer<Int32>, Int32), int Function(Pointer<Int32>, int)>('wtracks_get_available_buffer_sizes');
     _setTimePitchBudget = _lib.lookupFunction<Void Function(Uint64), void Function(int)>('wtracks_set_time_pitch_memory_budget');
     _setClickGain = _lib.lookupFunction<_ClickGainNative, _ClickGainDart>(
       '${_p}set_click_gain',
@@ -1135,6 +1157,26 @@ class WTracksEngine {
     } finally { calloc.free(values); }
   }
   void resetRenderStats() => _resetRenderStats();
+
+  /// Configuração real do dispositivo de áudio (o mesmo para os dois decks).
+  AudioConfigSnapshot get audioConfig {
+    final values = calloc<Double>(12);
+    try {
+      _getAudioConfig(values);
+      return AudioConfigSnapshot.fromList([for (var i = 0; i < 12; i++) values[i]]);
+    } finally { calloc.free(values); }
+  }
+
+  /// Reabre o dispositivo com [frames] por buffer; só com o transporte parado (false caso contrário ou se o dispositivo recusar).
+  bool setBufferSize(int frames) => _setBufferSize(frames);
+
+  List<int> get availableBufferSizes {
+    final values = calloc<Int32>(64);
+    try {
+      final count = _getAvailableBufferSizes(values, 64);
+      return [for (var i = 0; i < count; i++) values[i]];
+    } finally { calloc.free(values); }
+  }
 
   /// Orçamento global (bytes) dos processamentos de tom/andamento simultâneos; 0 = padrão de 1 GiB. Trabalhos que não cabem esperam.
   void setTimePitchMemoryBudget(int bytes) => _setTimePitchBudget(bytes);

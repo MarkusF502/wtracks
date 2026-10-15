@@ -261,7 +261,14 @@ final clickFamiliesProvider = FutureProvider<List<String>>(
 /// rodando, não só enquanto uma tela específica estiver montada.
 final engineProvider = Provider<WTracksEngine>((ref) {
   final engine = WTracksEngine();
-  final ready = engine.initialise();
+  // Buffer de 512 frames (2 bursts no Xiaomi 23053RN02A): com 256 (1 burst) o Oboe registrou xruns mesmo com o callback
+  // dentro do prazo; 512 zerou os xruns em debug e release (docs/plano-otimizacao-performance-android.md, matriz A/B).
+  // 44,1 kHz ficou mais leve que 48 kHz para stems de 44,1 kHz. `--dart-define=WTRACKS_SAMPLE_RATE=…` / `WTRACKS_BUFFER=…`
+  // mudam o pedido para novas medições.
+  final ready = engine.initialise(
+    sampleRate: const int.fromEnvironment('WTRACKS_SAMPLE_RATE', defaultValue: 44100),
+    bufferSize: const int.fromEnvironment('WTRACKS_BUFFER', defaultValue: 512),
+  );
 
   ref.onDispose(engine.shutdown);
 

@@ -378,10 +378,26 @@ class FakeEngine implements WTracksEngine {
   double loopStart = 0, loopEnd = 0, queuedLoopStart = 0, queuedLoopEnd = 0;
   @override
   int underrunCount = 0;
+  RenderStatsSnapshot renderStatsValue = const RenderStatsSnapshot();
   @override
-  RenderStatsSnapshot get renderStats => const RenderStatsSnapshot();
+  RenderStatsSnapshot get renderStats => renderStatsValue;
   @override
-  void resetRenderStats() {}
+  void resetRenderStats() { renderStatsResets++; }
+  int renderStatsResets = 0;
+  AudioConfigSnapshot audioConfigValue = const AudioConfigSnapshot();
+  @override
+  AudioConfigSnapshot get audioConfig => audioConfigValue;
+  List<int> bufferSizes = const [256, 512, 1024];
+  @override
+  List<int> get availableBufferSizes => bufferSizes;
+  @override
+  bool setBufferSize(int frames) {
+    calls.add('buffer($frames)');
+    if (isPlaying || !bufferSizes.contains(frames)) return false;
+    audioConfigValue = AudioConfigSnapshot(deviceRate: audioConfigValue.deviceRate, deviceBuffer: frames,
+        preparedRate: audioConfigValue.preparedRate, preparedBlock: audioConfigValue.preparedBlock, deadlineMs: audioConfigValue.deadlineMs);
+    return true;
+  }
   @override
   void setTimePitchMemoryBudget(int bytes) {}
   bool failLoop = false;

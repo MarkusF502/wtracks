@@ -44,6 +44,13 @@ WTRACKS_API void wtracks_unload_track();
 WTRACKS_API uint64_t wtracks_get_underrun_count();
 WTRACKS_API void wtracks_get_render_stats(double* out8);
 WTRACKS_API void wtracks_reset_render_stats();
+// Device-level diagnostics (the device the playing deck drives). out12 = requestedRate, requestedBuffer, deviceRate, deviceBuffer,
+// preparedRate, preparedBlock, deadlineMs, channels, fileRate, resampleRatio, deviceXruns (-1 = not reported), outputLatency (frames).
+WTRACKS_API void wtracks_get_audio_config(double* out12);
+// Reopens the device with `frames` per buffer; only while stopped (false otherwise or when the device refuses).
+WTRACKS_API bool wtracks_set_buffer_size(int frames);
+// Buffer sizes the device offers; returns how many were written (<= maxCount).
+WTRACKS_API int wtracks_get_available_buffer_sizes(int* out, int maxCount);
 
 // Prepared loop banks; invalid/oversize requests preserve the previous state.
 WTRACKS_API bool wtracks_set_loop(double startSeconds, double endSeconds, bool enabled);

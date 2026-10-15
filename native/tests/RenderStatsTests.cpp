@@ -9,10 +9,10 @@ class RenderStatsTests : public juce::UnitTest {
 public:
     RenderStatsTests() : juce::UnitTest("Render timing statistics", "Audio") {}
 
-    static juce::File writeDc(const juce::File& dir, const juce::String& name, int frames, float value) {
+    static juce::File writeDc(const juce::File& dir, const juce::String& name, int frames, float value, double rate=48000) {
         auto file=dir.getChildFile(name); juce::WavAudioFormat format;
         auto stream=std::unique_ptr<juce::FileOutputStream>(file.createOutputStream());
-        std::unique_ptr<juce::AudioFormatWriter> writer(format.createWriterFor(stream.get(),48000,2,24,{},0));
+        std::unique_ptr<juce::AudioFormatWriter> writer(format.createWriterFor(stream.get(),rate,2,24,{},0));
         stream.release();
         juce::AudioBuffer<float> data(2,frames);
         for (int ch=0;ch<2;++ch) juce::FloatVectorOperations::fill(data.getWritePointer(ch),value,frames);
@@ -79,6 +79,23 @@ public:
                        +" overruns="+juce::String(static_cast<juce::int64>(s.overruns))+" deadline="+juce::String(s.lastDeadlineMs,2)+" ms");
             expect(s.callbacks > 0);
             expectEquals<uint64_t>(s.overruns,0);
+        }
+        beginTest("Audio config reports what prepareToPlay delivered, not what initialise asked for");
+        {
+            AudioEngine engine;
+            auto none=engine.getAudioConfig();
+            expectEquals(none.channels,0); expectEquals(none.deadlineMs,0.0); expectEquals(none.xruns,-1);  // no device in the tests
+            engine.prepareToPlay(256,48000); engine.activate();
+            expect(engine.loadTrack("cfg",{writeDc(dir,"cfg44.wav",44100,0.1f,44100),writeDc(dir,"cfg44b.wav",44100,0.1f,44100)}));
+            const auto c=engine.getAudioConfig();
+            expectEquals(c.preparedRate,48000.0); expectEquals(c.preparedBlock,256);
+            expectWithinAbsoluteError(c.deadlineMs,1000.0*256/48000,1e-9);
+            expectEquals(c.channels,2); expectEquals(c.fileRate,44100.0);
+            expectWithinAbsoluteError(c.resampleRatio,44100.0/48000.0,1e-12);
+            engine.play();
+            expect(!engine.setDeviceBufferSize(512));  // never while playing
+            engine.stop();
+            expect(!engine.setDeviceBufferSize(4));     // out of range
         }
         dir.deleteRecursively();
     }

@@ -149,6 +149,33 @@ bool wtracks_generate_waveform_peaks(const char** channelPaths, int channelCount
     }
 }
 
+void wtracks_get_audio_config(double* out12)
+{
+    if (!out12) return;
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    const auto c=decks[0] ? decks[0]->getAudioConfig() : wtracks::AudioEngine::AudioConfig{};
+    const double v[12]={c.requestedRate,double(c.requestedBuffer),c.deviceRate,double(c.deviceBuffer),c.preparedRate,double(c.preparedBlock),
+                        c.deadlineMs,double(c.channels),c.fileRate,c.resampleRatio,double(c.xruns),double(c.outputLatency)};
+    for (int i=0;i<12;++i) out12[i]=v[i];
+}
+
+bool wtracks_set_buffer_size(int frames)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return decks[0] && decks[0]->setDeviceBufferSize(frames);
+}
+
+int wtracks_get_available_buffer_sizes(int* out, int maxCount)
+{
+    if (!out || maxCount <= 0) return 0;
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    if (!decks[0]) return 0;
+    const auto sizes=decks[0]->getAvailableBufferSizes();
+    const int count=juce::jmin(maxCount,sizes.size());
+    for (int i=0;i<count;++i) out[i]=sizes[i];
+    return count;
+}
+
 #define WT_DECK 0
 #define WT(name) WT_CAT(wtracks_, name)
 #define ENGINE decks[WT_DECK]

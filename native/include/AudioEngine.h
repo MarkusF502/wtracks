@@ -119,6 +119,16 @@ public:
     // Duração do callback contra o prazo numSamples/sampleRate (WT-06): máximo, percentis e estouros desde o último reset.
     RenderStats::Snapshot getRenderStats() const { return renderStats.snapshot(); }
     void resetRenderStats() { renderStats.reset(); }
+    // What the device and prepareToPlay actually delivered (the request to initialise is only a hint: Oboe may pick another
+    // rate). xruns = the device's own count (Oboe), -1 when the device type does not report it.
+    struct AudioConfig {
+        double requestedRate = 0, deviceRate = 0, preparedRate = 0, deadlineMs = 0, fileRate = 0, resampleRatio = 0;
+        int requestedBuffer = 0, deviceBuffer = 0, preparedBlock = 0, channels = 0, xruns = -1, outputLatency = 0;
+    };
+    AudioConfig getAudioConfig() const;
+    // Reopens the device with another buffer size (frames). Only with the transport stopped and no transition scheduled.
+    bool setDeviceBufferSize(int frames);
+    juce::Array<int> getAvailableBufferSizes() const;
     // repeats: number of passes before playback continues past the loop end (0 = loop until disabled).
     bool setLoop(double startSeconds, double endSeconds, bool enabled, int repeats = 0);
     bool enqueueLoop(double startSeconds, double endSeconds, int repeats = 0);
@@ -338,6 +348,7 @@ private:
     bool isPrepared = false;
     int preparedBlockSize = 0;
     double preparedSampleRate = 44100.0;
+    int requestedSampleRate = 0, requestedBufferSize = 0;
 
     double timeScale = 1.0;
     double userClickBpm = 120.0, userClickOffset = 0.0;

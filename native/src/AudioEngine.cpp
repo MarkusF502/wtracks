@@ -54,6 +54,7 @@ AudioEngine::~AudioEngine()
 bool AudioEngine::initialise(int sampleRate, int bufferSize)
 {
     currentSampleRate = sampleRate;
+    requestedSampleRate = sampleRate; requestedBufferSize = bufferSize;
 
     auto result = deviceManager.initialiseWithDefaultDevices(0, 2);
     if (result.isNotEmpty()) {
@@ -432,6 +433,47 @@ bool AudioEngine::isPlaying() const
 }
 
 uint64_t AudioEngine::getUnderrunCount() const { return underrunCount.load(); }
+
+AudioEngine::AudioConfig AudioEngine::getAudioConfig() const
+{
+    AudioConfig c;
+    c.requestedRate=requestedSampleRate; c.requestedBuffer=requestedBufferSize;
+    if (auto* device=deviceManager.getCurrentAudioDevice()) {
+        c.deviceRate=device->getCurrentSampleRate(); c.deviceBuffer=device->getCurrentBufferSizeSamples();
+        c.xruns=device->getXRunCount(); c.outputLatency=device->getOutputLatencyInSamples();
+    }
+    const juce::SpinLock::ScopedLockType lock(channelsLock);
+    if (isPrepared) {
+        c.preparedRate=preparedSampleRate; c.preparedBlock=preparedBlockSize;
+        if (preparedSampleRate > 0) c.deadlineMs=1000.0*preparedBlockSize/preparedSampleRate;
+    }
+    c.channels=static_cast<int>(channels.size());
+    if (!channels.empty()) {
+        c.fileRate=channels.front().fileSampleRate;
+        if (preparedSampleRate > 0) c.resampleRatio=c.fileRate/preparedSampleRate;
+    }
+    return c;
+}
+
+bool AudioEngine::setDeviceBufferSize(int frames)
+{
+    const std::lock_guard<std::recursive_mutex> control(controlMutex);
+    if (frames < 16 || frames > 8192 || playing.load() || isTransitionScheduled() || io->active != this) return false;
+    juce::AudioDeviceManager::AudioDeviceSetup setup;
+    deviceManager.getAudioDeviceSetup(setup);
+    if (setup.bufferSize == frames) return true;
+    setup.bufferSize=frames;
+    const auto error=deviceManager.setAudioDeviceSetup(setup,true);
+    if (error.isNotEmpty()) { setLastError(EngineErrorCode::DeviceInitFailed,error); return false; }
+    requestedBufferSize=frames;
+    return true;
+}
+
+juce::Array<int> AudioEngine::getAvailableBufferSizes() const
+{
+    if (auto* device=deviceManager.getCurrentAudioDevice()) return device->getAvailableBufferSizes();
+    return {};
+}
 
 std::shared_ptr<AudioEngine::LoopCache> AudioEngine::prepareLoop(double start, double end)
 {
