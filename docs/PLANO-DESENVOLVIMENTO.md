@@ -448,6 +448,11 @@ desenvolvedor-chefe da MultiTracks/Playback para utilizar no WTracks o endpoint 
 incluindo conteúdo da biblioteca e Playback Rentals. Essa autorização permite planejar e desenvolver a integração,
 mas não substitui o registro escrito necessário antes de publicar builds para terceiros.
 
+**Atualização por captura (2026-10-15):** login da probe confirmado; biblioteca vazia confirmada nas cinco categorias;
+fluxo semanal observado em `content/download` seguido de GET `.mtrack` no Azure. Implementação de download/importação no WTracks ainda pendente.
+O [plano detalhado das capturas](playback-analysis/plano-integracao-multitracks-capturas.md) registra contratos, direitos temporários,
+limitações, sequência de entregas e critérios de aceite; deve orientar as próximas etapas desta fase.
+
 ### 6.1.1 — Contrato, proveniência e limites
 
 - Registrar separadamente, sem segredos, a versão observada do Playback, hosts, rotas, métodos, cabeçalhos,
@@ -468,11 +473,11 @@ mas não substitui o registro escrito necessário antes de publicar builds para 
 Playback, com usuário e senha enviados em `authenticate` (ver `docs/playback-analysis/multitracks-api-contract.md`). Salvaguardas:
 - Tela "Conectar ao MultiTracks" com usuário e senha. A **senha vive só em memória durante a chamada**: não é gravada em disco, em
   preferências, em backup, em log, em diagnóstico nem em argumento de processo, e o campo é limpo ao terminar. Nenhum "lembrar senha".
-- Depois do login guarda-se **apenas** o `userHash` da sessão (e o necessário para renová-la), no armazenamento seguro da plataforma
+- Depois do login guarda-se **apenas** o `hash` da sessão (e o necessário para renová-la), no armazenamento seguro da plataforma
   (Android Keystore, Keychain no futuro e Secret Service/keyring no desktop). Nunca em preferências JSON.
-- Se o servidor recusar o `userHash`, a sessão expira e o app pede o login de novo; nada de reenviar a senha em segundo plano.
+- Se o servidor recusar o `hash`, a sessão expira e o app pede o login de novo; nada de reenviar a senha em segundo plano.
 - Seleção explícita da organização e exibição do usuário/organização ativos. Trocar de organização invalida consultas e downloads em andamento.
-- Renovação serializada de sessão, cancelamento por geração e logout completo (`logout` no servidor e apagar o `userHash`). Respostas atrasadas de
+- Renovação serializada de sessão, cancelamento por geração e logout completo (`logout` no servidor e apagar o `hash`). Respostas atrasadas de
   uma sessão antiga não podem publicar biblioteca, entitlement ou arquivos na sessão atual.
 - Sem tentativas automáticas de login: uma falha de autenticação para a execução (evita bloquear a conta).
 - Se a MultiTracks passar a oferecer OAuth, ele substitui o login por senha sem mudar o restante (o provider isola o protocolo).
@@ -486,7 +491,7 @@ Playback, com usuário e senha enviados em `authenticate` (ver `docs/playback-an
   com a versão remota; vinculação exige confirmação ou identificador inequívoco.
 - Cache de metadados com versão e data da última sincronização. Modo offline mostra claramente estado possivelmente
   desatualizado e nunca cria ou prolonga um direito de uso localmente.
-- Operações que consomem crédito de Rental exigem confirmação, chave de idempotência e reconciliação após timeout, para
+- Operações que consomem crédito de Rental exigem confirmação, mecanismo de idempotência suportado pelo serviço e reconciliação após timeout, para
   que uma repetição de rede não gaste dois créditos.
 
 ### 6.1.4 — Registro de dispositivo e Playback Rentals
@@ -494,7 +499,7 @@ Playback, com usuário e senha enviados em `authenticate` (ver `docs/playback-an
 - Reproduzir somente o fluxo de dispositivo autorizado pela MultiTracks: registrar/listar o aparelho, associar Rental,
   transferir quando permitido e refletir revogação. Enquanto o servidor não aceitar outras plataformas, usar no protocolo
   a identidade Playback/iOS autorizada pelo desenvolvedor-chefe. No contrato observado, `application` recebe o identificador do modelo
-  (`uname.machine`, por exemplo `iPhone15,4`), `platform` é exatamente `iOS` e `build` é inteiro, não texto.
+  (`uname.machine`, na captura `iPhone12,1`), `platform` é o inteiro `1`, `build` é o inteiro `86204` e a chave do aparelho é `deviceIdentifier`.
 - Usar um identificador próprio e estável da instalação do WTracks, reinstalável apenas conforme o contrato aprovado. A
   interface deve deixar claro que o dispositivo registrado corresponde ao WTracks antes de consumir o crédito. Migrar
   para a identidade nativa do WTracks quando o backend disponibilizar suporte oficial.
