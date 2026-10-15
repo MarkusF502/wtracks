@@ -12,12 +12,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-const _playbackApplication = 'iPhone15,4';
-const _playbackPlatform = 'iOS';
-const _playbackBuild = 85308;
-const _playbackDeviceName = 'iPhone 15';
-const _playbackUserAgent =
-    'Playback/8.5.3 (com.multitracks.custommixplayer; build:85308; iOS 18.4.0) Alamofire/5.11.0';
+const _playbackApplication = 'iPhone12,1';
+const _playbackPlatform = 1;
+const _playbackBuild = 86204;
+const _playbackDeviceName = 'iPhone 11 (26.2)';
 
 Future<void> main(List<String> args) async {
   final options = _Options.parse(args);
@@ -44,25 +42,41 @@ Future<void> main(List<String> args) async {
     exit(2);
   }
 
-  final base = Uri.parse(options.baseUrl ?? 'https://api.${options.site}.com/playback/');
+  final base = Uri.parse(
+    options.baseUrl ?? 'https://api.${options.site}.com/playback/',
+  );
   say('Base: $base');
-  say('Perfil de cliente autorizado: Playback 8.5.3 para iOS '
-      '(application=${options.application}, platform=${options.platform}, build=${options.build}, deviceName=${options.deviceName})');
+  say(
+    'Perfil de cliente autorizado: Playback ${options.appVersion} para iOS '
+    '(application=${options.application}, platform=${options.platform}, build=${options.build}, deviceName=${options.deviceName})',
+  );
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 20);
 
   Future<(int, Object?)> post(String route, Map<String, Object?> body) async {
     final request = await client.postUrl(base.resolve(route));
-    // O builder do Playback (FUN_1000596a4) seta Content-Type com 31 caracteres: "application/json; charset=utf-8".
-    // Um "application/json" pelado pode não casar o binder [FromBody] do servidor e o corpo é ignorado.
-    request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
-    request.headers.set(HttpHeaders.userAgentHeader, _playbackUserAgent);
-    request.headers.set(HttpHeaders.acceptLanguageHeader, 'en-US;q=1.0');
+    // Cabeçalhos observados na captura do Playback 8.6.2.
+    request.headers.set(
+      HttpHeaders.contentTypeHeader,
+      'application/json; charset=utf-8',
+    );
+    request.headers.set(HttpHeaders.userAgentHeader, options.userAgent);
+    request.headers.set(HttpHeaders.acceptHeader, '*/*');
+    request.headers.set(
+      HttpHeaders.acceptLanguageHeader,
+      options.acceptLanguage,
+    );
+    // Dart não decodifica Brotli automaticamente. Solicita corpo sem compressão.
+    request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
     final bytes = utf8.encode(jsonEncode(body));
     // Content-Length explícito: sem ele o Dart envia o corpo em "chunked", que alguns servidores não leem ao ligar o JSON ao modelo.
     request.contentLength = bytes.length;
-    say('\nContent-Type enviado: ${request.headers.value(HttpHeaders.contentTypeHeader)}');
-    say('Enviando para $route: ${bytes.length} bytes, ${body.length} chaves: '
-        '${body.entries.map((e) => '${e.key}${e.value is String ? '(len=${(e.value as String).length})' : '(${e.value.runtimeType})'}').join(', ')}');
+    say(
+      '\nContent-Type enviado: ${request.headers.value(HttpHeaders.contentTypeHeader)}',
+    );
+    say(
+      'Enviando para $route: ${bytes.length} bytes, ${body.length} chaves: '
+      '${body.entries.map((e) => '${e.key}${e.value is String ? '(len=${(e.value as String).length})' : '(${e.value.runtimeType})'}').join(', ')}',
+    );
     request.add(bytes);
     final response = await request.close().timeout(const Duration(seconds: 60));
     final text = await response.transform(utf8.decoder).join();
@@ -72,48 +86,66 @@ Future<void> main(List<String> args) async {
     } on FormatException {
       json = null;
     }
-    say('\nPOST $route -> HTTP ${response.statusCode} (${response.headers.contentType?.mimeType ?? 'sem content-type'}, '
-        '${text.length} bytes, cabeçalhos: ${(<String>[]..addAll(_headerNames(response))).join(', ')})');
-    if (json == null) say('  (corpo não é JSON: ${text.isEmpty ? 'vazio' : 'texto de ${text.length} caracteres, redigido'})');
+    say(
+      '\nPOST $route -> HTTP ${response.statusCode} (${response.headers.contentType?.mimeType ?? 'sem content-type'}, '
+      '${text.length} bytes, cabeçalhos: ${(<String>[]..addAll(_headerNames(response))).join(', ')})',
+    );
+    if (json == null)
+      say(
+        '  (corpo não é JSON: ${text.isEmpty ? 'vazio' : 'texto de ${text.length} caracteres, redigido'})',
+      );
     return (response.statusCode, json);
   }
 
   final deviceId = await _deviceIdentifier();
-  say('Identificador do aparelho de teste: $deviceId (fica em ~/.config/wtracks-probe/device-id; o login pode registrar o aparelho '
-      '"${options.deviceName}" na sua conta MultiTracks)');
+  say(
+    'Identificador do aparelho de teste: redigido (persistido no diretório pessoal; o login pode registrar o aparelho '
+    '"${options.deviceName}" na sua conta MultiTracks)',
+  );
   Object? login;
   try {
-    // O modelo tem 9 CodingKeys, mas o pushToken opcional é omitido pelo Encodable quando ainda não existe no Keychain.
+    // Captura real: oito campos; deviceIdentifier é texto e platform é inteiro.
     final (status, json) = await post('authenticate', {
       'username': username,
       'password': password,
       'build': options.build,
       'language': options.language,
       'deviceName': options.deviceName,
-      // A chave JSON do aparelho é "deviceID" (bloco contíguo de reflexão do login: ...platform, deviceID, deviceName...),
-      // não "deviceIdentifier" (essa palavra não aparece em nenhuma função; só no despejo alfabético de símbolos).
-      'deviceID': deviceId,
+      'deviceIdentifier': deviceId,
       'application': options.application,
       'platform': options.platform,
     });
     password = ''; // a senha não é mais necessária
     login = json;
     say(_schema(json));
-    if (status != 200 || json == null) {
-      say('\nO login não foi aceito. Nenhuma outra chamada foi feita e nada foi repetido.');
+    if (status != 200 ||
+        json is! Map ||
+        json['result'] != 1 ||
+        json['errorCode'] != 0 ||
+        json['hash'] is! String ||
+        (json['hash'] as String).isEmpty) {
+      say(
+        '\nO login não foi aceito. Nenhuma outra chamada foi feita e nada foi repetido.',
+      );
       await _finish(options, out);
+      client.close();
       return;
     }
   } on Exception catch (e) {
     say('\nFalha de rede: ${e.runtimeType}');
     await _finish(options, out);
+    client.close();
     return;
+  } finally {
+    password = '';
   }
 
   if (options.explore) {
     final session = _Session.from(login);
-    say('\nDa resposta do login: hash=${session.hash == null ? 'NÃO ENCONTRADO' : 'encontrado (redigido)'}, '
-        'customer=${session.customer == null ? 'NÃO ENCONTRADO' : 'encontrado (redigido)'}, siteID=${session.siteID ?? 'não encontrado'}');
+    say(
+      '\nDa resposta do login: hash=${session.hash == null ? 'NÃO ENCONTRADO' : 'encontrado (redigido)'}, '
+      'customer=${session.customer == null ? 'NÃO ENCONTRADO' : 'encontrado (redigido)'}, siteID=${session.siteID == null ? 'não encontrado' : 'encontrado (redigido)'}',
+    );
     if (session.hash != null) {
       final common = <String, Object?>{
         'hash': session.hash,
@@ -130,7 +162,9 @@ Future<void> main(List<String> args) async {
           final (status, json) = await post(route, {...common, ...extra});
           say(_schema(json));
           if (status == 401 || status == 403 || status == 429) {
-            say('\nO servidor recusou ou limitou (HTTP $status): parando por aqui.');
+            say(
+              '\nO servidor recusou ou limitou (HTTP $status): parando por aqui.',
+            );
             break;
           }
         } on Exception catch (e) {
@@ -146,18 +180,32 @@ Future<void> main(List<String> args) async {
 
 /// Um identificador estável para este computador (gerado uma vez): um novo a cada execução criaria um aparelho novo na conta a cada teste.
 Future<String> _deviceIdentifier() async {
-  final dir = Directory('${Platform.environment['HOME'] ?? '.'}/.config/wtracks-probe');
+  final dir = Directory('${_homeDirectory()}/.config/wtracks-probe');
   final file = File('${dir.path}/device-id');
   if (await file.exists()) {
     final saved = (await file.readAsString()).trim();
     if (saved.isNotEmpty) return saved;
   }
   final random = Random.secure();
-  String hex(int n) => List.generate(n, (_) => random.nextInt(16).toRadixString(16)).join();
-  final id = '${hex(8)}-${hex(4)}-4${hex(3)}-${(8 + random.nextInt(4)).toRadixString(16)}${hex(3)}-${hex(12)}'.toUpperCase();
+  String hex(int n) =>
+      List.generate(n, (_) => random.nextInt(16).toRadixString(16)).join();
+  final id =
+      '${hex(8)}-${hex(4)}-4${hex(3)}-${(8 + random.nextInt(4)).toRadixString(16)}${hex(3)}-${hex(12)}'
+          .toUpperCase();
   await dir.create(recursive: true);
   await file.writeAsString(id);
   return id;
+}
+
+String _homeDirectory() {
+  final home =
+      Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+  if (home == null || home.isEmpty) {
+    throw StateError(
+      'Diretório pessoal não encontrado; não gravar identidade no repositório.',
+    );
+  }
+  return home;
 }
 
 Iterable<String> _headerNames(HttpClientResponse response) {
@@ -169,7 +217,9 @@ Iterable<String> _headerNames(HttpClientResponse response) {
 Future<void> _finish(_Options options, StringBuffer out) async {
   if (options.out != null) {
     await File(options.out!).writeAsString(out.toString());
-    stdout.writeln('\nEsquema gravado em ${options.out} (sem valores, senha nem hash).');
+    stdout.writeln(
+      '\nEsquema gravado em ${options.out} (sem valores, senha nem hash).',
+    );
   }
 }
 
@@ -182,10 +232,18 @@ String _schema(Object? json, [int depth = 0]) {
       final key = entry.key.toString();
       final v = entry.value;
       final lower = key.toLowerCase();
-      if (v is String && (lower == 'message' || lower.startsWith('error')) && v.length <= 120 && !v.contains('@')) {
+      if (v is String &&
+          (lower == 'message' || lower.startsWith('error')) &&
+          v.length <= 120 &&
+          !v.contains('@')) {
         lines.add('$pad$key: "$v"');
-      } else if (v is int && (lower == 'result' || lower == 'resultid' || lower.startsWith('errorcode'))) {
-        lines.add('$pad$key: $v'); // códigos de resultado/erro não são dados pessoais
+      } else if (v is int &&
+          (lower == 'result' ||
+              lower == 'resultid' ||
+              lower.startsWith('errorcode'))) {
+        lines.add(
+          '$pad$key: $v',
+        ); // códigos de resultado/erro não são dados pessoais
       } else if (v is Map || v is List) {
         lines.add('$pad$key: ${_describe(v)}');
         if (depth < 4) lines.add(_schema(v, depth + 1));
@@ -198,21 +256,22 @@ String _schema(Object? json, [int depth = 0]) {
   if (json is List) {
     if (json.isEmpty) return '${pad}(lista vazia)';
     final first = json.first;
-    return '${pad}[0] de ${json.length}: ${_describe(first)}\n${first is Map || first is List ? _schema(first, depth + 1) : ''}'.trimRight();
+    return '${pad}[0] de ${json.length}: ${_describe(first)}\n${first is Map || first is List ? _schema(first, depth + 1) : ''}'
+        .trimRight();
   }
   return '$pad${_describe(json)}';
 }
 
 String _describe(Object? v) => switch (v) {
-      null => 'null',
-      bool() => 'bool',
-      int() => 'int',
-      double() => 'double',
-      String() => 'string(len=${v.length})',
-      List() => 'lista(${v.length})',
-      Map() => 'objeto(${v.length} chaves)',
-      _ => v.runtimeType.toString(),
-    };
+  null => 'null',
+  bool() => 'bool',
+  int() => 'int',
+  double() => 'double',
+  String() => 'string(len=${v.length})',
+  List() => 'lista(${v.length})',
+  Map() => 'objeto(${v.length} chaves)',
+  _ => v.runtimeType.toString(),
+};
 
 /// Procura, na resposta do login, os valores de sessão usados nas chamadas seguintes (heurística; nada é impresso).
 class _Session {
@@ -229,11 +288,25 @@ class _Session {
         for (final e in node.entries) {
           final k = e.key.toString();
           final lower = k.toLowerCase();
-          if (hash == null && (lower == 'userhash' || lower == 'hash') && e.value is String) hash = e.value as String;
-          if (customer == null && (lower == 'customer' || lower == 'customerid' || lower == 'organizationid') && e.value != null && e.value is! Map && e.value is! List) {
+          if (hash == null &&
+              (lower == 'userhash' || lower == 'hash') &&
+              e.value is String)
+            hash = e.value as String;
+          if (customer == null &&
+              (lower == 'customer' ||
+                  lower == 'customerid' ||
+                  lower == 'organizationid') &&
+              e.value != null &&
+              e.value is! Map &&
+              e.value is! List) {
             customer = e.value;
           }
-          if (siteID == null && lower == 'siteid' && e.value != null && e.value is! Map && e.value is! List) siteID = e.value;
+          if (siteID == null &&
+              lower == 'siteid' &&
+              e.value != null &&
+              e.value is! Map &&
+              e.value is! List)
+            siteID = e.value;
           walk(e.value, inOrg: inOrg || lower == 'organizations');
         }
       } else if (node is List) {
@@ -249,11 +322,29 @@ class _Session {
 }
 
 class _Options {
-  final String site, language, deviceName, application, platform;
-  final int build;
+  final String site, language, deviceName, application;
+  final String appVersion, iosVersion, alamofireVersion, acceptLanguage;
+  final int build, platform;
   final String? out, baseUrl;
   final bool explore;
-  _Options(this.site, this.language, this.deviceName, this.application, this.platform, this.build, this.out, this.explore, this.baseUrl);
+  _Options(
+    this.site,
+    this.language,
+    this.deviceName,
+    this.application,
+    this.platform,
+    this.build,
+    this.out,
+    this.explore,
+    this.baseUrl,
+    this.appVersion,
+    this.iosVersion,
+    this.alamofireVersion,
+    this.acceptLanguage,
+  );
+
+  String get userAgent =>
+      'Playback/$appVersion (com.multitracks.custommixplayer; build:$build; iOS $iosVersion) Alamofire/$alamofireVersion';
 
   static _Options parse(List<String> args) {
     String value(String name, String fallback) {
@@ -272,22 +363,32 @@ class _Options {
     }
 
     if (args.contains('--help') || args.contains('-h')) {
-      stdout.writeln('Uso: dart tool/multitracks_probe.dart [--site multitracks] [--language en] [--device-name "iPhone 15"]\n'
-          '       [--application iPhone15,4] [--platform iOS] [--build 85308] [--explore] [--out arquivo.txt]\n'
-          '\nPor padrão, reproduz a identidade do Playback 8.5.3 no iOS, conforme autorização informada pelo responsável do projeto.');
+      stdout.writeln(
+        'Uso: dart tool/multitracks_probe.dart [--site multitracks] [--language pt] [--device-name "iPhone 11 (26.2)"]\n'
+        '       [--application iPhone12,1] [--platform 1] [--build 86204] [--explore] [--out arquivo.txt]\n'
+        '       [--app-version 8.6.2] [--ios-version 26.2.0] [--alamofire-version 5.11.2] [--accept-language "pt-BR;q=1.0"]\n'
+        '\nPerfil da captura autorizada do Playback 8.6.2. platform e build são inteiros.\n'
+        'User-Agent é montado com as versões e o build acima. A identidade é própria e estável, sem copiar o UUID do iPhone.',
+      );
       exit(0);
     }
     final out = value('out', '');
     return _Options(
       value('site', 'multitracks'),
-      value('language', 'en'),
+      value('language', 'pt'),
       value('device-name', _playbackDeviceName),
       value('application', _playbackApplication),
-      value('platform', _playbackPlatform),
+      integerValue('platform', _playbackPlatform),
       integerValue('build', _playbackBuild),
-      out.isEmpty ? null : out.replaceFirst(RegExp(r'^~'), Platform.environment['HOME'] ?? '~'),
+      out.isEmpty ? null : out.replaceFirst(RegExp(r'^~'), _homeDirectory()),
       args.contains('--explore'),
-      value('base-url', '').isEmpty ? null : value('base-url', ''), // só para testes contra um servidor local
+      value('base-url', '').isEmpty
+          ? null
+          : value('base-url', ''), // só para testes contra um servidor local
+      value('app-version', '8.6.2'),
+      value('ios-version', '26.2.0'),
+      value('alamofire-version', '5.11.2'),
+      value('accept-language', 'pt-BR;q=1.0'),
     );
   }
 }

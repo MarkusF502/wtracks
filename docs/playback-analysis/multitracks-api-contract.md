@@ -1,9 +1,50 @@
-# Contrato observado da API do Playback (rascunho 1, 2026-10-14)
+# Contrato observado da API do Playback (revisão 2, 2026-10-15)
 
-Documento da Fase 6.1.1. **Nada aqui foi informado pela MultiTracks**; tudo foi *observado* no executável do Playback 8.5.3 (strings e
-pseudocódigo já extraídos em `docs/playback-analysis/`, mais a lista de URLs em `~/Playback/analysis/playback-urls.txt`). Sem segredos:
-o binário embute uma URL assinada de exemplo (expirada) e ela **não** é reproduzida aqui. Legenda: **[O]** observado no binário,
-**[I]** inferência a confirmar, **[?]** desconhecido, **[D]** decisão do WTracks.
+Documento da Fase 6.1.1. Combina análise estática do Playback 8.5.3 com captura autorizada do Playback 8.6.2 em iPhone via mitmproxy. A captura real prevalece sobre inferências do binário. Nenhuma credencial, identidade pessoal, UUID do aparelho ou URL assinada é reproduzida aqui.
+
+Legenda: **[O]** observado no binário 8.5.3; **[M]** medido em chamadas/captura; **[I]** inferência; **[?]** desconhecido; **[D]** decisão do WTracks. A data do servidor da captura é 2026-10-15 UTC (2026-10-14 em America/Sao_Paulo).
+
+## Login confirmado por captura do Playback 8.6.2 [M]
+
+`POST https://api.multitracks.com/playback/authenticate`, observado em HTTP/2 e TLS 1.3. Corpo JSON com oito campos:
+
+```json
+{
+  "build": 86204,
+  "deviceName": "iPhone 11 (26.2)",
+  "username": "<usuario>",
+  "deviceIdentifier": "<UUID-estavel-proprio>",
+  "language": "pt",
+  "password": "<senha>",
+  "platform": 1,
+  "application": "iPhone12,1"
+}
+```
+
+`build` e `platform` são números inteiros; os demais campos são texto. `pushToken` não foi enviado; sua aceitação e obrigatoriedade em outros contextos não foram verificadas. A captura não determina os valores numéricos das demais plataformas.
+
+Cabeçalhos observados:
+
+```text
+accept: */*
+content-type: application/json; charset=utf-8
+accept-encoding: br;q=1.0, gzip;q=0.9, deflate;q=0.8
+user-agent: Playback/8.6.2 (com.multitracks.custommixplayer; build:86204; iOS 26.2.0) Alamofire/5.11.2
+priority: u=3, i
+accept-language: pt-BR;q=1.0
+```
+
+`Content-Length` é calculado a partir dos bytes UTF-8 do corpo, nunca fixado no tamanho da captura. A probe solicita `Accept-Encoding: identity`, pois Dart não decodifica Brotli automaticamente, e não reproduz `priority`. Seu transporte usa `HttpClient` do Dart; não reproduz a assinatura TLS nem garante HTTP/2. A equivalência funcional do login foi confirmada pela execução da probe pelo responsável; as operações posteriores ainda precisam de validação.
+
+### Resultado confirmado [M]
+
+HTTP 200, JSON, `result: 1`, `errorCode: 0` e `hash` não vazio. `hash` é a credencial retornada efetivamente pelo login; `userHash` permanece um nome observado no modelo interno. HTTP 200 sozinho não comprova sucesso.
+
+A resposta contém `customerID`, `userID`, `userAccessID`, `appID`, `firstName`, `lastName`, `hash`, `appSubscriptionLevel`, `hasOldPro`, `appSubscriptionDateExpiration`, `appSubscriptionExpiration`, `subscriptionReceipt`, `siteID`, `appSubscriptionType`, `internal`, `countryID`, `restricted`, `rentalsLicenseID`, `teamSharingLicenseID`, `appLicenseID`, `latestVersion`, `organizations`, `cloudPro`, `planningCenter`, `playbackSnapshot`, `mtCompleteEnabled`, `mtCompleteEngineer`, `result`, `errorCode`, `message`, `messageTitle`, `button`, `url`, `isAdmin` e `roleID`.
+
+`organizations[]` contém identidade da organização, `default`, avatar, indicadores de direitos, contadores e datas de Rentals/Cloud/Team Sharing/licenças. `cloudPro` contém `tierID` e indicadores de recursos. Datas sentinela como anos 0001 e 1900 aparecem na resposta; não devem ser tratadas automaticamente como assinaturas válidas. Direitos de conteúdo continuam dependentes da validação do servidor.
+
+O servidor retornou `latestVersion: "8.5.3"` mesmo com o cliente 8.6.2. Esse campo não identifica a versão do cliente e não comprova bloqueio de versões antigas. Depois do login foram observados `POST settings` e `POST settings/busRouting`; seus corpos ainda não foram documentados.
 
 ## Host e transporte
 
@@ -29,64 +70,34 @@ A lista é um **piso**: nomes com mais de 15 caracteres podem não ter sido deco
 
 | Contexto | Chaves |
 |---|---|
-| Login (`authenticate`) | **9 CodingKeys [O]**: `username`, `password`, `build`, `language`, `deviceName`, `pushToken`, `deviceID`, `application`, `platform`. **Correção 2026-10-14:** a chave do aparelho é `deviceID`, não `deviceIdentifier` — ver bloco de reflexão abaixo. `build` é inteiro; os demais valores codificados são texto. Como `pushToken` é `String?`, uma instalação sem token o omite e envia 8 chaves. |
+| Login (`authenticate`) | **[M]** `username`, `password`, `build` (inteiro), `language`, `deviceName`, `deviceIdentifier`, `application`, `platform` (inteiro `1` no iOS). Oito campos na captura 8.6.2, sem `pushToken`. |
 | Cadastro (`register`) | `organization`, `firstname`, `lastname`, `email`, `username`, `password`, `language` |
-| Sessão / chamadas autenticadas | `hash` (o `userHash` do usuário), `customer`, `language`, `siteID` (nas listagens: `pageNumber`, `pageSize`, `sort`, `sortDirection`) |
+| Sessão / chamadas autenticadas | **[M]** Nas listagens capturadas: `hash`, `customerID`, `userAccessID`, `countryID`, `restricted`, `build`, `language`, paginação e campos específicos por rota. `siteID` aparece em músicas/artistas/álbuns, mas não em temas/gêneros. `customer` era inferência antiga; ver plano detalhado. |
 | Usuário (`APIUser`) | `userID`, `userHash`, `organizations[]`, `subscriptionExpirationDate`, `firstName`, `email`, `isAdmin` |
 | Direitos da conta | `userAccess`, `cloud`, `rentals`, `restricted`, `teamShare`, `countryID`, `customer` |
 | Rentals | `rentalID`, `expireDate`, `targetAppID`, `transferCount`, `contentID`, `status`, `rentalsPlan`/`items` |
 | Conteúdo | `contentID`, `contentType`, `download`, `stemKeyID`, `redeem…`, `metadata`, `previewURL`, `songState`, `stems`, `genre` |
 
-## Respostas de `authenticate` medidas em 2026-10-14 [M]
+## Histórico de hipóteses corrigidas
 
-O host `https://api.multitracks.com/playback/` respondeu (HTTP 200, JSON, servidor ASP.NET atrás do Azure). **Erros vêm com HTTP 200**: o
-resultado está no corpo (`result`, `errorCode`, `message`, `messageTitle`, `button`, `url`). Cinco formatos tentados receberam a mesma mensagem:
-*"Username, password and device identifier are required fields."* A última chamada enviou somente as nove chaves do Playback, com usuário, senha e
-`deviceIdentifier` não vazios, `Content-Length` explícito e corpo confirmado localmente. Isso descartou corpo vazio/chunked e indicou divergência nos
- tipos ou valores do perfil do cliente.
+As tentativas da probe em 2026-10-14 receberam HTTP 200 com `result: 3`, `hash: null` e a mensagem "Username, password and device identifier are required fields." Houve variações de campos e cabeçalhos, sem sucesso.
 
-**Hipótese corrigida (2026-10-14):** a mensagem cita "device identifier", e a chave enviada era `deviceIdentifier`. No bloco contíguo de reflexão do login (`...customerID, userID, userHash, pushToken, application, platform, deviceID, deviceName, android, windows, ... build, language`) a chave do aparelho é **`deviceID`**; `deviceIdentifier` só aparece no despejo alfabético de símbolos (ao lado de `deviceUUID`, `deviceLimit`), nunca em uma função de encode. Como o campo do aparelho não liga, o servidor devolve a validação genérica que nomeia os três campos de credencial. A probe passou a enviar `deviceID`; próxima execução confirma ou refuta. Esquema (valores redigidos): `customerID`, `userID`, `userAccessID`, `appID`,
-`firstName`, `lastName`, `hash` (null neste erro; é onde virá o hash da sessão), `appSubscriptionLevel`, `hasOldPro`, `appSubscriptionDateExpiration`,
-`appSubscriptionExpiration`, `subscriptionReceipt`, `siteID`, `appSubscriptionType`, `internal`, `countryID`, `restricted`, `rentalsLicenseID`,
-`teamSharingLicenseID`, `appLicenseID`, `latestVersion`, `organizations`, `cloudPro`, `planningCenter`, `playbackSnapshot`, `mtCompleteEnabled`,
-`mtCompleteEngineer`, `result`, `errorCode`, `message`, `messageTitle`, `button`, `url`, `isAdmin`, `roleID`.
+A análise estática encontrou os nomes internos `deviceID` e os casos do enum `iOS`, `android`, `mac`, `windows`. Isso **não comprovava** as chaves ou os valores serializados. As afirmações anteriores de que a API exigia `deviceID` e `platform: "iOS"` estão retiradas: a captura confirma `deviceIdentifier` e `platform: 1` no Playback 8.6.2.
 
-### Nomes de chave vistos no binário (strings de reflexão do Swift) [O]
+Respostas iguais não demonstram rejeição antes da leitura do JSON. O bloqueio por versão era uma hipótese, não uma conclusão medida. Ainda não foi isolada a causa de cada tentativa antiga nem capturado o contrato real do 8.5.3. A execução posterior da probe confirmou o login fora do iPhone, sem isolar a causa de cada tentativa anterior.
 
-Perto dos campos do login aparecem, em sequência: `username`, `password`, `pushToken`, `receipt`, `production` e, em outro grupo, `organization`, `resultID`, `errorCodeID`,
-`responseMessageTitle`, `responseMessage`, `responseButtonTitle`, `responseButtonURL`, `customerID`, `userID`, `userHash`, `pushToken`, `application`, `platform`, `deviceID`, `deviceName`,
-`android`, `windows`, `title`, `build`, `language`. Outras strings: `deviceUUID`, `deviceIdentifier`, `identifierForVendor`, `deviceLimit`, `threeDeviceLogins`,
-`rentalsOtherDevices`, `rentalsThisDevice`, `playbackDeviceKeychainStorageFailed` (o Playback guarda a identidade do aparelho no Keychain). Há um
-limite de aparelhos por conta (`deviceLimit`, "três logins de aparelho").
+## Capturas posteriores e plano de implementação
 
-### Tipos e valores construídos pelo Playback 8.5.3 [O]
+O login da probe Dart foi executado com sucesso pelo responsável (HTTP 200, `result: 1`, `errorCode: 0`, `hash` preenchido), confirmando o perfil corrigido fora do iPhone. A captura posterior confirmou as cinco categorias de biblioteca vazia e o fluxo de oferta semanal em `content/download` + GET de `.mtrack` no Azure.
 
-- O descritor Swift de `UserRequest` em `0x1009b42d0` declara `build: Int`, `language: String`, `username: String`, `password: String`,
-  `application: String`, `platform: UserRequest.Platform`, `deviceID: String`, `deviceName: String` e `pushToken: String?`.
-- O construtor em `0x1006d25ac` lê `CFBundleVersion` e converte-o para inteiro (`85308` neste artefato); escolhe o idioma entre
-  `en`, `fr`, `id`, `ko`, `pt` e `es`; usa `uname.machine` em `application`; usa `identifierForVendor`/Keychain como identificador estável;
-  e gera uma descrição legível do modelo/versão do sistema em `deviceName`.
-- O enum `UserRequest.Platform` em `0x1009b43e0` tem os casos exatos `iOS`, `android`, `mac` e `windows`. O login de iPhone constrói o
-  primeiro caso, portanto o JSON usa `platform: "iOS"`, com maiúsculas exatas.
-- **Correção da probe:** o perfil padrão agora envia `build` como número, `application: "iPhone15,4"` como identificador de modelo de iPhone,
-  `platform: "iOS"` e `deviceName: "iPhone 15"`. O modelo e o nome continuam substituíveis para reproduzir outro aparelho autorizado.
-- O login usa `Alamofire.Session.default`. O Alamofire 5.11.0 embutido instala `Accept-Encoding`, `Accept-Language` e um `User-Agent` no formato
-  `Playback/8.5.3 (com.multitracks.custommixplayer; build:85308; iOS <versão>) Alamofire/5.11.0`. A probe reproduz o `User-Agent` com iOS 18.4.0,
-  envia `Accept-Language: en-US;q=1.0`, usa `Content-Type: application/json; charset=utf-8` (31 caracteres, confirmado no builder `FUN_1000596a4`: um único `setValue:forHTTPHeaderField:`, método `POST`) e não anuncia Brotli, que o cliente Dart não decodifica. **Correção 2026-10-14:** uma versão anterior da probe removeu o `; charset=utf-8`; o app o envia.
-- **[M] Risco de deriva:** em 2026-10-14 a [App Store](https://apps.apple.com/us/app/playback/id751755884) publica Playback 8.6.2, enquanto o artefato disponível para análise é 8.5.3. Se o backend
-  recusar o perfil corrigido, não se deve adivinhar o novo `CFBundleVersion` nem o contrato: é necessário obter o artefato 8.6.2 autorizado ou
-  capturar uma requisição dessa versão em um aparelho de teste.
+O [plano detalhado das capturas](plano-integracao-multitracks-capturas.md) consolida os corpos por rota, variantes de consulta/resgate/link, esquema de metadados, validade da oferta semanal, cabeçalhos do pacote, pendências e critérios de aceite. Ele prevalece sobre o fluxo inferido abaixo nos pontos já medidos. A exploração da probe ainda precisa ser atualizada; somente seu login está validado contra a API.
 
-## Estado da investigação do login — 2026-10-14 (tarde) [M]
+## Fluxo anteriormente inferido [I] — parcialmente substituído pelas capturas
 
-Sete tentativas. A probe foi alinhada ao 8.5.3 campo a campo: 9 chaves com nomes/tipos do encode (`deviceID`, `build` inteiro, `platform:"iOS"`), `POST`, `Content-Type: application/json; charset=utf-8` (31 chars, único header do builder `FUN_1000596a4`), User-Agent do Alamofire. **A resposta é byte a byte idêntica (766 bytes, `result:3`, mesma mensagem) em todas as tentativas, variando chaves, nome da chave do aparelho, cabeçalhos e Content-Length.** Como não varia com o corpo, o servidor recusa antes de ligar o JSON. Verificado também: o login usa `Session.default` (o `RequestInterceptor` fica na `APISession` de download, não no login), então não há header de app injetado no `authenticate`. **Conclusão:** a forma do request do 8.5.3 está esgotada; o que resta (gate de versão 8.5.3→8.6.2, ou um fator fora da análise estática) exige ou (a) capturar via proxy uma requisição real do Playback em um iPhone — verdade de campo, sem reversing — ou (b) o binário **decifrado** do 8.6.2 (o IPA da App Store vem cifrado; o ipatool sozinho não basta).
-
-## Fluxo provável [I]
-
-1. `authenticate` com usuário/senha devolve o usuário (`userHash`, organizações, direitos). **A senha vai no corpo da requisição**; não há OAuth
-   neste endpoint. O `userHash` passa a ser a credencial das demais chamadas.
+1. `authenticate` com usuário/senha devolve a sessão (`hash`, organizações, direitos). **A senha vai no corpo da requisição**; não há OAuth
+   neste endpoint. O `hash` passa a ser a credencial das demais chamadas.
 2. `organization` seleciona a organização ativa; `library/*` lista o que a conta tem; `library/rentals` lista os Rentals.
-3. `content/access` informa se o item está liberado para esta conta/aparelho; `content/request` devolve a URL assinada do arquivo
+3. **Hipótese antiga, não confirmada neste fluxo:** `content/access` validaria acesso e `content/request` devolveria a URL. A captura 8.6.2 observou `content/download` retornando metadados/direitos e `downloadUrl`, seguido de GET do arquivo
    (`https://playback.blob.core.windows.net/cloud/<id>/streaming/<id>.mtrack?...`, SAS com expiração e IP) **[O para o formato da URL]**.
 4. Rentals: `rentals/extend` e `rentals/expire`; a transferência entre aparelhos usa `transferCount`/`rentalID`/`status`.
 5. O arquivo baixado é um **`.mtrack`** **[O]**. O app embute `SSZipArchive`, então o `.mtrack` provavelmente é um zip (ou contém um) **[I]**;
@@ -95,16 +106,26 @@ Sete tentativas. A probe foi alinhada ao 8.5.3 campo a campo: 9 chaves com nomes
 ## Decisões do responsável pelo projeto
 
 1. **Senha — decidido (2026-10-14): opção B.** A MultiTracks não oferece OAuth para este projeto; o desenvolvedor-chefe orientou usar o login por
-   usuário e senha do endpoint. A senha só existe em memória durante a chamada; guarda-se apenas o `userHash` no armazenamento seguro
+   usuário e senha do endpoint. A senha só existe em memória durante a chamada; guarda-se apenas o `hash` no armazenamento seguro
    (detalhes na Fase 6.1.2 do plano).
 2. **Primeiro teste de comunicação:** `tool/multitracks_probe.dart`, executado por você no terminal. Pede usuário e senha localmente, chama
    `authenticate` (e, se você pedir, `organization`, `library/rentals`, `library/songs`) e imprime só o **esquema** das respostas — chaves e tipos,
    com todos os valores redigidos. O arquivo de saída (`--out`) pode ser compartilhado para eu descrever as respostas neste contrato.
-3. **Identidade do aparelho — decisão atualizada em 2026-10-14.** Após as tentativas com a identidade do WTracks retornarem a mesma validação,
+3. **Identidade do aparelho — decisão atualizada em 2026-10-15.** Após as tentativas com a identidade do WTracks retornarem a mesma validação,
    o desenvolvedor-chefe informou que o servidor ainda não está preparado para outras plataformas e autorizou testar o login com a identidade
-   do Playback no iOS. O probe usa por padrão `application=iPhone15,4`, `platform=iOS`, `build=85308` como inteiro e
-   `deviceName=iPhone 15`; os valores continuam explícitos e substituíveis por flags. Isso é uma compatibilidade transitória autorizada para o
+   do Playback no iOS. O probe usa por padrão `application=iPhone12,1`, `platform=1` e `build=86204` como inteiros e
+   `deviceName=iPhone 11 (26.2)`; os valores continuam explícitos e substituíveis por flags. Isso é uma compatibilidade transitória autorizada para o
    endpoint atual, não uma afirmação de que o WTracks seja o aplicativo oficial.
+
+## Execução da probe corrigida
+
+```powershell
+dart tool/multitracks_probe.dart --site multitracks --out "$env:TEMP/multitracks-schema.txt"
+```
+
+O perfil padrão usa idioma `pt`, `Accept-Language: pt-BR;q=1.0`, Playback 8.6.2, build 86204, iOS 26.2.0 e Alamofire 5.11.2. Flags `--app-version`, `--build`, `--ios-version` e `--alamofire-version` compõem o User-Agent; `--platform` aceita inteiro. O UUID é próprio e persistido em `~/.config/wtracks-probe/device-id`, usando HOME ou USERPROFILE, e não é impresso nem copiado do iPhone.
+
+A probe só prossegue se houver HTTP 200, `result: 1`, `errorCode: 0` e `hash` não vazio. `--explore` continua experimental: os corpos das rotas posteriores ainda são inferidos; primeiro validar somente o login. Não salvar capturas completas, senhas, hashes ou cookies no repositório. A captura bruta permanece local e privada.
 
 ## Registro da autorização
 
