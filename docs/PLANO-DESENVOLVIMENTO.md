@@ -456,6 +456,8 @@ fluxo semanal observado em `content/download` seguido de GET `.mtrack` no Azure.
 persistente independente. O responsável confirmou reprodução audível dos stems, metrônomo e guia após a otimização da tela de performance;
 compras permanentes, Rental paga e ciclo de expiração continuam pendentes. Desde 2026-10-16 o backup não leva o áudio MultiTracks (só a
 referência; novo download depois da restauração), cobrindo o item 6 de 6.1.7 no código.
+A estrutura musical do JSON (seções, andamento, compasso e clicks) é convertida desde 2026-10-16, com o click tocando pelos instantes da
+MultiTracks; contrato e evidências no plano de capturas, seção 7.
 O [plano detalhado das capturas](playback-analysis/plano-integracao-multitracks-capturas.md) registra contratos, direitos temporários,
 limitações, sequência de entregas e critérios de aceite; deve orientar as próximas etapas desta fase.
 

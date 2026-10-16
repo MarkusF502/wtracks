@@ -184,8 +184,32 @@ biblioteca sem áudio; abrir uma delas explica o motivo e leva à Biblioteca Mul
 `multitracks-<contentId>-<keyId>`) substitui a entrada mantendo o mixer. Escolha própria: vale para todo direito de uso, inclusive compras,
 enquanto o tipo de direito não é confirmado pela API. Teste: `backup_test.dart`.
 
-**Pendente:** converter seções, mudanças de andamento/compasso, MIDI e guias dinâmicas a partir do JSON sem presumir unidades; e validar
-progresso, falta de espaço, cancelamento e falhas reais na UI.
+**Estrutura musical (2026-10-16, confirmado):** valores obtidos com a probe (`--structure-out`, só leitura de metadados, arquivo local fora
+do Git) para o conteúdo 48052 e conferidos contra o áudio do pacote:
+
+| Campo | Significado | Evidência |
+|---|---|---|
+| `timeCode` | texto `MM:SS:mmm` (minutos, segundos, milissegundos); em compassos vem com um espaço no fim | seção `00:07:058` = 8 tempos a 68 BPM |
+| `time` (andamentos e compassos) | posição em **tempos**, arredondada | `time: 282` ↔ `04:08:823` = 282 × 60/68 s |
+| `beats` | a mesma posição sem arredondar | 285,75 e 286,0 aparecem os dois como `time: 286` |
+| `tempos` | mapa por degraus; cada ponto vem em par (fecha o trecho anterior, abre o novo); mudanças podem cair no meio de um tempo | segundos recalculados pelos tempos batem com todos os `timeCode` em ±1 ms |
+| `timeSignatures` | `beatsPerBar`/`beatUnit`; `timeID` é o id do catálogo de compassos do Playback (3 = 4/4) | 2/4 em 272 tempos = 240 s |
+| `sections` | só o início; o fim é o início da seguinte e a última vai até `duration`; nome pelo `sectionID` no catálogo `sections-*.json` do Playback | 16 seções, de Contagem (7) a Final (8) |
+| `clicks.accents/quarters/eighths/sixteenths` | instantes em segundos do arquivo de áudio; o último é sentinela (duração + 1 s); quartos incluem os tempos fortes, colcheias e semicolcheias só as do contratempo | 581 ataques do stem de click a −1,5…+3,6 ms das listas (detector) |
+
+O atraso de codificação do AAC é descartado tanto pelo GStreamer quanto pelo `MediaCodec` do Android (os WAVs do aparelho têm 11.784.619
+quadros, o mesmo número do GStreamer), então essa linha do tempo vale para os WAVs do WTracks.
+
+**Implementação:** `MultiTracksStructure` converte seções (guia falado do WTracks desligado quando o pacote traz stem de guia, para não
+tocar dois guias), BPM e compasso iniciais, `TempoChange` por ponto de mudança e `FixedClicks`. O motor ganhou `setClickTimes`: o click das
+músicas MultiTracks toca pelos instantes da MultiTracks (como o Playback faz com `SongClicks`), o que mantém exato o ritardando com
+mudanças no meio do tempo; a grade (`TempoChange`) continua para relógio MIDI e crossfade ao vivo, e reinicia nesses pontos (escolha
+própria). Editar andamento, compasso ou deslocamento do click descarta os instantes fixos. O que não confere com o `timeCode` é descartado
+com aviso no Diagnóstico. Um novo download dá a estrutura a uma música importada antes dela; seções já existentes são do usuário e ficam.
+
+**Pendente:** `midiEvents`, `midiBanks`, `arrangements` e `keyChanges` vieram vazios/falsos na amostra, então não foram convertidos; compasso
+com unidade 8 não foi observado (a unidade do BPM fica sem confirmação e gera aviso); validar progresso, falta de espaço, cancelamento e
+falhas reais na UI.
 
 **Aceite:** mapear cada arquivo ao stem/tonalidade correto; conferir duração, sample rate, canais, click/guia e alinhamento; converter seções/andamentos/compassos sem perder precisão. Falha mantém o conteúdo fora da biblioteca utilizável. O motor de áudio só recebe arquivos locais validados; nenhuma rede no callback.
 
