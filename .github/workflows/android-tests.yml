@@ -41,6 +41,10 @@ jobs:
           cmake --build build-linux -j"$(nproc)"
           ./build-linux/wtracks_engine_tests
 
+      - name: Soak acelerado (20 min simulados)
+        working-directory: native
+        run: ./build-linux/wtracks_soak --minutes 20 | grep -v '^C++'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
