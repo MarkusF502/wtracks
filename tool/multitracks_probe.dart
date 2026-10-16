@@ -2,6 +2,10 @@
 //
 //   dart tool/multitracks_probe.dart --site multitracks --out ~/multitracks-schema.txt
 //   dart tool/multitracks_probe.dart --site multitracks --explore --out ~/multitracks-schema.txt
+//   dart tool/multitracks_probe.dart --content-id N --content-type N --key-id N --structure-out ~/multitracks-structure.json
+//
+// --structure-out grava, só para análise local (fora do Git, permissão 600), os VALORES da estrutura musical da música consultada:
+// duração, BPM, tom, andamentos, compassos, seções, clicks e descritores dos stems. Nada de conta, URL, hash, aluguel ou preço.
 //
 // - Pede usuário e senha no terminal (a senha não aparece e não é gravada em lugar nenhum).
 // - Faz UM login (sem tentar de novo se falhar), consulta biblioteca com --explore e só toca conteúdo quando IDs e flags explícitos são passados.
@@ -207,6 +211,9 @@ Future<void> main(List<String> args) async {
           metadataRequest.body,
         );
         say(_schema(metadataJson));
+        if (options.structureOut != null && metadataStatus == 200 && _businessSuccess(metadataJson)) {
+          await _writeStructure(metadataJson, options.structureOut!, say);
+        }
         if (metadataStatus != 200 || !_businessSuccess(metadataJson)) {
           say(
             '\nA consulta de metadados não foi aceita. Nenhum link foi solicitado e nenhum resgate foi feito.',
@@ -618,7 +625,7 @@ class _Options {
   final String site, language, deviceName, application;
   final String appVersion, iosVersion, alamofireVersion, acceptLanguage;
   final int build, platform;
-  final String? out, baseUrl, downloadDirectory;
+  final String? out, baseUrl, downloadDirectory, structureOut;
   final bool explore, downloadContent, redeemRental;
   final int? contentId, contentType, keyId;
   _Options(
@@ -641,6 +648,7 @@ class _Options {
     this.downloadContent,
     this.redeemRental,
     this.downloadDirectory,
+    this.structureOut,
   );
 
   MultiTracksContentSelection? get contentSelection => contentId == null
@@ -686,7 +694,7 @@ class _Options {
         'Uso: dart tool/multitracks_probe.dart [--site multitracks] [--language pt] [--device-name "iPhone 11 (26.2)"]\n'
         '       [--application iPhone12,1] [--platform 1] [--build 86204] [--explore] [--out arquivo.txt]\n'
         '       [--app-version 8.6.2] [--ios-version 26.2.0] [--alamofire-version 5.11.2] [--accept-language "pt-BR;q=1.0"]\n'
-        '       [--content-id N --content-type N --key-id N]\n'
+        '       [--content-id N --content-type N --key-id N [--structure-out estrutura.json]]\n'
         '       [--download-content --download-dir DIRETORIO]\n'
         '       [--redeem-rental --confirm-redeem-rental CONSUMIR --download-dir DIRETORIO]\n'
         '\nPerfil da captura autorizada do Playback 8.6.2. platform e build são inteiros.\n'
@@ -702,6 +710,11 @@ class _Options {
     final downloadContent = args.contains('--download-content');
     final redeemRental = args.contains('--redeem-rental');
     final downloadDirectory = value('download-dir', '');
+    final structureOut = value('structure-out', '');
+    if (structureOut.isNotEmpty && contentId == null) {
+      stderr.writeln('--structure-out exige --content-id, --content-type e --key-id.');
+      exit(2);
+    }
     if ([contentId, contentType, keyId].any((value) => value != null) &&
         [contentId, contentType, keyId].any((value) => value == null)) {
       stderr.writeln(
@@ -749,6 +762,46 @@ class _Options {
       downloadDirectory.isEmpty
           ? null
           : downloadDirectory.replaceFirst(RegExp(r'^~'), _homeDirectory()),
+      structureOut.isEmpty ? null : structureOut.replaceFirst(RegExp(r'^~'), _homeDirectory()),
     );
   }
+}
+
+/// Campos de estrutura musical copiados com valores para `--structure-out`. Todo o resto da resposta fica de fora.
+const _structureKeys = ['title', 'duration', 'bpm', 'originalKey', 'keyChanges', 'tempos', 'timeSignatures', 'sections', 'clicks'];
+const _stemKeys = ['stemID', 'partID', 'keyID', 'part', 'abbreviation', 'anyKey', 'clickOrGuide', 'vocal', 'order', 'range'];
+
+Future<void> _writeStructure(Object? json, String path, void Function(String) say) async {
+  Map? item;
+  void find(Object? node) {
+    if (item != null) return;
+    if (node is Map) {
+      if (node['tempos'] is List || node['sections'] is List) {
+        item = node;
+        return;
+      }
+      node.values.forEach(find);
+    } else if (node is List) {
+      node.forEach(find);
+    }
+  }
+
+  find(json);
+  if (item == null) {
+    say('\n--structure-out: a resposta não trouxe tempos/seções; nada foi gravado.');
+    return;
+  }
+  final structure = <String, Object?>{
+    for (final key in _structureKeys)
+      if (item!.containsKey(key)) key: item![key],
+    if (item!['stems'] is List)
+      'stems': [
+        for (final stem in item!['stems'] as List)
+          if (stem is Map) {for (final key in _stemKeys) if (stem.containsKey(key)) key: stem[key]},
+      ],
+  };
+  final file = File(path);
+  await file.writeAsString(const JsonEncoder.withIndent('  ').convert(structure));
+  if (!Platform.isWindows) await Process.run('chmod', ['600', path]);
+  say('\nEstrutura musical gravada em $path (só valores de andamento, compasso, seções, clicks e stems; nada de conta ou URL).');
 }
