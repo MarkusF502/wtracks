@@ -42,6 +42,10 @@ HTTP 200, JSON, `result: 1`, `errorCode: 0` e `hash` não vazio. `hash` é a cre
 
 A resposta contém `customerID`, `userID`, `userAccessID`, `appID`, `firstName`, `lastName`, `hash`, `appSubscriptionLevel`, `hasOldPro`, `appSubscriptionDateExpiration`, `appSubscriptionExpiration`, `subscriptionReceipt`, `siteID`, `appSubscriptionType`, `internal`, `countryID`, `restricted`, `rentalsLicenseID`, `teamSharingLicenseID`, `appLicenseID`, `latestVersion`, `organizations`, `cloudPro`, `planningCenter`, `playbackSnapshot`, `mtCompleteEnabled`, `mtCompleteEngineer`, `result`, `errorCode`, `message`, `messageTitle`, `button`, `url`, `isAdmin` e `roleID`.
 
+Em 2026-10-15 também foi confirmado o erro de limite de aparelhos: HTTP 200, `result: 5`, `errorCode: 4`, com mensagem para remover um dispositivo
+Playback da conta. Embora a resposta ainda contenha `hash`, ela não representa login aceito; o cliente deve validar os códigos de negócio antes de
+usar qualquer campo de sessão. A probe não repetiu a chamada nem acessou a biblioteca.
+
 `organizations[]` contém identidade da organização, `default`, avatar, indicadores de direitos, contadores e datas de Rentals/Cloud/Team Sharing/licenças. `cloudPro` contém `tierID` e indicadores de recursos. Datas sentinela como anos 0001 e 1900 aparecem na resposta; não devem ser tratadas automaticamente como assinaturas válidas. Direitos de conteúdo continuam dependentes da validação do servidor.
 
 O servidor retornou `latestVersion: "8.5.3"` mesmo com o cliente 8.6.2. Esse campo não identifica a versão do cliente e não comprova bloqueio de versões antigas. Depois do login foram observados `POST settings` e `POST settings/busRouting`; seus corpos ainda não foram documentados.
@@ -78,6 +82,13 @@ A lista é um **piso**: nomes com mais de 15 caracteres podem não ter sido deco
 | Rentals | `rentalID`, `expireDate`, `targetAppID`, `transferCount`, `contentID`, `status`, `rentalsPlan`/`items` |
 | Conteúdo | `contentID`, `contentType`, `download`, `stemKeyID`, `redeem…`, `metadata`, `previewURL`, `songState`, `stems`, `genre` |
 
+### Biblioteca validada pela probe [M]
+
+Em 2026-10-15, os cinco builders capturados foram executados fora do iPhone e retornaram HTTP 200, `result: 1` e `errorCode: 0`.
+`library/songs` retornou um item com 14 campos: `libraryID`, `songID`, `song`, `songStatus`, `artistID`, `artist`, `albumID`, `album`, `image`,
+`image2x`, `previewUrl`, `dateContentPurchased`, `rentalsAvailable` e `cloudSong`. As outras quatro rotas retornaram listas vazias. Essa execução
+confirma os corpos das requisições e o envelope de resposta; não define ainda o significado dos enums nem os schemas não vazios das outras categorias.
+
 ## Histórico de hipóteses corrigidas
 
 As tentativas da probe em 2026-10-14 receberam HTTP 200 com `result: 3`, `hash: null` e a mensagem "Username, password and device identifier are required fields." Houve variações de campos e cabeçalhos, sem sucesso.
@@ -90,7 +101,7 @@ Respostas iguais não demonstram rejeição antes da leitura do JSON. O bloqueio
 
 O login da probe Dart foi executado com sucesso pelo responsável (HTTP 200, `result: 1`, `errorCode: 0`, `hash` preenchido), confirmando o perfil corrigido fora do iPhone. A captura posterior confirmou as cinco categorias de biblioteca vazia e o fluxo de oferta semanal em `content/download` + GET de `.mtrack` no Azure.
 
-O [plano detalhado das capturas](plano-integracao-multitracks-capturas.md) consolida os corpos por rota, variantes de consulta/resgate/link, esquema de metadados, validade da oferta semanal, cabeçalhos do pacote, pendências e critérios de aceite. Ele prevalece sobre o fluxo inferido abaixo nos pontos já medidos. A exploração da probe ainda precisa ser atualizada; somente seu login está validado contra a API.
+O [plano detalhado das capturas](plano-integracao-multitracks-capturas.md) consolida os corpos por rota, variantes de consulta/resgate/link, esquema de metadados, validade da oferta semanal, cabeçalhos do pacote, pendências e critérios de aceite. Ele prevalece sobre o fluxo inferido abaixo nos pontos já medidos. Login, biblioteca, metadados, resgate, emissão de link e transferência da probe foram validados contra a API.
 
 ## Fluxo anteriormente inferido [I] — parcialmente substituído pelas capturas
 
@@ -100,8 +111,7 @@ O [plano detalhado das capturas](plano-integracao-multitracks-capturas.md) conso
 3. **Hipótese antiga, não confirmada neste fluxo:** `content/access` validaria acesso e `content/request` devolveria a URL. A captura 8.6.2 observou `content/download` retornando metadados/direitos e `downloadUrl`, seguido de GET do arquivo
    (`https://playback.blob.core.windows.net/cloud/<id>/streaming/<id>.mtrack?...`, SAS com expiração e IP) **[O para o formato da URL]**.
 4. Rentals: `rentals/extend` e `rentals/expire`; a transferência entre aparelhos usa `transferCount`/`rentalID`/`status`.
-5. O arquivo baixado é um **`.mtrack`** **[O]**. O app embute `SSZipArchive`, então o `.mtrack` provavelmente é um zip (ou contém um) **[I]**;
-   o conteúdo (stems, marca-d'água, chaves) é **[?]** e vem na próxima investigação.
+5. O arquivo baixado é um **`.mtrack`** **[O]**. A amostra autorizada é um frame LZ4 independente, com checksum de conteúdo, contendo um ZIP válido **[O]**. O ZIP possui 11 stems AAC/M4A e oito imagens, sem manifesto próprio; os nomes numéricos dos M4A correspondem aos `stemID` devolvidos pela API **[O]**. Outras variantes de pacote ainda são **[?]**.
 
 ## Decisões do responsável pelo projeto
 
@@ -125,7 +135,9 @@ dart tool/multitracks_probe.dart --site multitracks --out "$env:TEMP/multitracks
 
 O perfil padrão usa idioma `pt`, `Accept-Language: pt-BR;q=1.0`, Playback 8.6.2, build 86204, iOS 26.2.0 e Alamofire 5.11.2. Flags `--app-version`, `--build`, `--ios-version` e `--alamofire-version` compõem o User-Agent; `--platform` aceita inteiro. O UUID é próprio e persistido em `~/.config/wtracks-probe/device-id`, usando HOME ou USERPROFILE, e não é impresso nem copiado do iPhone.
 
-A probe só prossegue se houver HTTP 200, `result: 1`, `errorCode: 0` e `hash` não vazio. `--explore` continua experimental: os corpos das rotas posteriores ainda são inferidos; primeiro validar somente o login. Não salvar capturas completas, senhas, hashes ou cookies no repositório. A captura bruta permanece local e privada.
+A probe só prossegue se houver HTTP 200, `result: 1`, `errorCode: 0` e `hash` não vazio. Os builders das cinco listagens observadas foram implementados,
+mas a primeira validação ao vivo parou no limite de dispositivos antes de chamá-los. `organization` e `library/rentals` permanecem fora da exploração
+até captura própria. Não salvar capturas completas, senhas, hashes ou cookies no repositório. A captura bruta permanece local e privada.
 
 ## Registro da autorização
 

@@ -20,6 +20,8 @@ Nothing was executed on iOS. This is evidence, not source: names like `FUN_10054
 | `ui/plists/*.json` | `Info.plist` of the app and of each storyboard (scene graph / segue info) |
 | `ui/assets/inventory.json` | Every rendition of `Assets.car` (184 facets, 1295 renditions): name, size, scale, pixel format, key attributes, colours |
 | `ui/assets/png`, `ui/assets/data` | 55 bitmaps (palette+LZFSE) and 232 vector/data assets (SVG, PDF, JPEG) exported from `Assets.car` |
+| `plano-integracao-interface-multitracks.md` | Plano e prompt executável para integrar login, biblioteca, configuração, download e importação MultiTracks à interface do WTracks |
+| `../plano-otimizacao-performance-android.md` | Plano de instrumentação, testes no aparelho e otimização de travamentos/lentidão na reprodução multitrack Android |
 
 ## How to read the pseudocode
 

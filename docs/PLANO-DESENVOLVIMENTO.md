@@ -448,8 +448,11 @@ desenvolvedor-chefe da MultiTracks/Playback para utilizar no WTracks o endpoint 
 incluindo conteúdo da biblioteca e Playback Rentals. Essa autorização permite planejar e desenvolver a integração,
 mas não substitui o registro escrito necessário antes de publicar builds para terceiros.
 
-**Atualização por captura (2026-10-15):** login da probe confirmado; biblioteca vazia confirmada nas cinco categorias;
-fluxo semanal observado em `content/download` seguido de GET `.mtrack` no Azure. Implementação de download/importação no WTracks ainda pendente.
+**Atualização por captura e aparelho (2026-10-16):** login da probe confirmado; consultas de biblioteca confirmadas;
+fluxo semanal observado em `content/download` seguido de GET `.mtrack` no Azure. No Android, o WTracks importou a oferta semanal e publicou
+11 WAVs válidos e alinhados; o backup conferiu arquivos/hashes 11/11 e o motor carregou a música e avançou o transporte. Não há recibo HTTP
+persistente independente. O responsável confirmou reprodução audível dos stems, metrônomo e guia após a otimização da tela de performance;
+compras permanentes, Rental paga e ciclo de expiração continuam pendentes.
 O [plano detalhado das capturas](playback-analysis/plano-integracao-multitracks-capturas.md) registra contratos, direitos temporários,
 limitações, sequência de entregas e critérios de aceite; deve orientar as próximas etapas desta fase.
 

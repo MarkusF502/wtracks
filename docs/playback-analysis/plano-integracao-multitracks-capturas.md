@@ -15,11 +15,17 @@ Legenda: **confirmado** = observado no tráfego ou executado com sucesso; **infe
 - [x] Login da probe Dart executado pelo responsável: HTTP 200, `result: 1`, `errorCode: 0`, `hash` não vazio.
 - [x] Capturadas consultas a `library/songs`, `artists`, `albums`, `themes` e `genres`; todas retornaram sucesso com listas vazias.
 - [x] Capturadas cinco chamadas a `content/download` para uma música semanal e um GET bem-sucedido do pacote `.mtrack`.
-- [ ] Corrigir os corpos de exploração da probe para as consultas de biblioteca capturadas.
-- [ ] Reproduzir consulta de metadados e download na probe/WTracks.
-- [ ] Inspecionar o pacote e validar importação e reprodução no WTracks.
+- [x] Corrigir os corpos de exploração da probe para as consultas de biblioteca capturadas.
+- [x] Validar ao vivo os cinco builders corrigidos com a conta autorizada. Depois de liberar uma vaga de aparelho, a probe recebeu HTTP 200,
+  `result: 1` e `errorCode: 0` nas cinco rotas. `library/songs` retornou um item; artistas, álbuns, temas e gêneros retornaram listas vazias.
+- [x] Reproduzir consulta de metadados e download no WTracks para a oferta semanal. A auditoria de 2026-10-16 confirmou a
+  Track persistida e os 11 WAVs; não existe recibo HTTP independente nem confirmação de que `Content-MD5` veio na resposta.
+- [x] Inspecionar o resultado do pacote e validar importação, conversão, carregamento e reprodução audível no WTracks. O
+  responsável confirmou stems, metrônomo e guia audíveis no aparelho após a otimização da tela de performance.
 
-O download comprovado foi realizado pelo Playback, não pelo WTracks. O teste semanal não valida compras permanentes nem todo o ciclo de Rentals.
+O GET original foi capturado no Playback. Em 2026-10-16, o backup e a execução no Android comprovaram também o resultado
+do download/importação da oferta semanal pelo WTracks por evidência persistida e cadeia causal, sem recibo HTTP independente.
+O teste semanal não valida compras permanentes nem todo o ciclo de Rentals.
 
 ## 1. Autenticação e identidade do cliente
 
@@ -41,6 +47,11 @@ Cabeçalhos capturados: `Accept: */*`, `Content-Type: application/json; charset=
 
 Critério de sucesso da probe: HTTP 200, `result: 1`, `errorCode: 0` e `hash` não vazio. Erros também podem retornar HTTP 200. `latestVersion: "8.5.3"` veio do servidor apesar do cliente 8.6.2; não usar esse campo para identificar a versão do cliente. A resposta traz organização, direitos e datas sentinela (anos 0001/1900), que exigem interpretação explícita.
 
+**Limite de dispositivos confirmado em 2026-10-15:** HTTP 200, `result: 5`, `errorCode: 4`, com orientação para remover um dispositivo da conta.
+O `hash` presente nessa resposta não torna a sessão válida. A probe para imediatamente e não consulta a biblioteca. Não regenerar o UUID da probe:
+isso tentaria registrar outro aparelho. A documentação oficial informa limite de dois aparelhos Playback por usuário, ou três para o usuário com
+assento Playback Premium; remover um aparelho encerra a sessão dele e libera a vaga.
+
 **Implementação:** manter senha somente durante o login; guardar a sessão em armazenamento seguro; impedir respostas de sessões antigas de publicar dados após logout/troca de organização. Não copiar o UUID do iPhone. A probe já persiste UUID próprio no diretório pessoal e gera User-Agent a partir de versões/build configuráveis.
 
 ## 2. Biblioteca: cinco contratos de consulta
@@ -55,11 +66,16 @@ Critério de sucesso da probe: HTTP 200, `result: 1`, `errorCode: 0` e `hash` n�
 | `library/themes` | `purchasedContent: true`; `sortDirection: 1`; sem `sort` e sem `siteID`; pageSize 20 |
 | `library/genres` | Mesmo conjunto observado em temas |
 
-Resposta vazia comum: `data: []`, `pageNumber: 0`, `totalPages: 0`, `totalRecords: 0`, `result: 1`, `errorCode: 0`, mensagem de sucesso e `messageTitle`, `button`, `url` nulos. Página 0 na resposta vazia não é falha. A estrutura dos elementos de bibliotecas não vazias ainda precisa de captura.
+Resposta vazia comum: `data: []`, `pageNumber: 0`, `totalPages: 0`, `totalRecords: 0`, `result: 1`, `errorCode: 0`, mensagem de sucesso e `messageTitle`, `button`, `url` nulos. Página 0 na resposta vazia não é falha.
+
+**Item não vazio confirmado pela probe em 2026-10-15:** `library/songs` retornou `libraryID`, `songID`, `song`, `songStatus`, `artistID`,
+`artist`, `albumID`, `album`, `image`, `image2x`, `previewUrl`, `dateContentPurchased`, `rentalsAvailable` e `cloudSong`. Na amostra,
+`dateContentPurchased` era nulo. IDs, textos e URLs reais não foram incorporados às fixtures. Os enums e o significado de `songStatus` continuam pendentes.
 
 **Implementação:** substituir o campo inferido `customer` por `customerID` nessas consultas; obter contexto da sessão/organização sem fixar IDs da conta; criar builders por rota em vez de um corpo universal. Não supor o significado dos números de filtro/ordenação antes de correlacionar a seleção no app. Não generalizar o corpo de `songs` para `rentals`, cuja requisição não foi confirmada.
 
-**Aceite:** uma página de cada rota deve retornar sucesso pela probe, sem consumo de crédito; listas vazias devem encerrar paginação; testes com dados sintéticos cobrem página seguinte, sessão inválida e troca de organização. Capturar ao menos uma biblioteca não vazia antes de fechar o modelo de itens.
+**Aceite:** uma página de cada rota retornou sucesso pela probe, sem consumo de crédito; listas vazias encerram paginação; fixture sintética cobre
+o primeiro modelo não vazio de música. Continuam pendentes sessão inválida, troca de organização e itens não vazios de artistas, álbuns, temas e gêneros.
 
 ## 3. Conteúdo: consulta, resgate e emissão de link
 
@@ -91,6 +107,16 @@ Exemplo do item capturado (IDs de conteúdo são exemplos observados, não padr�
 **Inferência:** consulta inicial, resgate e posteriores solicitações de link. As chamadas posteriores têm o mesmo conjunto de valores; isso não comprova idempotência. O significado geral de `contentType: 26`, `contentStatus`, `songStatus` e demais enums continua pendente.
 
 **Implementação:** separar operações `consultarMetadados`, `resgatar` e `solicitarLink`. Consulta inicial deve reproduzir `downloadLink: false`, `redeemRental: false` e `redeemPreview: false`; nenhum modo de exploração pode ativar resgate automaticamente. Confirmar com o serviço efeitos colaterais, consumo e mecanismo de reconciliação/idempotência. Não inventar cabeçalho de idempotência nem repetir resgate após timeout sem consultar o estado.
+
+**Estado da implementação (2026-10-15):** `MultiTracksContentRequestBuilder` e `MultiTracksContentProvider` mantêm as três operações separadas.
+O provider descarta respostas quando a sessão é trocada ou apagada durante a chamada. A probe consulta metadados primeiro e só solicita link com
+`--download-content`; `--redeem-rental` exige a confirmação literal `--confirm-redeem-rental CONSUMIR` e nunca é repetido automaticamente. Se um
+resgate aceito não trouxer `downloadUrl`, a probe reproduz uma única consulta posterior de link com `redeemRental: false`.
+
+**Validação ao vivo (2026-10-15):** a identidade própria da probe recebeu `result: 1` e `errorCode: 0` tanto na consulta de metadados quanto na
+solicitação de link para o conteúdo capturado. As duas respostas trouxeram `downloadUrl: null`, `rentalsInfo: null` e `rentalPreviewInfo: null`;
+portanto nenhum GET ao Blob foi iniciado e nenhum arquivo foi criado. Isso confirma o contrato de consulta, mas não uma concessão para esse UUID.
+O valor de `playOfTheWeek` foi redigido pelo relatório de esquema e não deve ser inferido desta execução.
 
 `content/access` e `content/request` foram encontrados na análise estática, mas não observados como etapas deste download. Não implementá-los como pré-requisitos obrigatórios com base na hipótese antiga.
 
@@ -125,13 +151,35 @@ User-Agent do GET: `Playback/86204 CFNetwork/3860.300.31 Darwin/25.2.0`, diferen
 
 **Implementação:** download em staging privado, progresso e cancelamento, validação de tamanho e MD5 fornecido (integridade da transferência, não autenticação criptográfica do conteúdo), publicação atômica. Não encaminhar o hash da API para o Azure. Manter URL SAS opaca em memória, sem alterar a query ou registrá-la; considerar expiração e restrição de IP ao retomar/trocar de rede. Permitir somente HTTPS e hosts de download explicitamente confiáveis, inclusive após redirecionamentos.
 
+**Estado da implementação (2026-10-15):** `MultiTracksPackageDownloader` aplica HTTPS e allowlist de host também após redirecionamentos,
+limite de 2 GiB, staging `.part`, tamanho anunciado, Content-MD5 incremental, cancelamento e publicação com rollback. A probe possui um caminho
+equivalente para obter a primeira amostra no Linux sem imprimir ou gravar a URL SAS; a integração de UI/progresso no Android permanece pendente.
+
 **Pendente:** testar Range/206 e If-Range/ETag: `Accept-Ranges` anuncia suporte, mas retomada não foi exercitada. Após URL expirada, reconciliar estado e obter novo link sem resgatar novamente. Confirmar unidade de `fileSize`; não usá-la como bytes sem validação.
 
 ## 7. Pacote e importação
 
-A extensão `.mtrack`, o tipo octet-stream e a existência de SSZipArchive no binário não comprovam ZIP, organização interna, codec ou ausência de proteção. O conteúdo binário ainda não foi inspecionado.
+**Confirmado na amostra autorizada (2026-10-15):** `48052.mtrack` tem 41.324.454 bytes e SHA-256
+`16dae28c5d99e4f999994efda8c9c811b6f8b5f145f3c4c5fa687dfc3a1a71dc`. É um frame LZ4 independente com dez blocos armazenados sem
+recompressão, checksum de conteúdo e um ZIP interno de 41.324.399 bytes. O ZIP passou na validação de todos os CRCs e contém 19 membros:
+11 arquivos numéricos `.m4a`, duas capas JPEG e seis waveforms PNG. Não existe manifesto dentro do pacote; a resposta JSON da API é o
+manifesto necessário para nomear e ordenar os stems. Os nomes numéricos dos M4A correspondem aos `stemID` presentes na resposta.
 
-**Próxima investigação:** analisar localmente o pacote já autorizado e capturado; identificar assinatura, manifesto, formatos, nomes e vínculos com stemID/keyID. Não repetir download para essa análise. Se for arquivo compactado, validar caminhos, limites de expansão e entradas antes de extrair; se houver criptografia/DRM, documentar e solicitar contrato/SDK/chaves oficiais aplicáveis, sem inventar decodificação.
+Os 11 stems observados são AAC em contêiner M4A, estéreo, 44,1 kHz e duração idêntica de aproximadamente 267,225 segundos. Não foi observada
+criptografia interna no ZIP ou nos M4A. Isso é evidência desta amostra, não garantia para todos os `contentType` ou versões futuras.
+
+**Implementação (2026-10-15):** `MultiTracksPackageImporter` valida magic/opções/checksums LZ4, suporta blocos crus e comprimidos, impõe limites,
+abre o ZIP sem confiar em caminhos, rejeita membros inesperados/duplicados, verifica tamanho e CRC de cada stem e exige correspondência única com
+o `stemID` e a tonalidade selecionada. A ordem e os nomes vêm dos descritores da API; click/guia preserva `clickOrGuide`. A publicação dos WAVs é
+atômica e preserva a versão anterior em caso de falha.
+
+O JUCE atual não decodifica AAC/M4A no Android. A ponte `wtracks/multitracks_audio` usa `MediaExtractor`/`MediaCodec` fora da thread da interface
+para produzir PCM WAV de 16 bits antes de entregar os arquivos ao motor. A auditoria Android de 2026-10-16 confirmou 11 WAVs PCM, estéreo,
+44,1 kHz e aproximadamente 267,225 s, com hashes e caminhos coerentes, além do carregamento e avanço do transporte. O responsável confirmou
+reprodução audível dos stems, metrônomo e guia. Essa conversão aumenta significativamente o uso de disco e deve ser apresentada no progresso/estimativa da UI.
+
+**Pendente:** converter seções, mudanças de andamento/compasso, MIDI e guias dinâmicas a partir do JSON sem presumir unidades; corrigir o backup,
+que atualmente inclui os WAVs MultiTracks; e validar progresso, falta de espaço, cancelamento e falhas reais na UI.
 
 **Aceite:** mapear cada arquivo ao stem/tonalidade correto; conferir duração, sample rate, canais, click/guia e alinhamento; converter seções/andamentos/compassos sem perder precisão. Falha mantém o conteúdo fora da biblioteca utilizável. O motor de áudio só recebe arquivos locais validados; nenhuma rede no callback.
 
@@ -153,4 +201,6 @@ A extensão `.mtrack`, o tipo octet-stream e a existência de SSZipArchive no bi
 7. **Licença e ciclo de vida:** expiração, revalidação, offline, logout, transferência e revogação; conteúdo protegido fora de exportação/backup conforme escopo acordado.
 8. **Validação Android:** falta de espaço, background, cancelamento, queda de rede, URL expirada/restrita por IP, retomada, troca de conta e falha de pacote. Validar compra permanente e Rental paga com conteúdo/conta de teste aprovados.
 
-Concluído até aqui: login da probe e observação do download no Playback. O restante é plano de trabalho; nenhum sucesso de download/importação no WTracks foi declarado.
+Concluído até aqui: login, biblioteca, metadados, resgate, download e importação reais da oferta semanal. A auditoria de 2026-10-16 confirmou no
+Android 11 WAVs válidos e alinhados, persistência 11/11, carregamento no motor e avanço do transporte; o responsável confirmou reprodução audível
+dos stems, metrônomo e guia. Permanecem pendentes recibo HTTP independente, compra permanente, Rental paga, ciclo de licença e cenários de falha.
