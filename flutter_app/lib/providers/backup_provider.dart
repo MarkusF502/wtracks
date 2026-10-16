@@ -47,7 +47,11 @@ class BackupNotifier extends Notifier<BackupState> {
 
   static String describe(BackupSummary s) {
     final mb = s.bytes / (1024 * 1024);
-    return '${s.tracks} música${s.tracks == 1 ? '' : 's'}, ${s.setlists} setlist${s.setlists == 1 ? '' : 's'}, ${mb.toStringAsFixed(1)} MB';
+    final base = '${s.tracks} música${s.tracks == 1 ? '' : 's'}, ${s.setlists} setlist${s.setlists == 1 ? '' : 's'}, ${mb.toStringAsFixed(1)} MB';
+    final n = s.tracksWithoutAudio;
+    if (n == 0) return base;
+    return '$base ($n da MultiTracks sem áudio: depois de restaurar, ${n == 1 ? 'ela precisa' : 'elas precisam'} ser '
+        'baixada${n == 1 ? '' : 's'} de novo com login)';
   }
 
   /// Cria o backup completo, confere e entrega ao destino escolhido.

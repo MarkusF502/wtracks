@@ -5,6 +5,7 @@ import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/models/app_settings.dart';
+import 'package:flutter_app/models/multitracks_origin.dart';
 import 'package:flutter_app/models/track.dart';
 import 'package:flutter_app/services/app_preferences_store.dart';
 import 'package:flutter_app/services/backup_service.dart';
@@ -81,6 +82,36 @@ void main() {
     expect(setlist.tracks.first.channels.first.filePath, startsWith(rootB.path));
     expect(File(setlist.tracks.first.channels.first.filePath).existsSync(), true);
     expect((await AppPreferencesStore(directoryResolver: () async => rootB).load()).faderDefault80, true);
+  });
+
+  test('MultiTracks songs go into the backup without their audio and come back pending a new download', () async {
+    final (serviceA, _) = await library(rootA);
+    final cache = Directory('${rootA.path}/cache');
+    final origin = MultiTracksOrigin(
+        contentId: 202, keyId: 3, contentType: 1, entitlementKind: MultiTracksEntitlementKind.weekly, lastValidatedAt: DateTime.utc(2026, 10, 16));
+    final protected = await serviceA.saveTrack(Track(id: 'multitracks-202-3', title: 'Semanal', origin: origin, channels: [
+      for (final label in ['Click', 'Voz']) ChannelInfo(label: label, filePath: writeSineWav('${cache.path}/mt-$label.wav', seconds: 0.2).path),
+    ]));
+    final backup = File('${work.path}/wtracks.zip');
+    final summary = await BackupService(serviceA).create(backup);
+    expect((summary.tracks, summary.audioFiles, summary.tracksWithoutAudio), (3, 3, 1), reason: 'only the 3 local audio files');
+
+    final names = ZipDecoder().decodeBuffer(InputFileStream(backup.path)).files.map((f) => f.name).toList();
+    expect(names, contains('tracks/multitracks-202-3.json'));
+    expect(names.where((n) => n.startsWith('audio/multitracks-202-3/')), isEmpty, reason: 'protected audio never leaves the device');
+    expect((await BackupService(serviceA).verify(backup)).tracksWithoutAudio, 1);
+
+    final serviceB = serviceFor(rootB);
+    await BackupService(serviceB).restore(backup);
+    final restored = await serviceB.loadAllTracks();
+    expect(restored.map((t) => t.id).toSet(), {'one', 'two', 'multitracks-202-3'});
+    final song = restored.firstWhere((t) => t.id == protected.id);
+    expect(song.origin, origin);
+    expect(song.channels.map((c) => c.label), ['Click', 'Voz']);
+    expect(song.channels.every((c) => c.filePath.startsWith('${rootB.path}/wtracks_data/audio/${song.id}/')), true);
+    expect(song.channels.any((c) => File(c.filePath).existsSync()), false, reason: 'downloaded again after login');
+    final local = restored.firstWhere((t) => t.id == 'one');
+    expect(local.channels.every((c) => File(c.filePath).existsSync()), true);
   });
 
   test('restoring over an existing library keeps the old folder aside and replaces the library', () async {

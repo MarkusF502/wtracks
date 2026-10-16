@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 
+import '../models/multitracks_origin.dart';
 import '../models/track.dart';
 import 'persistence_service.dart';
 
@@ -23,8 +24,13 @@ class BackupEntry {
 class BackupSummary {
   final DateTime createdAt;
   final int tracks, setlists, audioFiles, bytes;
+
+  /// Músicas MultiTracks que entram só com a referência e os metadados: o áudio (protegido) não vai no backup e precisa
+  /// ser baixado de novo, com login, depois da restauração.
+  final int tracksWithoutAudio;
   final List<BackupEntry> entries;
-  const BackupSummary(this.createdAt, this.tracks, this.setlists, this.audioFiles, this.bytes, this.entries);
+  const BackupSummary(this.createdAt, this.tracks, this.setlists, this.audioFiles, this.bytes, this.entries,
+      {this.tracksWithoutAudio = 0});
 }
 
 class BackupException implements Exception {
@@ -37,7 +43,8 @@ class BackupException implements Exception {
 /// Backup completo e restauração (Fase B do plano de consolidação; pré-requisito da troca de chave de assinatura e do atualizador).
 ///
 /// O backup é um .zip com `manifest.json` (formato, versão, data, e caminho + tamanho + SHA-256 de cada arquivo) mais a pasta de dados
-/// do app: músicas, setlists, **áudios** e preferências. Os JSON guardam os caminhos dos áudios **relativos** à pasta de dados, então o
+/// do app: músicas, setlists, **áudios** e preferências. Exceção (Fase 6.1.5): o áudio das músicas MultiTracks (`Track.origin`) fica de
+/// fora; a música entra só com o JSON (referência e metadados, sem segredo) e é baixada de novo depois da restauração. Os JSON guardam os caminhos dos áudios **relativos** à pasta de dados, então o
 /// backup abre em qualquer instalação. As waveforms (regeneráveis) e os arquivos temporários não entram. Depois de escrito, o zip é
 /// reaberto e **todos** os hashes são conferidos antes de ele ser publicado: um backup que não passa nessa conferência nunca aparece.
 ///
@@ -45,7 +52,9 @@ class BackupException implements Exception {
 /// anterior é mantida ao lado (`wtracks_data.antes-da-restauracao-<data>`) até o usuário apagá-la.
 class BackupService {
   static const formatName = 'wtracks-backup';
-  static const formatVersion = 1;
+  /// 2: músicas MultiTracks sem áudio (`counts.tracksWithoutAudio`). Um app com formato 1 recusa esses backups com a mensagem de
+  /// "versão mais nova" em vez de falhar no meio por falta de áudio.
+  static const formatVersion = 2;
   static const _manifestName = 'manifest.json';
 
   final PersistenceService persistence;
@@ -56,11 +65,12 @@ class BackupService {
   Future<BackupSummary> create(File destination, {void Function(double progress)? onProgress}) async {
     final dataDir = await persistence.dataDirectory();
     final prefix = '${dataDir.path}/';
+    final protected = await _multiTracksTrackIds(dataDir);
     final sources = <String, File>{}; // caminho no zip -> arquivo real
     await for (final entity in dataDir.list(recursive: true, followLinks: false)) {
       if (entity is! File) continue;
       final relative = entity.path.substring(prefix.length);
-      if (_skipped(relative)) continue;
+      if (_skipped(relative) || _isProtectedAudio(relative, protected)) continue;
       sources[relative] = entity;
     }
     final names = sources.keys.toList()..sort();
@@ -80,13 +90,18 @@ class BackupService {
       }
       onProgress?.call(0.35 * ++done / names.length);
     }
-    final summary = _summarize(DateTime.now().toUtc(), entries);
+    final summary = _summarize(DateTime.now().toUtc(), entries, tracksWithoutAudio: protected.length);
     final manifest = utf8.encode(jsonEncode({
       'format': formatName,
       'version': formatVersion,
       'createdAt': summary.createdAt.toIso8601String(),
       'trackSchemaVersion': Track.currentSchemaVersion,
-      'counts': {'tracks': summary.tracks, 'setlists': summary.setlists, 'audioFiles': summary.audioFiles},
+      'counts': {
+        'tracks': summary.tracks,
+        'setlists': summary.setlists,
+        'audioFiles': summary.audioFiles,
+        'tracksWithoutAudio': summary.tracksWithoutAudio,
+      },
       'files': [for (final e in entries) e.toJson()],
     }));
 
@@ -123,6 +138,32 @@ class BackupService {
     return summary;
   }
 
+  /// Ids das músicas com procedência MultiTracks. Um JSON ilegível não é marcado aqui: ele entra como está e a restauração o valida.
+  Future<Set<String>> _multiTracksTrackIds(Directory dataDir) async {
+    final ids = <String>{};
+    final dir = Directory('${dataDir.path}/tracks');
+    if (!await dir.exists()) return ids;
+    await for (final entity in dir.list()) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      try {
+        final json = jsonDecode(await entity.readAsString());
+        if (json is Map && _isMultiTracks(json)) ids.add(entity.path.split('/').last.replaceFirst(RegExp(r'\.json$'), ''));
+      } on FormatException {
+        // segue sem marcar
+      }
+    }
+    return ids;
+  }
+
+  /// Basta a marca do provedor: mesmo uma origem incompleta (que `MultiTracksOrigin.fromJson` descarta) veio do endpoint.
+  static bool _isMultiTracks(Map json) => json['origin'] is Map && (json['origin'] as Map)['provider'] == MultiTracksOrigin.provider;
+
+  static bool _isProtectedAudio(String relative, Set<String> trackIds) {
+    if (!relative.startsWith('audio/')) return false;
+    final parts = relative.split('/');
+    return parts.length > 2 && trackIds.contains(parts[1]);
+  }
+
   bool _skipped(String relative) {
     if (relative.startsWith('waveforms/')) return true;
     return relative.endsWith('.tmp') || relative.endsWith('.part') || relative.endsWith('.bak') || relative.endsWith('.corrupt');
@@ -152,13 +193,14 @@ class BackupService {
     return walk(json);
   }
 
-  BackupSummary _summarize(DateTime createdAt, List<BackupEntry> entries) => BackupSummary(
+  BackupSummary _summarize(DateTime createdAt, List<BackupEntry> entries, {int tracksWithoutAudio = 0}) => BackupSummary(
         createdAt,
         entries.where((e) => e.path.startsWith('tracks/') && e.path.endsWith('.json')).length,
         entries.where((e) => e.path.startsWith('setlists/') && e.path.endsWith('.json')).length,
         entries.where((e) => e.path.startsWith('audio/')).length,
         entries.fold(0, (sum, e) => sum + e.size),
         entries,
+        tracksWithoutAudio: tracksWithoutAudio,
       );
 
   Future<String> _hashFile(File file) async => (await sha256.bind(file.openRead()).first).toString();
@@ -216,7 +258,10 @@ class BackupService {
         throw BackupException('Caminho inválido no backup: ${e.path}');
       }
     }
-    return _summarize(DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true), entries);
+    final counts = json['counts'];
+    final withoutAudio = counts is Map ? (counts['tracksWithoutAudio'] as num?)?.toInt() ?? 0 : 0;
+    return _summarize(DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true), entries,
+        tracksWithoutAudio: withoutAudio);
   }
 
   // ---- restaurar ----
@@ -298,8 +343,9 @@ class BackupService {
             throw BackupException('Música inválida no backup (${entity.path.split('/').last}): $e');
           }
         }
-        if (dirName == 'tracks') {
-          for (final channel in (absolute as Map)['channels'] as List) {
+        // Música MultiTracks: o áudio nunca vem no backup; ela volta só com a referência e é baixada de novo.
+        if (dirName == 'tracks' && !_isMultiTracks(absolute as Map)) {
+          for (final channel in absolute['channels'] as List) {
             final path = (channel as Map)['filePath'] as String;
             final inStaging = path.replaceFirst(targetPrefix, '${staging.path}/');
             if (!await File(inStaging).exists()) throw BackupException('Falta o áudio de uma música: ${path.substring(targetPrefix.length)}');
