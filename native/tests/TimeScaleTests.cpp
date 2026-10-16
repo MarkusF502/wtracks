@@ -107,9 +107,13 @@ public:
         {
             auto stem = wav(dir, "stem.wav", 44100, 1, 3 * 44100, [](int, int i) { return 0.3f * std::sin(2 * 3.14159265f * 330.f * static_cast<float>(i) / 44100.f); });
             const timepitch::Options options{1.25, 1.0, false};
-            const auto one = estimateTimePitchBytes(3 * 44100, 1, options);
-            expect(one >= 4ULL * 3 * 44100 + 4ULL * std::llround(3 * 44100 * 1.25), "covers the input and the whole output");
-            expect(estimateTimePitchBytes(3 * 44100, 2, options) > one);
+            const auto one = estimateTimePitchBytes(3 * 44100, 1, options, 44100);
+            expect(one > 0);
+            expect(estimateTimePitchBytes(3 * 44100, 2, options, 44100) > one);
+            // Por blocos: um stem de 3 h reserva o mesmo que um de 3 s, e um de 5 min estéreo fica bem abaixo do que a versão
+            // com o arquivo inteiro na memória pedia (~580 MB).
+            expectEquals<uint64_t>(estimateTimePitchBytes(3LL * 3600 * 44100, 1, options, 44100), one);
+            expect(estimateTimePitchBytes(5LL * 60 * 44100, 2, {1.25, 1.5, true}, 192000) < 32ULL * 1024 * 1024);
 
             setTimePitchMemoryBudget(1);  // nothing fits next to anything else: a job runs only when it is alone
             timePitchPeakReservedBytes(true);
@@ -118,7 +122,7 @@ public:
             std::thread b([&] { okB = processTimePitchFile(stem, dir.getChildFile("budget-b.wav"), options, 22).ok; });
             a.join(); b.join();
             expect(okA && okB);
-            expectEquals<uint64_t>(timePitchPeakReservedBytes(false), one);   // never two reservations at once
+            expectEquals<uint64_t>(timePitchPeakReservedBytes(false), one);   // the file is 44.1 kHz   // never two reservations at once
             expectEquals<uint64_t>(timePitchReservedBytes(), 0);
 
             TimePitchResult waiting;

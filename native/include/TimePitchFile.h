@@ -16,9 +16,10 @@ struct TimePitchResult {
 TimePitchResult processTimePitchFile(const juce::File& input, const juce::File& output, const timepitch::Options& options, int64_t token);
 void cancelTimePitch(int64_t token);
 
-// Pico de memória estimado (bytes) de um trabalho: entrada planar + saída completa + os vetores de trabalho do canal em curso
-// (estiramento, acumuladores em double, reamostragem). É um limite superior grosso, usado só para o orçamento abaixo.
-uint64_t estimateTimePitchBytes(int64_t frames, int channels, const timepitch::Options& options);
+// Pico de memória estimado (bytes) de um trabalho. O processamento é por blocos (`timepitch::processStream`): por canal, o estado do
+// vocoder, a região de overlap-add aberta e as janelas de entrada/intermediária de um bloco, mais o núcleo sinc. Não cresce com a
+// duração (`frames` só limita o resultado). Limite superior grosso, usado só para o orçamento abaixo.
+uint64_t estimateTimePitchBytes(int64_t frames, int channels, const timepitch::Options& options, double sampleRate = 192000);
 // Orçamento global (bytes) somado entre os trabalhos simultâneos. Um trabalho que sozinho passa do orçamento roda quando for o
 // único; os demais esperam (a espera respeita o cancelamento). Padrão 1 GiB; 0 restaura o padrão.
 void setTimePitchMemoryBudget(uint64_t bytes);

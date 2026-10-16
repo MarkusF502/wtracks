@@ -107,6 +107,65 @@ public:
                 expectEquals<int64_t>(static_cast<int64_t>(out[0].size()), std::llround(static_cast<double>(n) * 1.3));
             }
         }
+
+        beginTest("Streaming (Fase C): bit-identical to the whole-buffer version for any block size, reads sequentially, honours cancel");
+        {
+            std::vector<float> noise(44100 * 2 + 17);
+            uint32_t seed = 12345;
+            for (size_t i = 0; i < noise.size(); ++i) {
+                seed = seed * 1664525u + 1013904223u;
+                noise[i] = 0.3f * std::sin(static_cast<float>(i) * 0.03f) + 0.2f * (static_cast<float>(seed >> 8) / 16777216.f - 0.5f);
+            }
+            auto tone330 = sines(rate, 2.0, {{330, 0.4}}); tone330.resize(noise.size(), 0.f);
+            const std::vector<std::vector<float>> stereo { noise, tone330 };
+            const auto run = [&](const std::vector<std::vector<float>>& in, Options o, int block, std::vector<std::vector<float>>& result,
+                                 const std::atomic<bool>* cancel = nullptr, int64_t* reads = nullptr) {
+                const int channels = static_cast<int>(in.size());
+                const int64_t frames = static_cast<int64_t>(in.front().size());
+                result.assign(in.size(), {});
+                int64_t next = 0; bool sequential = true;
+                const bool ok = timepitch::processStream(frames, channels, rate, o,
+                    [&](int64_t first, int count, float* const* dst) {
+                        sequential = sequential && first == next && count > 0 && first + count <= frames; next = first + count;
+                        for (int c = 0; c < channels; ++c) std::copy_n(in[static_cast<size_t>(c)].begin() + first, count, dst[c]);
+                        return true;
+                    },
+                    [&](const float* const* src, int count) {
+                        for (int c = 0; c < channels; ++c) result[static_cast<size_t>(c)].insert(result[static_cast<size_t>(c)].end(), src[c], src[c] + count);
+                        return true;
+                    }, cancel, block);
+                expect(sequential, "input read once, in order");
+                if (reads) *reads = next;
+                return ok;
+            };
+            std::vector<std::vector<float>> batch, streamed;
+            for (auto o : {Options{1.5, 1, true}, Options{0.7, 1, false}, Options{1, 1.25, true}, Options{1.2, 0.8, true},
+                           Options{0.25, 2, false}, Options{4, 0.5, true}, Options{1, 1, true}, Options{0.5, 2, true}}) {
+                const auto label = juce::String(o.timeFactor) + " x " + juce::String(o.pitchFactor);
+                expect(timepitch::process(stereo, rate, o, batch), label);
+                for (int block : {1, 7, 1000, 16384}) {
+                    int64_t reads = 0;
+                    expect(run(stereo, o, block, streamed, nullptr, &reads), label);
+                    expect(streamed == batch, label + " block " + juce::String(block));
+                    expectEquals<int64_t>(reads, static_cast<int64_t>(noise.size()), label + " whole input read");
+                }
+            }
+            for (size_t n : {size_t(0), size_t(1), size_t(5), size_t(300), size_t(5000)}) {
+                const std::vector<std::vector<float>> tiny { std::vector<float>(noise.begin(), noise.begin() + static_cast<long>(n)) };
+                for (auto o : {Options{1.3, 0.9, true}, Options{0.25, 1, true}, Options{1, 2, false}}) {
+                    if (n == 0) { expect(run(tiny, o, 64, streamed)); expect(streamed.front().empty()); continue; }
+                    expect(timepitch::process(tiny, rate, o, batch)); expect(run(tiny, o, 64, streamed));
+                    expect(streamed == batch, "length " + juce::String(static_cast<int64_t>(n)));
+                }
+            }
+            std::atomic<bool> cancel{true};
+            expect(!run(stereo, Options{1.5, 1.1, true}, 1000, streamed, &cancel));
+            expect(!timepitch::processStream(10, 1, rate, Options{0.1, 1, true}, {}, {}));
+            expect(!timepitch::processStream(10, 0, rate, Options{1.2, 1, true}, {}, {}));
+            bool failedRead = timepitch::processStream(44100, 1, rate, Options{1.2, 1, true},
+                [](int64_t, int, float* const*) { return false; }, [](const float* const*, int) { return true; });
+            expect(!failedRead, "a failed read stops the job");
+        }
     }
 };
 static TimePitchTests timePitchTests;
