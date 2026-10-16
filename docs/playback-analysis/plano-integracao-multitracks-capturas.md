@@ -178,8 +178,14 @@ para produzir PCM WAV de 16 bits antes de entregar os arquivos ao motor. A audit
 44,1 kHz e aproximadamente 267,225 s, com hashes e caminhos coerentes, além do carregamento e avanço do transporte. O responsável confirmou
 reprodução audível dos stems, metrônomo e guia. Essa conversão aumenta significativamente o uso de disco e deve ser apresentada no progresso/estimativa da UI.
 
-**Pendente:** converter seções, mudanças de andamento/compasso, MIDI e guias dinâmicas a partir do JSON sem presumir unidades; corrigir o backup,
-que atualmente inclui os WAVs MultiTracks; e validar progresso, falta de espaço, cancelamento e falhas reais na UI.
+**Backup (2026-10-16):** o backup do WTracks (formato 2) não leva mais o áudio das músicas com `origin` MultiTracks: entra só o JSON
+(referência e metadados, sem segredo) e o manifesto conta essas músicas em `counts.tracksWithoutAudio`. Na restauração elas voltam à
+biblioteca sem áudio; abrir uma delas explica o motivo e leva à Biblioteca MultiTracks, e o novo download (mesmo id
+`multitracks-<contentId>-<keyId>`) substitui a entrada mantendo o mixer. Escolha própria: vale para todo direito de uso, inclusive compras,
+enquanto o tipo de direito não é confirmado pela API. Teste: `backup_test.dart`.
+
+**Pendente:** converter seções, mudanças de andamento/compasso, MIDI e guias dinâmicas a partir do JSON sem presumir unidades; e validar
+progresso, falta de espaço, cancelamento e falhas reais na UI.
 
 **Aceite:** mapear cada arquivo ao stem/tonalidade correto; conferir duração, sample rate, canais, click/guia e alinhamento; converter seções/andamentos/compassos sem perder precisão. Falha mantém o conteúdo fora da biblioteca utilizável. O motor de áudio só recebe arquivos locais validados; nenhuma rede no callback.
 
