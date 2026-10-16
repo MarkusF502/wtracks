@@ -111,6 +111,7 @@ class PerformanceScreen extends ConsumerWidget {
               children: [
                 _TopBar(track: track, wide: wide),
                 _SetlistRow(track: track, compact: short),
+                const _TransitionNoticeBar(),
                 if (!short) _WaveformView(track: track, height: wide ? 132 : 104),
                 Expanded(child: _BottomPane(track: track, pane: pane, short: short)),
               ],
@@ -1253,6 +1254,39 @@ void showMetronomeSheet(BuildContext context, ProviderReader ref, Track track, b
     );
   }
 
+
+/// Aviso de que a passagem para a próxima música não saiu como planejado (pré-carga falhou, entrou com corte, não carregou). Fase C:
+/// o fallback precisa ser visível no palco, não só no Diagnóstico. Escolha própria; o Playback não tem equivalente.
+class _TransitionNoticeBar extends ConsumerWidget {
+  const _TransitionNoticeBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notice = ref.watch(transitionProvider.select((s) => s.notice));
+    if (notice == null) return const SizedBox.shrink();
+    final color = notice.kind == TransitionNoticeKind.nextFailed ? kStageRed : const Color(0xFFFFB020);
+    return Container(
+      key: const Key('transition-notice'),
+      margin: const EdgeInsets.fromLTRB(10, 4, 10, 0),
+      padding: const EdgeInsets.only(left: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Row(children: [
+        Icon(notice.kind == TransitionNoticeKind.nextFailed ? Icons.error_outline : Icons.warning_amber_rounded, color: color, size: 18),
+        const SizedBox(width: 8),
+        Expanded(child: Text(notice.message, style: const TextStyle(color: _text, fontSize: 13))),
+        IconButton(
+          tooltip: 'Fechar aviso',
+          icon: const Icon(Icons.close, color: _textDim, size: 18),
+          onPressed: () => ref.read(transitionProvider.notifier).dismissNotice(),
+        ),
+      ]),
+    );
+  }
+}
 
 /// Faixa da setlist (Playback: cartões com capa, "Título (Tom)", selo da transição no canto e ▷ verde na atual). Parado,
 /// um toque seleciona a música; tocando, é preciso tocar duas vezes (no Playback isso faz um crossfade; aqui troca de

@@ -24,6 +24,33 @@ enum TransitionPhase {
   running,
 }
 
+enum TransitionNoticeKind {
+  /// A próxima não pôde ser pré-carregada: no fim ela entra com um corte (se carregar).
+  preloadFailed,
+
+  /// A transição misturada não aconteceu (pré-carga falhou ou atrasou, ou o hand-off falhou) e a próxima entrou com um corte.
+  cutIn,
+
+  /// A próxima música não carregou nem no corte: a setlist ficou parada.
+  nextFailed,
+}
+
+/// Aviso visível de que a passagem para a próxima música não saiu como planejado (Fase C: fallback seguro e visível). Fica até
+/// outra transição ficar pronta, um hand-off dar certo ou o usuário dispensá-lo.
+@immutable
+class TransitionNotice {
+  final TransitionNoticeKind kind;
+  final String message;
+
+  /// Música carregada quando o aviso surgiu: o aviso some quando ela dá lugar a outra.
+  final String? trackId;
+  const TransitionNotice(this.kind, this.message, {this.trackId});
+  @override
+  bool operator ==(Object other) => other is TransitionNotice && other.kind == kind && other.message == message && other.trackId == trackId;
+  @override
+  int get hashCode => Object.hash(kind, message, trackId);
+}
+
 @immutable
 class TransitionState {
   final TransitionPhase phase;
@@ -33,11 +60,13 @@ class TransitionState {
 
   /// Crossfade ao vivo (toque duplo num cartão) em vez da transição da música.
   final bool live;
-  const TransitionState({this.phase = TransitionPhase.idle, this.nextIndex, this.live = false});
+  final TransitionNotice? notice;
+  const TransitionState({this.phase = TransitionPhase.idle, this.nextIndex, this.live = false, this.notice});
   @override
-  bool operator ==(Object other) => other is TransitionState && other.phase == phase && other.nextIndex == nextIndex && other.live == live;
+  bool operator ==(Object other) =>
+      other is TransitionState && other.phase == phase && other.nextIndex == nextIndex && other.live == live && other.notice == notice;
   @override
-  int get hashCode => Object.hash(phase, nextIndex, live);
+  int get hashCode => Object.hash(phase, nextIndex, live, notice);
 }
 
 /// Transições entre músicas com o segundo deck (AutoLink, Sobreposição, Transição Cruzada e o crossfade ao vivo). Playback: a próxima
@@ -59,6 +88,42 @@ class TransitionController extends Notifier<TransitionState> {
 
   @override
   TransitionState build() => const TransitionState();
+
+  /// Muda a fase mantendo o aviso atual (ou trocando-o, com [notice]/[clearNotice]).
+  void _publish(TransitionPhase phase, {int? nextIndex, bool live = false, TransitionNotice? notice, bool clearNotice = false}) {
+    state = TransitionState(phase: phase, nextIndex: nextIndex, live: live, notice: clearNotice ? notice : (notice ?? state.notice));
+  }
+
+  void _notify(TransitionNotice notice) {
+    state = TransitionState(phase: state.phase, nextIndex: state.nextIndex, live: state.live, notice: notice);
+  }
+
+  /// O usuário fechou o aviso.
+  void dismissNotice() {
+    if (state.notice == null) return;
+    state = TransitionState(phase: state.phase, nextIndex: state.nextIndex, live: state.live);
+  }
+
+  /// Por que a próxima música vai entrar com um corte. [SetlistSessionNotifier.songFinished] lê antes de trocar de música, porque a
+  /// troca pode limpar o aviso de pré-carga.
+  String get fallbackReason =>
+      state.notice?.kind == TransitionNoticeKind.preloadFailed ? 'não pôde ser preparada' : 'não ficou pronta a tempo';
+
+  /// Fim da música sem o segundo deck: a próxima entrou com um corte ([loaded]) ou nem carregou.
+  void reportFallback(Track next, {required bool loaded, required bool mixed, String? reason}) {
+    final current = ref.read(currentTrackProvider)?.id;
+    if (loaded) {
+      if (!mixed) return; // Preparar próxima música: carregar parada é o comportamento normal
+      final why = reason ?? fallbackReason;
+      ref.read(diagnosticsProvider.notifier).error('Transição: "${next.title}" $why e entrou com corte.');
+      _notify(TransitionNotice(TransitionNoticeKind.cutIn, '"${next.title}" $why: entrou com corte, sem a transição.', trackId: current));
+    } else {
+      ref.read(diagnosticsProvider.notifier).error('Transição: "${next.title}" não carregou; a setlist ficou parada.');
+      _notify(TransitionNotice(TransitionNoticeKind.nextFailed,
+          '"${next.title}" não carregou (detalhes em Ajustes → Diagnóstico). A setlist ficou parada.', trackId: current));
+    }
+  }
+
 
   // ---- plano ----
 
@@ -89,6 +154,7 @@ class TransitionController extends Notifier<TransitionState> {
   void tick() {
     final session = ref.read(setlistSessionProvider);
     final track = ref.read(currentTrackProvider);
+    if (state.notice != null && state.notice!.trackId != track?.id) dismissNotice();
     if (state.phase == TransitionPhase.running || state.phase == TransitionPhase.preparing) return;
     if (session == null || track == null || session.current.id != track.id) {
       if (state.phase != TransitionPhase.idle) cancel();
@@ -118,25 +184,31 @@ class TransitionController extends Notifier<TransitionState> {
     final epoch = ++_epoch;
     final nextTrack = _library(session.setlist.tracks[nextIndex]);
     final key = _keyOf(track, session.setlist.tracks[nextIndex], kind);
-    state = TransitionState(phase: TransitionPhase.preparing, nextIndex: nextIndex);
+    _publish(TransitionPhase.preparing, nextIndex: nextIndex);
     final loaded = await ref.read(nextTrackProvider.notifier).load(nextTrack);
     if (epoch != _epoch) return; // cancelado enquanto carregava (cancel() já descarregou)
     final engine = ref.read(engineProvider);
     if (!loaded) {
-      _failedKey = key;
       ref.read(diagnosticsProvider.notifier).error('Transição: não foi possível pré-carregar "${nextTrack.title}".');
-      await _discard();
+      await _preloadFailed(key, track, nextTrack);
       return;
     }
     final window = windowFor(kind, _endOf(track, engine), nextTrack);
     if (!engine.scheduleTransition(window.kind, window.start, window.duration)) {
-      _failedKey = key;
       ref.read(diagnosticsProvider.notifier).error('Transição: o motor recusou a janela (${engine.lastError}).');
-      await _discard();
+      await _preloadFailed(key, track, nextTrack);
       return;
     }
     _armedKey = key;
-    state = TransitionState(phase: TransitionPhase.armed, nextIndex: nextIndex);
+    _publish(TransitionPhase.armed, nextIndex: nextIndex, clearNotice: true);
+  }
+
+  /// Sem nova tentativa para o mesmo plano (evita carregar em laço durante a música); o aviso fica na tela até o fim dela.
+  Future<void> _preloadFailed(String key, Track track, Track next) async {
+    _failedKey = key;
+    await _discard();
+    _notify(TransitionNotice(TransitionNoticeKind.preloadFailed,
+        'Não foi possível preparar "${next.title}". No fim desta música ela entra com corte, sem a transição.', trackId: track.id));
   }
 
   /// Eventos do motor (lidos pelo transporte): devolve true se a transição assumiu o fim da música.
@@ -145,7 +217,7 @@ class TransitionController extends Notifier<TransitionState> {
     final finished = events & WTracksEngine.transportEventTransitionFinished != 0;
     final ended = events & WTracksEngine.transportEventEndReached != 0;
     if (started && state.phase == TransitionPhase.armed) {
-      state = TransitionState(phase: TransitionPhase.running, nextIndex: state.nextIndex, live: state.live);
+      _publish(TransitionPhase.running, nextIndex: state.nextIndex, live: state.live);
     }
     if (finished && (state.phase == TransitionPhase.armed || state.phase == TransitionPhase.running)) {
       unawaited(_handoff());
@@ -167,6 +239,12 @@ class TransitionController extends Notifier<TransitionState> {
     if (index == null || session == null || nextNotifier.state == null || !engine.handoff()) {
       ref.read(diagnosticsProvider.notifier).error('Transição: o hand-off falhou (${engine.lastError}).');
       await _discard();
+      // A música que saiu já terminou: em vez de silêncio, a próxima entra com um corte (escolha própria).
+      if (index == null || session == null || index >= session.setlist.tracks.length) return;
+      final sessions = ref.read(setlistSessionProvider.notifier);
+      final loaded = await sessions.go(index);
+      if (loaded) await ref.read(transportProvider.notifier).play();
+      reportFallback(_library(session.setlist.tracks[index]), loaded: loaded, mixed: true, reason: 'não completou a transição');
       return;
     }
     ref.read(currentTrackProvider.notifier).adoptFrom(nextNotifier);
@@ -189,7 +267,7 @@ class TransitionController extends Notifier<TransitionState> {
 
   Future<void> _discard() async {
     ref.read(engineProvider).cancelTransition();
-    state = const TransitionState();
+    _publish(TransitionPhase.idle);
     await ref.read(nextTrackProvider.notifier).unload();
   }
 
@@ -221,7 +299,7 @@ class TransitionController extends Notifier<TransitionState> {
     if (state.phase == TransitionPhase.running) return false;
     cancel();
     final epoch = ++_epoch;
-    state = TransitionState(phase: TransitionPhase.preparing, nextIndex: index, live: true);
+    _publish(TransitionPhase.preparing, nextIndex: index, live: true);
     final nextTrack = _library(session.setlist.tracks[index]);
     final loaded = await ref.read(nextTrackProvider.notifier).load(nextTrack);
     if (epoch != _epoch) return false;
@@ -235,7 +313,7 @@ class TransitionController extends Notifier<TransitionState> {
       return false;
     }
     _armedKey = null;
-    state = TransitionState(phase: TransitionPhase.armed, nextIndex: index, live: true);
+    _publish(TransitionPhase.armed, nextIndex: index, live: true, clearNotice: true);
     return true;
   }
 }

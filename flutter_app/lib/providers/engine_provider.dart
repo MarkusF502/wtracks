@@ -1608,6 +1608,10 @@ class SetlistSessionNotifier extends Notifier<SetlistSession?> {
     final session = state;
     final track = ref.read(currentTrackProvider);
     if (session == null || track == null || track.id != session.current.id) return;
+    final transitions = ref.read(transitionProvider.notifier);
+    final reason = transitions.fallbackReason; // antes da troca de música, que limpa o aviso de pré-carga
+    final next = session.next;
+    Track library(Track listed) => ref.read(trackLibraryProvider).where((t) => t.id == listed.id).firstOrNull ?? listed;
     switch (track.transition) {
       case SongTransition.stayInSong:
         return;
@@ -1620,9 +1624,14 @@ class SetlistSessionNotifier extends Notifier<SetlistSession?> {
         }
         return;
       case SongTransition.cueNextSong:
-        if (session.next != null) await go(session.index + 1);
+        if (next == null) return;
+        final loaded = await go(session.index + 1);
+        transitions.reportFallback(library(next), loaded: loaded, mixed: false);
       case SongTransition.autoLink || SongTransition.overlap || SongTransition.crossfade:
-        if (session.next != null && await go(session.index + 1)) await ref.read(transportProvider.notifier).play();
+        if (next == null) return;
+        final loaded = await go(session.index + 1);
+        if (loaded) await ref.read(transportProvider.notifier).play();
+        transitions.reportFallback(library(next), loaded: loaded, mixed: true, reason: reason);
     }
   }
 }

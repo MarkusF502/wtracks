@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/models/song_section.dart';
@@ -10,6 +12,7 @@ import 'package:flutter_app/native/wtracks_bindings.dart';
 import 'package:flutter_app/providers/control_provider.dart';
 import 'package:flutter_app/providers/engine_provider.dart';
 import 'package:flutter_app/providers/transition_provider.dart';
+import 'package:flutter_app/screens/performance_screen.dart';
 import 'package:flutter_app/services/click_grid.dart';
 import 'package:flutter_app/services/diagnostics_log.dart';
 import 'harness/harness_support.dart';
@@ -195,11 +198,93 @@ void main() {
       await settle();
       expect(deck1.loadedPaths.length, 1, reason: 'no retry loop for the same plan');
 
+      final warned = c.read(transitionProvider).notice!;
+      expect(warned.kind, TransitionNoticeKind.preloadFailed, reason: 'visible on stage, not only in the diagnostics');
+      expect(warned.message, contains('T1'));
+
       // the song ends with no second deck ready: the next song is loaded and plays
       expect(controller.handleEvents(WTracksEngine.transportEventEndReached), false);
       await c.read(setlistSessionProvider.notifier).songFinished();
       expect(c.read(currentTrackProvider)!.id, 't1');
       expect(main.calls, contains('play'));
+      final cut = c.read(transitionProvider).notice!;
+      expect(cut.kind, TransitionNoticeKind.cutIn);
+      expect(cut.message, allOf(contains('T1'), contains('não pôde ser preparada'), contains('corte')));
+      controller.tick();
+      expect(c.read(transitionProvider).notice, cut, reason: 'stays while the song it is about plays');
+      controller.dismissNotice();
+      expect(c.read(transitionProvider).notice, isNull);
+    });
+
+    test('a preload still loading when the song ends: the next one cuts in and the stage says so', () async {
+      await start(SongTransition.crossfade);
+      deck1.loadGate = Completer<void>();
+      main.position = 80;
+      final controller = c.read(transitionProvider.notifier);
+      controller.tick();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(c.read(transitionProvider).phase, TransitionPhase.preparing);
+
+      expect(controller.handleEvents(WTracksEngine.transportEventEndReached), false);
+      await c.read(setlistSessionProvider.notifier).songFinished();
+      deck1.loadGate!.complete();
+      await settle();
+      expect(c.read(currentTrackProvider)!.id, 't1');
+      expect(main.calls, contains('play'));
+      expect(main.calls.where((e) => e.startsWith('schedule')), isEmpty, reason: 'the late preload never arms');
+      expect(c.read(nextTrackProvider), isNull);
+      expect(c.read(transitionProvider).phase, TransitionPhase.idle);
+      expect(c.read(transitionProvider).notice!.message, contains('não ficou pronta a tempo'));
+    });
+
+    test('the next song that does not load even with a cut leaves the setlist stopped with a red notice', () async {
+      await start(SongTransition.overlap);
+      deck1.failNextLoad = true;
+      main.position = 80;
+      final controller = c.read(transitionProvider.notifier);
+      controller.tick();
+      await settle();
+      main.failNextLoad = true;
+      main.calls.clear();
+      await c.read(setlistSessionProvider.notifier).songFinished();
+      expect(main.calls.contains('play'), false);
+      expect(c.read(setlistSessionProvider)!.index, 0);
+      expect(c.read(transitionProvider).notice!.kind, TransitionNoticeKind.nextFailed);
+      expect(c.read(diagnosticsProvider).last.message, contains('setlist ficou parada'));
+
+      // Preparar próxima música: a next song that fails is reported too; one that loads (stopped) says nothing
+      await start(SongTransition.cueNextSong);
+      main.failNextLoad = true;
+      await c.read(setlistSessionProvider.notifier).songFinished();
+      expect(c.read(transitionProvider).notice!.kind, TransitionNoticeKind.nextFailed);
+      await start(SongTransition.cueNextSong);
+      await c.read(setlistSessionProvider.notifier).songFinished();
+      expect(c.read(currentTrackProvider)!.id, 't1');
+      expect(c.read(transitionProvider).notice, isNull);
+    });
+
+    test('a failed hand-off does not leave the stage silent: the next song cuts in', () async {
+      await start(SongTransition.overlap);
+      final controller = c.read(transitionProvider.notifier);
+      main.position = 80;
+      controller.tick();
+      await settle();
+      main.handoffFails = true;
+      expect(controller.handleEvents(WTracksEngine.transportEventTransitionStarted | WTracksEngine.transportEventTransitionFinished), true);
+      await settle();
+      expect(c.read(currentTrackProvider)!.id, 't1');
+      expect(c.read(setlistSessionProvider)!.index, 1);
+      expect(main.calls, contains('play'));
+      expect(c.read(transitionProvider).notice!.message, contains('não completou a transição'));
+
+      // the next transition that arms clears the old notice
+      c.read(currentTrackProvider.notifier).setTransition(SongTransition.overlap);
+      main.playing = true;
+      main.position = 80;
+      controller.tick();
+      await settle();
+      expect(c.read(transitionProvider).phase, TransitionPhase.armed);
+      expect(c.read(transitionProvider).notice, isNull);
     });
 
     test('an active loop holds the preload; stopping or editing the setlist cancels an armed transition', () async {
@@ -317,6 +402,28 @@ void main() {
       await settle();
       expect(c.read(currentTrackProvider)!.id, 't2');
     });
+  });
+
+  testWidgets('the stage shows the transition notice until it is closed', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final c = _container(FakeEngine(), FakeEngine(deck: 1), []);
+    expect(await c.read(currentTrackProvider.notifier).load(sampleTrack(id: 's', title: 'Solo')), true);
+    await tester.pumpWidget(UncontrolledProviderScope(container: c, child: const MaterialApp(home: PerformanceScreen())));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byKey(const Key('transition-notice')), findsNothing);
+
+    c.read(transitionProvider.notifier).reportFallback(sampleTrack(id: 'n', title: 'Próxima'), loaded: false, mixed: true);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byKey(const Key('transition-notice')), findsOneWidget);
+    expect(find.textContaining('"Próxima" não carregou'), findsOneWidget);
+    await tester.tap(find.byTooltip('Fechar aviso'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byKey(const Key('transition-notice')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    c.dispose();
   });
 
   group('native FFI', () {

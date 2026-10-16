@@ -50,10 +50,14 @@ class FakeEngine implements WTracksEngine {
   @override
   Future<bool> loadTrackAsync(String songId, List<String> channelFilePaths) async {
     loadedPaths.add(channelFilePaths);
+    if (loadGate != null) await loadGate!.future;
     return failNextLoad ? (failNextLoad = false) : true;
   }
   final loadedPaths = <List<String>>[];
   bool failNextLoad = false;
+
+  /// Segura o carregamento até ser completado (pré-carga lenta).
+  Completer<void>? loadGate;
   @override
   void unloadTrack() { calls.add('unload'); loopEnabled = false; loopStart = 0; loopEnd = 0; clearQueuedLoop(); }
   @override
