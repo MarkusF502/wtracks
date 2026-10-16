@@ -84,6 +84,12 @@ if(WTRACKS_BUILD_TESTS AND NOT ANDROID)
 
     target_include_directories(wtracks_engine_tests PRIVATE include)
 
+    # Soak acelerado (Fase C): fora da suíte normal porque leva minutos. Uso: ./wtracks_soak --minutes 120
+    add_executable(wtracks_soak src/AudioEngine.cpp tests/SoakMain.cpp)
+    target_include_directories(wtracks_soak PRIVATE include)
+    target_link_libraries(wtracks_soak PRIVATE juce::juce_audio_basics juce::juce_audio_devices juce::juce_audio_formats juce::juce_core juce::juce_events)
+    target_compile_definitions(wtracks_soak PRIVATE JUCE_STANDALONE_APPLICATION=1 JUCE_USE_GUI=0 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+
     target_link_libraries(wtracks_engine_tests PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
