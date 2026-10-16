@@ -6,6 +6,7 @@ import '../widgets/dialog_text_controller.dart';
 import '../providers/engine_provider.dart';
 import '../services/track_navigation.dart';
 import 'import_screen.dart';
+import 'multitracks_library_screen.dart';
 import 'performance_screen.dart';
 import 'setlists_screen.dart';
 import 'settings_screen.dart';
@@ -78,6 +79,42 @@ class LibraryScreen extends ConsumerWidget {
     }
   }
 
+  /// O botão + oferece as duas origens: arquivos do aparelho ou a biblioteca MultiTracks.
+  Future<void> _chooseSource(BuildContext context, WidgetRef ref) async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: _panelBg,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            key: const Key('add-source-files'),
+            leading: const Icon(Icons.folder_open, color: _accent),
+            title: const Text('Importar arquivos', style: TextStyle(color: Color(0xFFF0F0FA))),
+            subtitle: const Text('WAV, AIFF ou FLAC do aparelho', style: TextStyle(color: _textDim)),
+            onTap: () => Navigator.pop(ctx, 'files'),
+          ),
+          ListTile(
+            key: const Key('add-source-multitracks'),
+            leading: const Icon(Icons.cloud_download_outlined, color: _accent),
+            title: const Text('Biblioteca MultiTracks', style: TextStyle(color: Color(0xFFF0F0FA))),
+            subtitle: const Text('Músicas da sua organização', style: TextStyle(color: _textDim)),
+            onTap: () => Navigator.pop(ctx, 'multitracks'),
+          ),
+        ]),
+      ),
+    );
+    if (!context.mounted) return;
+    switch (source) {
+      case 'files':
+        await _goImport(context, ref);
+      case 'multitracks':
+        await _goMultiTracks(context);
+    }
+  }
+
+  Future<void> _goMultiTracks(BuildContext context) =>
+      Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const MultiTracksLibraryScreen()));
+
   Future<void> _deleteTrack(BuildContext context, WidgetRef ref, Track track) async {
     final setlists = await ref.read(persistenceServiceProvider).loadAllSetlists();
     if (!context.mounted) return;
@@ -124,7 +161,8 @@ class LibraryScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _goImport(context, ref),
+        onPressed: () => _chooseSource(context, ref),
+        tooltip: 'Adicionar música',
         backgroundColor: _accent,
         foregroundColor: _bg,
         child: const Icon(Icons.add),
@@ -140,6 +178,12 @@ class LibraryScreen extends ConsumerWidget {
                     onPressed: () => _goImport(context, ref),
                     icon: const Icon(Icons.folder_open),
                     label: const Text('Importar música'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _goMultiTracks(context),
+                    icon: const Icon(Icons.cloud_download_outlined),
+                    label: const Text('Biblioteca MultiTracks'),
                   ),
                 ],
               ),
@@ -159,7 +203,12 @@ class LibraryScreen extends ConsumerWidget {
                   child: ListTile(
                     leading: const Icon(Icons.graphic_eq, color: _accent),
                     title: Text(track.title, style: const TextStyle(color: Color(0xFFF0F0FA))),
-                    subtitle: Text('${track.channels.length} canais',
+                    subtitle: Text(
+                        [
+                          '${track.channels.length} canais',
+                          if (track.origin != null) 'MultiTracks${track.key == null ? '' : ' · ${track.key}'}',
+                          if (track.origin?.isExpiredAt(DateTime.now()) ?? false) 'validade vencida',
+                        ].join(' · '),
                         style: const TextStyle(color: _textDim)),
                     trailing: PopupMenuButton<String>(
                       tooltip: 'Opções da música',

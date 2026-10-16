@@ -1,0 +1,39 @@
+{
+  "data": {
+    "rentalsRemaining": 2,
+    "rentalsPreviews": 1,
+    "items": [
+      {
+        "libraryID": 101,
+        "contentID": 202,
+        "title": "Synthetic Song",
+        "contentStatus": 1,
+        "songStatus": 2,
+        "downloadUrl": "https://playback.blob.core.windows.net/cloud/example/streaming/202.mtrack?sig=redacted",
+        "fileSize": 1024,
+        "playOfTheWeek": true,
+        "stems": [
+          {
+            "contentType": 26,
+            "stemID": 301,
+            "partID": 1,
+            "keyID": 30,
+            "range": 0,
+            "part": "Click",
+            "abbreviation": "CLK",
+            "anyKey": true,
+            "clickOrGuide": true,
+            "vocal": false,
+            "order": 0
+          }
+        ]
+      }
+    ]
+  },
+  "result": 1,
+  "errorCode": 0,
+  "message": "Success",
+  "messageTitle": null,
+  "button": null,
+  "url": null
+}

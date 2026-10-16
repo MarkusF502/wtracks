@@ -8,6 +8,7 @@ import 'mixer_automation.dart';
 import 'timecode_settings.dart';
 import 'tempo_change.dart';
 import 'time_pitch_settings.dart';
+import 'multitracks_origin.dart';
 
 /// Saída do canal no mixer nativo (contrato BusChannelAU): estéreo usa a base
 /// e a seguinte; mono mistura (L+R)/2 numa única saída. Em um dispositivo
@@ -403,6 +404,8 @@ class Track {
   final ClickSettings clickSettings;
   final String? artist;
   final String? key; // tom musical, ex: "E", "B♭" -- string livre, sem enum
+  /// Procedência MultiTracks (null = música importada de arquivos). Campo opcional: músicas antigas abrem sem ele.
+  final MultiTracksOrigin? origin;
 
   const Track({
     this.guideCues = const [],
@@ -431,6 +434,7 @@ class Track {
     this.clickSettings = const ClickSettings(),
     this.artist,
     this.key,
+    this.origin,
   });
 
   Track copyWith({
@@ -458,6 +462,7 @@ class Track {
     ClickSettings? clickSettings,
     String? artist,
     String? key,
+    Object? origin = _keepBank,
   }) {
     return Track(
       guideCues: guideCues ?? this.guideCues,
@@ -485,6 +490,7 @@ class Track {
       clickSettings: clickSettings ?? this.clickSettings,
       artist: artist ?? this.artist,
       key: key ?? this.key,
+      origin: identical(origin, _keepBank) ? this.origin : origin as MultiTracksOrigin?,
     );
   }
 
@@ -522,6 +528,7 @@ class Track {
         'clickSettings': clickSettings.toJson(),
         'artist': artist,
         'key': key,
+        if (origin != null) 'origin': origin!.toJson(),
       };
 
   // Campos ausentes no JSON (tracks salvas antes desta mudança) desserializam
@@ -563,6 +570,7 @@ class Track {
             : const ClickSettings(),
         artist: json['artist'] as String?,
         key: json['key'] as String?,
+        origin: MultiTracksOrigin.fromJson(json['origin']),
       );
 }
 

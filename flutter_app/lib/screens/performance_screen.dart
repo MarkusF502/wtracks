@@ -28,6 +28,7 @@ import 'setlists_screen.dart';
 import 'settings_screen.dart';
 import 'remote_screen.dart';
 import 'import_screen.dart';
+import 'multitracks_library_screen.dart';
 import '../providers/control_provider.dart';
 import '../providers/meter_provider.dart';
 import '../services/diagnostics_log.dart';
@@ -247,6 +248,15 @@ class _AddSongDialogState extends ConsumerState<_AddSongDialog> {
               final navigator = Navigator.of(context);
               final imported = await navigator.push<Track>(MaterialPageRoute(builder: (_) => const ImportScreen()));
               if (imported != null && mounted) navigator.pop(imported);
+            },
+          ),
+          _SheetRow(
+            label: 'Biblioteca MultiTracks…',
+            onTap: () async {
+              final navigator = Navigator.of(context);
+              final picked = await navigator.push<Track>(
+                  MaterialPageRoute(builder: (_) => const MultiTracksLibraryScreen(pickMode: true)));
+              if (picked != null && mounted) navigator.pop(picked);
             },
           ),
         ]),

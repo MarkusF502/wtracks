@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "libraryID": 101,
+      "songID": 202,
+      "song": "Synthetic Song",
+      "songStatus": 1,
+      "artistID": 303,
+      "artist": "Synthetic Artist",
+      "albumID": 404,
+      "album": "Synthetic Album",
+      "image": "https://example.invalid/image.jpg",
+      "image2x": "https://example.invalid/image@2x.jpg",
+      "previewUrl": "https://example.invalid/preview.m4a",
+      "dateContentPurchased": null,
+      "rentalsAvailable": true,
+      "cloudSong": false
+    }
+  ],
+  "pageNumber": 1,
+  "totalPages": 1,
+  "totalRecords": 1,
+  "result": 1,
+  "errorCode": 0,
+  "message": "Success",
+  "messageTitle": null,
+  "button": null,
+  "url": null
+}

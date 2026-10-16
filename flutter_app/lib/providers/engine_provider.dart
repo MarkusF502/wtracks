@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -1243,6 +1244,64 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
     } else {
       state = [...state, saved];
     }
+  }
+
+  /// Publica uma música importada da MultiTracks (WAVs já validados no staging): copia os áudios para a biblioteca e grava o
+  /// JSON por último, como [PersistenceService.saveTrack]. Não carrega no motor, para não trocar a música aberta.
+  /// Atualizar uma versão já baixada mantém as preferências da música (transição, click, seções…) e, por rótulo, as dos
+  /// canais; os áudios da versão anterior só são apagados depois que o JSON novo foi gravado.
+  Future<Track> publishImported(Track imported) async {
+    final current = ref.read(currentTrackProvider.notifier);
+    if (ref.read(currentTrackProvider)?.id == imported.id || current.loadingTrackId == imported.id) {
+      throw StateError('a música está aberta; abra outra antes de atualizá-la');
+    }
+    final existing = state.where((t) => t.id == imported.id).firstOrNull;
+    final defaultVolume = ref.read(appSettingsProvider).defaultChannelVolume;
+    // Nome novo por versão: a cópia nunca cai em cima de um áudio que o JSON anterior ainda referencia.
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final channels = <ChannelInfo>[];
+    for (final channel in imported.channels) {
+      final source = File(channel.filePath);
+      final renamed = await source.rename('${source.parent.path}/v$stamp-${source.uri.pathSegments.last}');
+      final previous = existing?.channels.where((c) => c.label == channel.label).firstOrNull;
+      channels.add(previous == null
+          ? channel.copyWith(filePath: renamed.path, volume: defaultVolume)
+          : channel.copyWith(
+              filePath: renamed.path,
+              volume: previous.volume,
+              muted: previous.muted,
+              route: previous.route,
+              busId: previous.busId,
+            ));
+    }
+    final merged = existing == null
+        ? imported.copyWith(channels: channels)
+        : existing.copyWith(
+            title: imported.title,
+            artist: imported.artist,
+            key: imported.key,
+            channels: channels,
+            origin: imported.origin,
+          );
+    final saved = await ref.read(persistenceServiceProvider).saveTrack(merged);
+    _savedJson[saved.id] = jsonEncode(saved.toJson());
+    if (existing != null) {
+      final kept = saved.channels.map((c) => c.filePath).toSet();
+      for (final old in existing.channels) {
+        if (kept.contains(old.filePath)) continue;
+        try {
+          await File(old.filePath).delete();
+        } on FileSystemException {
+          // órfão inofensivo
+        }
+      }
+      await ref.read(waveformProvider.notifier).forget(saved.id);
+      state = [for (final t in state) t.id == saved.id ? saved : t];
+      await ref.read(setlistLibraryProvider.notifier).refresh();
+    } else {
+      state = [...state, saved];
+    }
+    return saved;
   }
 
   Future<void> deleteTrack(String id) async {
