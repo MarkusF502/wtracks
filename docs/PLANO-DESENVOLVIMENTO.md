@@ -73,7 +73,7 @@ enviado ao GitHub). As seis transições têm comportamento definido e testado (
 
 ## Fase C do plano de consolidação — desempenho e continuidade (2026-10-14, parcial)
 
-**Status: itens WT-06, WT-07, WT-08 e WT-10 feitos no código, o fallback visível da próxima música e o TimePitch por blocos (2026-10-16); soak de 2 h e medições no Android continuam abertos.**
+**Status: itens WT-06, WT-07, WT-08 e WT-10 feitos no código, o fallback visível da próxima música, o TimePitch por blocos e o soak acelerado de 2 h no desktop (2026-10-16); o soak em tempo real e as medições no Android continuam abertos.**
 
 | Item | O que mudou | Teste |
 |---|---|---|
@@ -83,9 +83,11 @@ enviado ao GitHub). As seis transições têm comportamento definido e testado (
 | WT-08 cache | O cache só é reaproveitado se for um WAV inteiro: tamanho do RIFF = tamanho do arquivo, `fmt`/`data` coerentes, quadros completos e duração compatível com a origem (quando WAV) e o fator de tempo. | `time_pitch_test.dart` |
 | WT-10 release | `android-apk.yml` agora depende de `android-tests.yml` (suíte nativa, `flutter analyze`, `flutter test` e emulador); sem tudo verde nada é compilado nem publicado. Os testes também rodam em pull request. | **não verificado**: nada foi enviado ao GitHub, o workflow só foi validado como YAML |
 | TimePitch por blocos | `timepitch::processStream`: os canais avançam juntos, a entrada é lida sob demanda e a saída vai para o WAV por blocos de 16384 quadros; o vocoder guarda só a região de overlap-add aberta. Passo do vocoder (`Vocoder`) e núcleo sinc (`SincKernel`) são compartilhados com a versão em lote, que continua como referência: a saída é **bit a bit igual** (conferida também contra o código anterior em 60 combinações). Stem estéreo de 5 min: pico de RSS 482 MB → 5,6 MB, mesmo tempo. A estimativa do orçamento (WT-07) não cresce mais com a duração; o limite de entrada caiu e o de saída virou 2 GiB (tamanho do WAV, escolha própria). | `TimePitchTests.cpp` (igualdade com blocos 1/7/1000/16384, leitura sequencial, cancelamento), `TimeScaleTests.cpp` |
+| Soak acelerado | `wtracks_soak` (fora da suíte; `./build-linux/wtracks_soak --minutes 120`): setlist em ciclo com Crossfade/Sobreposição/AutoLink/Preparar próxima, pré-carga em outra thread durante o render, hand-off como no FFI, seek para trás, laço contado, fade, cancelar e reagendar, click com mudança de andamento, buses, automação e cues MIDI. Renderiza pelo `DeckSwitch` sem dormir e espera o read-ahead antes de cada bloco (como teria em tempo real). Critérios: 0 underrun, 0 espera de read-ahead estourada, 0 bloco mudo tocando, cues exatos (nenhum perdido ou duplicado), RSS sem crescimento > 24 MB depois dos 10 min. **2026-10-16, build Debug, 120 min simulados em 271 s:** 116 músicas (87 transições), tudo zero, 234 cues exatos, RSS oscilando 21–35 MB sem tendência (acompanha a pré-carga do segundo deck), callback máx 2,83 ms de 11,61 ms. O CI roda 20 min simulados depois da suíte nativa. **Não substitui** o soak em tempo real no aparelho (escalonamento do sistema, disco real, Oboe). | `tests/SoakMain.cpp` |
 | Próxima música | O coordenador de transições (`TransitionController`) ganhou aviso visível no palco (`TransitionNotice`, faixa abaixo da setlist, com fechar). Pré-carga que falha avisa na hora que a próxima entrará com corte; pré-carga atrasada ou falha leva a um corte com aviso; próxima que nem carrega deixa a setlist parada com aviso vermelho (também em "Preparar próxima música"); hand-off que falha não deixa silêncio: a próxima entra com corte. O aviso some quando a música a que se refere dá lugar a outra, quando outra transição fica pronta ou ao fechar. Seek para depois do início da janela já era tratado pelo motor (dispara na hora, limitado ao que resta). Escolha própria: o Playback não tem esse aviso. | `transition_test.dart` (pré-carga lenta com trava, falha no corte, hand-off falho, widget) |
 
-**Pendente:** medir o pico real de RAM no aparelho, soak de duas horas, e medir o callback no Android (os números acima são do desktop).
+**Pendente (precisa do aparelho):** medir o pico real de RAM, o callback no Android (os números acima são do desktop) e um soak de duas horas
+em tempo real no telefone.
 
 ## Correções ao que já está documentado
 
