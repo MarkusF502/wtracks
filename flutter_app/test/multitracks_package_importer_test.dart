@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -76,6 +77,32 @@ void main() {
       );
     },
   );
+
+  test('the API item brings sections, tempo map and fixed clicks; a guide stem silences the spoken guide', () async {
+    final structure = jsonDecode(File('test/fixtures/multitracks/content_structure.json').readAsStringSync()) as Map<String, Object?>;
+    final package = await _writePackage(root, {'101.m4a': [1], '103.m4a': [3]});
+    item = MultiTracksContentItem.fromJson({
+      ...structure,
+      'contentID': 48052,
+      'title': 'Structured',
+      'stems': [
+        _stem(101, 'Click Track', order: 0, clickOrGuide: true),
+        _stem(103, 'Guide (Dynamic)', order: 1, clickOrGuide: true),
+      ],
+    });
+    final imported = await MultiTracksPackageImporter(transcoder: const _FakeTranscoder()).import(
+      package: package,
+      destinationDirectory: Directory('${root.path}/output'),
+      item: item,
+      selection: selection,
+    );
+    expect(imported.structureWarnings, isEmpty);
+    expect(imported.track.sections.map((s) => s.name), ['Contagem', 'Introdução', 'Refrão', 'Seção']);
+    expect(imported.track.sections.every((s) => !s.playGuideCue), isTrue);
+    expect(imported.track.tempoChanges.length, 4);
+    expect(imported.track.clickSettings.bpm, 120);
+    expect(imported.track.fixedClicks?.accents, [0.0001, 2.0001, 4.0001]);
+  });
 
   test('decodes a compressed LZ4 block', () async {
     final package = await _writePackage(root, {

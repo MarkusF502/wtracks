@@ -1,0 +1,29 @@
+{
+  "_comment": "Sintético, no formato observado em content/download (2026-10-16): 120 BPM (0,5 s por tempo), compasso 3/4 entre 4 s e 5,5 s, 60 BPM aos 8 s e 90 BPM a partir de 17,5 tempos (no meio de um tempo). Sentinelas nos clicks.",
+  "duration": 20.0,
+  "bpm": 120.0,
+  "tempos": [
+    {"tempoID": 1, "order": 1, "bpm": 120.0, "time": 0.0, "ticks": 0, "beats": 0.0, "beatsPerTick": 2e-7, "timeCode": "00:00:000"},
+    {"tempoID": 2, "order": 2, "bpm": 120.0, "time": 16.0, "ticks": 0, "beats": 15.9999999998, "beatsPerTick": 2e-7, "timeCode": "00:08:000"},
+    {"tempoID": 3, "order": 3, "bpm": 60.0, "time": 16.0, "ticks": 0, "beats": 15.9999999998, "beatsPerTick": 1e-7, "timeCode": "00:08:000"},
+    {"tempoID": 4, "order": 4, "bpm": 60.0, "time": 18.0, "ticks": 0, "beats": 17.5, "beatsPerTick": 1e-7, "timeCode": "00:09:500"},
+    {"tempoID": 5, "order": 5, "bpm": 90.0, "time": 18.0, "ticks": 0, "beats": 17.5, "beatsPerTick": 1.5e-7, "timeCode": "00:09:500"}
+  ],
+  "timeSignatures": [
+    {"timeSignatureID": 1, "order": 1, "timeID": 3, "beatsPerBar": 4, "beatUnit": 4, "time": 0.0, "timeCode": "00:00:000 "},
+    {"timeSignatureID": 2, "order": 2, "timeID": 2, "beatsPerBar": 3, "beatUnit": 4, "time": 8.0, "timeCode": "00:04:000 "},
+    {"timeSignatureID": 3, "order": 3, "timeID": 3, "beatsPerBar": 4, "beatUnit": 4, "time": 11.0, "timeCode": "00:05:500 "}
+  ],
+  "sections": [
+    {"contentSectionID": 503, "sectionID": 5, "order": 3, "timeCode": "00:08:000", "charts": false},
+    {"contentSectionID": 501, "sectionID": 7, "order": 1, "timeCode": "00:00:000", "charts": false},
+    {"contentSectionID": 502, "sectionID": 11, "order": 2, "timeCode": "00:02:000", "charts": false},
+    {"contentSectionID": 504, "sectionID": 999, "order": 4, "timeCode": "00:15:000", "charts": false}
+  ],
+  "clicks": {
+    "accents": [0.0001, 2.0001, 4.0001, 21.0],
+    "quarters": [0, 0.5, 1.0, 1.5, 2.0, 21.0],
+    "eighths": [0.25, 0.75, 21.0],
+    "sixteenths": [0.125, 21.0]
+  }
+}

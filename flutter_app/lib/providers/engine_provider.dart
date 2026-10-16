@@ -367,6 +367,11 @@ class CurrentTrackNotifier extends Notifier<Track?> {
           state = null;
           return false;
         }
+        if (!engine.setClickTimes(track.fixedClicks?.events() ?? const [])) {
+          engine.unloadTrack();
+          state = null;
+          return false;
+        }
         await _syncPresetLoops(engine, track.sections, force: true);
         await _syncSkips(engine, track.sections, force: true);
         if (_disposed || generation != _generation) {
@@ -1063,7 +1068,9 @@ class CurrentTrackNotifier extends Notifier<Track?> {
       return false;
     }
     if (!deckEngine.setClickTempoChanges(changes)) return false;
-    state = track.copyWith(tempoChanges: List.unmodifiable(changes));
+    // A grade editada passa a mandar no click: os instantes da MultiTracks não valem mais para ela.
+    if (track.fixedClicks != null) deckEngine.setClickTimes(const []);
+    state = track.copyWith(tempoChanges: List.unmodifiable(changes), fixedClicks: null);
     _resendMixerAutomation(state!);
     refreshGuides();
     return true;
@@ -1078,8 +1085,18 @@ class CurrentTrackNotifier extends Notifier<Track?> {
     if (!engine.configureClick(settings)) return false;
     // The engine drops changes at or before the new click offset; mirror that so state and engine agree.
     final keep = TempoChange.validSequence(track.tempoChanges, baseOffset: settings.beatOffsetSeconds);
-    state = track.copyWith(clickSettings: settings, tempoChanges: keep ? track.tempoChanges : const []);
+    // Mudar a grade (andamento, compasso, deslocamento) descarta os instantes fixos; volume, timbre e subdivisões, não.
+    final old = track.clickSettings;
+    final gridChanged = settings.bpm != old.bpm ||
+        settings.beatOffsetSeconds != old.beatOffsetSeconds ||
+        settings.timeSignatureNumerator != old.timeSignatureNumerator ||
+        settings.timeSignatureDenominator != old.timeSignatureDenominator ||
+        settings.bpmUnit != old.bpmUnit;
+    final dropFixed = gridChanged && track.fixedClicks != null;
+    state = track.copyWith(
+        clickSettings: settings, tempoChanges: keep ? track.tempoChanges : const [], fixedClicks: dropFixed ? null : track.fixedClicks);
     if (!keep) engine.setClickTempoChanges(const []);
+    if (dropFixed) engine.setClickTimes(const []);
     _resendMixerAutomation(state!);
     refreshGuides(); // the bar before each section moved with the grid
     return true;
@@ -1274,6 +1291,9 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
               busId: previous.busId,
             ));
     }
+    // Uma versão anterior sem seções ainda não recebeu a estrutura da MultiTracks: adota seções, grade e clicks novos e mantém
+    // volume, timbre e níveis do click. Com seções, as edições do usuário ficam (escolha própria).
+    final adoptStructure = existing != null && existing.sections.isEmpty && imported.sections.isNotEmpty;
     final merged = existing == null
         ? imported.copyWith(channels: channels)
         : existing.copyWith(
@@ -1282,6 +1302,18 @@ class TrackLibraryNotifier extends Notifier<List<Track>> {
             key: imported.key,
             channels: channels,
             origin: imported.origin,
+            sections: adoptStructure ? imported.sections : null,
+            clickSettings: adoptStructure
+                ? existing.clickSettings.copyWith(
+                    bpm: imported.clickSettings.bpm,
+                    beatOffsetSeconds: imported.clickSettings.beatOffsetSeconds,
+                    timeSignatureNumerator: imported.clickSettings.timeSignatureNumerator,
+                    timeSignatureDenominator: imported.clickSettings.timeSignatureDenominator,
+                    bpmUnit: imported.clickSettings.bpmUnit,
+                  )
+                : null,
+            tempoChanges: adoptStructure ? imported.tempoChanges : null,
+            fixedClicks: adoptStructure ? imported.fixedClicks : existing.fixedClicks,
           );
     final saved = await ref.read(persistenceServiceProvider).saveTrack(merged);
     _savedJson[saved.id] = jsonEncode(saved.toJson());

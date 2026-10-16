@@ -8,6 +8,7 @@ import 'mixer_automation.dart';
 import 'timecode_settings.dart';
 import 'tempo_change.dart';
 import 'time_pitch_settings.dart';
+import 'fixed_clicks.dart';
 import 'multitracks_origin.dart';
 
 /// Saída do canal no mixer nativo (contrato BusChannelAU): estéreo usa a base
@@ -407,6 +408,9 @@ class Track {
   /// Procedência MultiTracks (null = música importada de arquivos). Campo opcional: músicas antigas abrem sem ele.
   final MultiTracksOrigin? origin;
 
+  /// Instantes explícitos do click (MultiTracks); null = o click segue a grade de [clickSettings] e [tempoChanges].
+  final FixedClicks? fixedClicks;
+
   const Track({
     this.guideCues = const [],
     this.guidesEnabled = true,
@@ -435,6 +439,7 @@ class Track {
     this.artist,
     this.key,
     this.origin,
+    this.fixedClicks,
   });
 
   Track copyWith({
@@ -463,6 +468,7 @@ class Track {
     String? artist,
     String? key,
     Object? origin = _keepBank,
+    Object? fixedClicks = _keepBank,
   }) {
     return Track(
       guideCues: guideCues ?? this.guideCues,
@@ -491,6 +497,7 @@ class Track {
       artist: artist ?? this.artist,
       key: key ?? this.key,
       origin: identical(origin, _keepBank) ? this.origin : origin as MultiTracksOrigin?,
+      fixedClicks: identical(fixedClicks, _keepBank) ? this.fixedClicks : fixedClicks as FixedClicks?,
     );
   }
 
@@ -529,6 +536,7 @@ class Track {
         'artist': artist,
         'key': key,
         if (origin != null) 'origin': origin!.toJson(),
+        if (fixedClicks != null) 'fixedClicks': fixedClicks!.toJson(),
       };
 
   // Campos ausentes no JSON (tracks salvas antes desta mudança) desserializam
@@ -571,6 +579,7 @@ class Track {
         artist: json['artist'] as String?,
         key: json['key'] as String?,
         origin: MultiTracksOrigin.fromJson(json['origin']),
+        fixedClicks: FixedClicks.fromJson(json['fixedClicks']),
       );
 }
 

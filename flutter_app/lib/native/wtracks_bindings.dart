@@ -180,6 +180,8 @@ typedef _PresetLoopsNative = Bool Function(Pointer<Double>, Pointer<Double>, Poi
 typedef _PresetLoopsDart = bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, int);
 typedef _TempoChangesNative = Bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Pointer<Int32>, Int32);
 typedef _TempoChangesDart = bool Function(Pointer<Double>, Pointer<Double>, Pointer<Int32>, Pointer<Int32>, int);
+typedef _ClickTimesNative = Bool Function(Pointer<Double>, Pointer<Uint8>, Int32);
+typedef _ClickTimesDart = bool Function(Pointer<Double>, Pointer<Uint8>, int);
 typedef _GetCounterNative = Uint64 Function();
 typedef _GetCounterDart = int Function();
 typedef _ClickGainNative = Void Function(Float);
@@ -304,6 +306,7 @@ class WTracksEngine {
   late final _SetLoopRepeatsDart _setLoopRepeats;
   late final _EnqueueLoopRepeatsDart _enqueueLoopRepeats;
   late final _TempoChangesDart _setClickTempoChanges;
+  late final _ClickTimesDart _setClickTimes;
   late final _PresetLoopsDart _configurePresetLoops;
   late final _ConfigureTimecodeDart _configureTimecode;
   late final _SetClickEnabledDart _setTimecodeEnabled;
@@ -464,6 +467,7 @@ class WTracksEngine {
     _enqueueLoopRepeats = _lib.lookupFunction<_EnqueueLoopRepeatsNative, _EnqueueLoopRepeatsDart>('${_p}enqueue_loop_repeats');
     _configurePresetLoops = _lib.lookupFunction<_PresetLoopsNative, _PresetLoopsDart>('${_p}configure_preset_loops');
     _setClickTempoChanges = _lib.lookupFunction<_TempoChangesNative, _TempoChangesDart>('${_p}set_click_tempo_changes');
+    _setClickTimes = _lib.lookupFunction<_ClickTimesNative, _ClickTimesDart>('${_p}set_click_times');
     _configureTimecode = _lib.lookupFunction<_ConfigureTimecodeNative, _ConfigureTimecodeDart>('${_p}configure_timecode');
     _setTimecodeEnabled = _lib.lookupFunction<_SetClickEnabledNative, _SetClickEnabledDart>('${_p}set_timecode_enabled');
     _midiList = _lib.lookupFunction<_MidiListNative, _MidiListDart>('wtracks_midi_list_outputs');
@@ -1138,6 +1142,23 @@ class WTracksEngine {
       calloc.free(dens);
     }
   }
+  /// Instantes explícitos do click (segundos da música, em ordem; voz 0 acento, 1 quarto, 2 colcheia, 3 semicolcheia). Lista vazia
+  /// volta à grade de andamento.
+  bool setClickTimes(List<(double, int)> events) {
+    final slots = events.isEmpty ? 1 : events.length;
+    final times = calloc<Double>(slots), voices = calloc<Uint8>(slots);
+    try {
+      for (var i = 0; i < events.length; i++) {
+        times[i] = events[i].$1;
+        voices[i] = events[i].$2;
+      }
+      return _setClickTimes(times, voices, events.length);
+    } finally {
+      calloc.free(times);
+      calloc.free(voices);
+    }
+  }
+
   void clearQueuedLoop() => _clearQueuedLoop();
   bool get loopEnabled => _getLoopEnabled();
   bool get queuedLoopEnabled => _getQueuedLoopEnabled();

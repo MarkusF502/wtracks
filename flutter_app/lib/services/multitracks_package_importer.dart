@@ -5,6 +5,7 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter/services.dart';
 
 import '../models/track.dart';
+import 'multitracks_structure.dart';
 import 'multitracks_contract.dart';
 import 'stem_detection.dart';
 
@@ -48,11 +49,15 @@ class MultiTracksImportedContent {
     required this.track,
     required this.stemIds,
     required this.expandedAudioBytes,
+    this.structureWarnings = const [],
   });
 
   final Track track;
   final List<int> stemIds;
   final int expandedAudioBytes;
+
+  /// O que da estrutura musical (seções, andamento, clicks) não conferiu e ficou de fora (vai para o Diagnóstico).
+  final List<String> structureWarnings;
 }
 
 class MultiTracksPackageImporter {
@@ -256,6 +261,12 @@ class MultiTracksPackageImporter {
                 '${published.path}/${index.toString().padLeft(2, '0')}-${descriptors[index].stemId}.wav',
           ),
       };
+      final structure = MultiTracksStructure.parse(
+        item.raw,
+        hasGuideStem: descriptors.any(
+          (d) => d.clickOrGuide && '${d.part} ${d.abbreviation}'.toLowerCase().contains('guide'),
+        ),
+      );
       return MultiTracksImportedContent(
         track: Track(
           id: 'multitracks-${selection.contentId}-${selection.keyId}',
@@ -265,11 +276,16 @@ class MultiTracksPackageImporter {
           channels: descriptors
               .map((descriptor) => channelsByStem[descriptor.stemId]!)
               .toList(growable: false),
+          sections: structure.sections,
+          clickSettings: structure.click,
+          tempoChanges: structure.tempoChanges,
+          fixedClicks: structure.fixedClicks,
         ),
         stemIds: descriptors
             .map((descriptor) => descriptor.stemId)
             .toList(growable: false),
         expandedAudioBytes: wavBytes,
+        structureWarnings: structure.warnings,
       );
     } finally {
       archiveInput?.closeSync();

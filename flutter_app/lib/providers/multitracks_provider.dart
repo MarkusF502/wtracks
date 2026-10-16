@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/multitracks_import_job.dart';
 import '../models/multitracks_session.dart';
+import '../services/diagnostics_log.dart';
 import '../services/multitracks_auth_service.dart';
 import '../services/multitracks_content_provider.dart';
 import '../services/multitracks_contract.dart';
@@ -365,8 +366,12 @@ class MultiTracksImportNotifier extends Notifier<Map<String, MultiTracksImportJo
         runner: ref.read(multitracksImportRunnerProvider),
         stagingRoot: ref.read(multitracksStagingRootProvider),
         freeBytes: ref.read(multitracksFreeBytesProvider),
-        publish: (content, origin) =>
-            ref.read(trackLibraryProvider.notifier).publishImported(content.track.copyWith(origin: origin)),
+        publish: (content, origin) {
+          for (final warning in content.structureWarnings) {
+            ref.read(diagnosticsProvider.notifier).info('MultiTracks "${content.track.title}": $warning.');
+          }
+          return ref.read(trackLibraryProvider.notifier).publishImported(content.track.copyWith(origin: origin));
+        },
         onUpdate: (job) => state = {...state, job.key: job},
       );
 

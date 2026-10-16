@@ -452,6 +452,15 @@ class FakeEngine implements WTracksEngine {
     configuredTempoChanges = changes;
     return true;
   }
+  List<(double, int)> configuredClickTimes = const [];
+  bool failClickTimes = false;
+  @override
+  bool setClickTimes(List<(double, int)> events) {
+    calls.add('clickTimes(${events.length})');
+    if (failClickTimes) return false;
+    configuredClickTimes = events;
+    return true;
+  }
   List<GuideCue> configuredGuides = [];
   bool guidesEnabled = true;
   bool failGuides = false;
