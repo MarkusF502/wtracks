@@ -73,7 +73,7 @@ enviado ao GitHub). As seis transições têm comportamento definido e testado (
 
 ## Fase C do plano de consolidação — desempenho e continuidade (2026-10-14, parcial)
 
-**Status: itens WT-06, WT-07, WT-08 e WT-10 feitos no código; o restante da fase (coordenador de pré-carga, soak de 2 h) continua aberto.**
+**Status: itens WT-06, WT-07, WT-08 e WT-10 feitos no código, e o fallback visível da próxima música (2026-10-16); TimePitch por blocos, soak de 2 h e medições no Android continuam abertos.**
 
 | Item | O que mudou | Teste |
 |---|---|---|
@@ -82,10 +82,10 @@ enviado ao GitHub). As seis transições têm comportamento definido e testado (
 | WT-07 memória | Orçamento global (padrão 1 GiB) para os processamentos de tom/andamento: cada trabalho reserva uma estimativa de pico antes de decodificar e espera, com cancelamento, se a soma estouraria; trabalho maior que o orçamento roda sozinho. Substitui o paralelismo fixo por um adaptativo. | `TimeScaleTests.cpp` (serialização, pico reservado, cancelamento na fila) |
 | WT-08 cache | O cache só é reaproveitado se for um WAV inteiro: tamanho do RIFF = tamanho do arquivo, `fmt`/`data` coerentes, quadros completos e duração compatível com a origem (quando WAV) e o fator de tempo. | `time_pitch_test.dart` |
 | WT-10 release | `android-apk.yml` agora depende de `android-tests.yml` (suíte nativa, `flutter analyze`, `flutter test` e emulador); sem tudo verde nada é compilado nem publicado. Os testes também rodam em pull request. | **não verificado**: nada foi enviado ao GitHub, o workflow só foi validado como YAML |
+| Próxima música | O coordenador de transições (`TransitionController`) ganhou aviso visível no palco (`TransitionNotice`, faixa abaixo da setlist, com fechar). Pré-carga que falha avisa na hora que a próxima entrará com corte; pré-carga atrasada ou falha leva a um corte com aviso; próxima que nem carrega deixa a setlist parada com aviso vermelho (também em "Preparar próxima música"); hand-off que falha não deixa silêncio: a próxima entra com corte. O aviso some quando a música a que se refere dá lugar a outra, quando outra transição fica pronta ou ao fechar. Seek para depois do início da janela já era tratado pelo motor (dispara na hora, limitado ao que resta). Escolha própria: o Playback não tem esse aviso. | `transition_test.dart` (pré-carga lenta com trava, falha no corte, hand-off falho, widget) |
 
 **Pendente:** processar o TimePitch por blocos (hoje a entrada inteira fica na memória, só o orçamento limita), medir o pico real de RAM no
-aparelho, coordenador de próxima música (pré-carga atrasada, falha do próximo arquivo, fallback visível), soak de duas horas, e medir
-o callback no Android (os números acima são do desktop).
+aparelho, soak de duas horas, e medir o callback no Android (os números acima são do desktop).
 
 ## Correções ao que já está documentado
 
