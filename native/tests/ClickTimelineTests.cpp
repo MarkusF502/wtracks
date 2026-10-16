@@ -104,6 +104,92 @@ public:
         expectWithinAbsoluteError(out.getSample(0,1),0.125f,0.00001f);
         sampled.reset(); out.clear(); sampled.render(out,0,64,1,48000,true);
         expectEquals(out.getMagnitude(0,64),0.0f);
+
+        beginTest("Explicit click times (MultiTracks): exact samples and voices for any block size, seek, and no grid clicks");
+        for (int block : {1,64,1000}) {
+            ClickTimeline fixed; impulse(fixed); fixed.soundRates.fill(48000); fixed.gains.fill(1);  // the grid alone would click at 0
+            fixed.events={{100,0},{1000,1},{1500,2},{1600,3},{1600,1}};
+            std::vector<std::pair<int64_t,float>> heard;
+            juce::AudioBuffer<float> o(1,block);
+            for (int64_t position=0;position<2000;position+=block) {
+                o.clear(); fixed.render(o,0,block,position,48000,true);
+                for (int i=0;i<block;++i) if (o.getSample(0,i)!=0) heard.push_back({position+i,o.getSample(0,i)});
+            }
+            expectEquals<int>(static_cast<int>(heard.size()),4,"block "+juce::String(block));
+            if (heard.size()==4) {
+                expectEquals<int64_t>(heard[0].first,100); expectWithinAbsoluteError(heard[0].second,1.0f,1e-5f);
+                expectEquals<int64_t>(heard[1].first,1000); expectWithinAbsoluteError(heard[1].second,2.0f,1e-5f);
+                expectEquals<int64_t>(heard[2].first,1500); expectWithinAbsoluteError(heard[2].second,3.0f,1e-5f);
+                expectEquals<int64_t>(heard[3].first,1600); expectWithinAbsoluteError(heard[3].second,4.0f+2.0f,1e-5f);  // two voices at once
+            }
+            for (int64_t delta : {-1,0,1}) {  // seek before, on and after an event
+                juce::AudioBuffer<float> one(1,4); one.clear(); fixed.render(one,0,4,1000+delta,48000,true);
+                if (delta<=0) expectWithinAbsoluteError(one.getSample(0,static_cast<int>(-delta)),2.0f,1e-5f);
+                else expectEquals(one.getMagnitude(0,4),0.0f);
+            }
+        }
+
+        beginTest("Engine: explicit click times follow the time scale and the device rate, are validated, and a new song drops them");
+        {
+            auto dir=juce::File::getSpecialLocation(juce::File::tempDirectory).getNonexistentChildFile("wtracks_click_times","",false);
+            dir.createDirectory();
+            auto wav=[&](const juce::String& name, float first, int length) {
+                auto file=dir.getChildFile(name); juce::WavAudioFormat format;
+                auto stream=std::unique_ptr<juce::FileOutputStream>(file.createOutputStream());
+                auto writer=std::unique_ptr<juce::AudioFormatWriter>(format.createWriterFor(stream.get(),48000,1,24,{},0));
+                stream.release(); juce::AudioBuffer<float> data(1,length); data.clear(); data.setSample(0,0,first);
+                writer->writeFromAudioSampleBuffer(data,0,length); writer.reset(); return file;
+            };
+            AudioEngine e; e.prepareToPlay(64,48000);
+            auto silence=wav("silence.wav",0,4*48000);
+            std::array<juce::String,4> voices;
+            for (int v=0;v<4;++v) voices[v]=wav("v"+juce::String(v)+".wav",0.1f*(v+1),1).getFullPathName();
+            expect(e.loadTrack("t",{silence})); expect(e.loadClickBank(voices)); expect(e.configureClick(120,4,4,4,0,1,1,1,1));
+            e.setClickEnabled(true);
+            const double times[3]={0.25,1.0,1.0}; const uint8_t kinds[3]={2,0,1};
+            expect(e.setClickTimes(times,kinds,3));
+            juce::AudioBuffer<float> o(2,64);
+            // Samples rendered after seeking to `seconds` (song time) until the first click, and its value.
+            const auto firstClickAfter=[&](double seconds, int64_t limit) -> std::pair<int64_t,float> {
+                e.seekToSeconds(seconds); e.play();
+                const int64_t start=0;
+                for (int64_t done=0;done<limit;done+=64) {
+                    o.clear(); juce::AudioSourceChannelInfo info(&o,0,64); e.getNextAudioBlock(info);
+                    for (int i=0;i<64;++i) if (std::fabs(o.getSample(0,i))>1e-6f) { e.pause(); return {start+done+i,o.getSample(0,i)}; }
+                }
+                e.pause(); return {-1,0.f};
+            };
+            auto hit=firstClickAfter(0,48000);
+            expectEquals<int64_t>(hit.first,12000); expectWithinAbsoluteError(hit.second,0.3f,1e-5f);  // eighth voice; no grid click at 0
+            hit=firstClickAfter(0.5,48000);
+            expectEquals<int64_t>(hit.first,24000); expectWithinAbsoluteError(hit.second,0.1f+0.2f,1e-5f);  // accent and quarter together
+
+            expect(e.setTimeScale(2.0));  // processed audio twice as long: 0.1 s of song time is 0.2 s of processed timeline
+            hit=firstClickAfter(0.9,96000);
+            expectEquals<int64_t>(hit.first,9600);
+            expect(e.setTimeScale(1.0));
+
+            e.prepareToPlay(64,44100);  // device rate changes: same song seconds
+            hit=firstClickAfter(0.5,44100);
+            expectEquals<int64_t>(hit.first,22050);
+            e.prepareToPlay(64,48000);
+
+            const double bad[2]={1.0,0.5}; const uint8_t badKinds[2]={0,0}; const uint8_t badVoice[1]={4};
+            const double nan[1]={std::numeric_limits<double>::quiet_NaN()};
+            expect(!e.setClickTimes(bad,badKinds,2)); expect(!e.setClickTimes(times,badVoice,1)); expect(!e.setClickTimes(nan,badKinds,1));
+            expect(!e.setClickTimes(nullptr,nullptr,1));
+            hit=firstClickAfter(0,48000);
+            expectEquals<int64_t>(hit.first,12000,"a refused list keeps the previous one");
+
+            expect(e.loadTrack("t2",{silence})); expect(e.configureClick(120,4,4,4,0,1,1,1,1));
+            hit=firstClickAfter(0,4800);
+            expectEquals<int64_t>(hit.first,0,"a new song is back on the tempo grid");
+            expect(e.setClickTimes(times,kinds,3)); expect(e.setClickTimes(nullptr,nullptr,0));
+            hit=firstClickAfter(0,4800);
+            expectEquals<int64_t>(hit.first,0,"count 0 returns to the grid");
+            e.unloadCurrentTrack();
+            dir.deleteRecursively();
+        }
     }
 };
 static ClickTimelineTests clickTimelineTests;

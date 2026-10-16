@@ -224,6 +224,9 @@ public:
     bool loadClickBank(const std::array<juce::String,4>& paths);
     // Tempo/meter changes after the base segment (song time). Replaces the previous list; invalid lists change nothing.
     bool setClickTempoChanges(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count);
+    // Explicit click times in song seconds (MultiTracks clicks lists), nondecreasing; voices 0 accent, 1 quarter, 2 eighth,
+    // 3 sixteenth. While set they replace the tempo grid for the click only (MIDI clock and timecode keep the grid). count 0 = grid.
+    bool setClickTimes(const double* times, const uint8_t* voices, int count);
     void setClickGain(float gain);
     // MIDI output. The sink receives realtime clock (0xF8 at 24 ppqn on the click grid), start/continue/stop and cue messages.
     static juce::StringArray listMidiOutputs();  // "identifier\tname" per device
@@ -353,6 +356,7 @@ private:
     double timeScale = 1.0;
     double userClickBpm = 120.0, userClickOffset = 0.0;
     std::vector<TempoChange> userTempoChanges;
+    std::vector<std::pair<double, uint8_t>> userClickTimes;  // song seconds; laid out on the processed timeline by applyClickScale
     void applyClickScale();
     void loopToFileTime(double& start, double& end);
     float masterVolume = 1.0f;

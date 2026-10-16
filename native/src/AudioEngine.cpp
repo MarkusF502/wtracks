@@ -109,7 +109,7 @@ void AudioEngine::releaseTrackResources()
         const juce::SpinLock::ScopedLockType lock(channelsLock);
         staleChannels.swap(channels);
         staleGuides=std::move(guideTimeline); guideTimeline=GuideTimeline{}; staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
-        stalePresets.swap(presetLoops); timeScale=1.0; userTempoChanges.clear(); applyClickScale();
+        stalePresets.swap(presetLoops); timeScale=1.0; userTempoChanges.clear(); userClickTimes.clear(); applyClickScale();
         preroll.cancel(); preroll.counts={}; prerollStarts.clear(); prerollEnabled=false;
         std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0);
         fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0;
@@ -206,7 +206,7 @@ bool AudioEngine::loadTrack(const juce::String& songId, const std::vector<juce::
         channels.swap(newChannels);  // the previous song's channels now live in `newChannels` and die after the lock (WT-06)
         loopEnabled=false; queuedLoopEnabled=false; staleActive=std::move(activeLoop); staleQueued=std::move(queuedLoop); activeLoop.reset(); queuedLoop.reset();
         currentSamplePosition = 0;
-        timeScale=1.0; userTempoChanges.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
+        timeScale=1.0; userTempoChanges.clear(); userClickTimes.clear(); applyClickScale(); std::swap(guideTimeline,staleGuides); stalePresets.swap(presetLoops); staleCues=std::move(cueTimeline); cueTimeline=CueTimeline{};
         preroll.cancel(); staleCounts.swap(preroll.counts); staleStarts.swap(prerollStarts); prerollEnabled=false;
         std::swap(mixerAutomation,staleAutomation); mixerAutomation.setTimeScale(1.0); resetAutomationBases();
         fade.reset(); endFadeSeconds=0; rangeStart=rangeEnd=0; transportEvents=0; busCount=0; buses={};
@@ -1125,6 +1125,10 @@ void AudioEngine::applyClickScale()
     for (auto& change : clickTimeline.changes) { change.start*=timeScale; change.bpm/=timeScale; }
     midiClock.changes=clickTimeline.changes;
     midiClock.bpm=clickTimeline.bpm; midiClock.offset=clickTimeline.offset; midiClock.bpmUnit=clickTimeline.bpmUnit;
+    // In place: setClickTimes sizes the vector before taking the lock, so nothing is allocated here.
+    clickTimeline.events.resize(userClickTimes.size());
+    for (size_t i=0;i<userClickTimes.size();++i)
+        clickTimeline.events[i]={static_cast<int64_t>(std::llround(userClickTimes[i].first*timeScale*currentSampleRate)),userClickTimes[i].second};
 }
 
 bool AudioEngine::setClickTempoChanges(const double* starts, const double* bpms, const int* numerators, const int* denominators, int count)
@@ -1137,6 +1141,27 @@ bool AudioEngine::setClickTempoChanges(const double* starts, const double* bpms,
     const juce::SpinLock::ScopedLockType lock(channelsLock);
     if (!tempoChangesValid(proposed,userClickOffset)) { setLastError(EngineErrorCode::FormatMismatch,"Invalid tempo changes"); return false; }
     userTempoChanges=std::move(proposed); applyClickScale(); setLastError(EngineErrorCode::None,""); return true;
+}
+
+bool AudioEngine::setClickTimes(const double* times, const uint8_t* voices, int count)
+{
+    constexpr int kMaxClicks = 1 << 17;
+    if (count < 0 || count > kMaxClicks || (count && (!times || !voices))) {
+        setLastError(EngineErrorCode::FormatMismatch,"Invalid click times"); return false;
+    }
+    std::vector<std::pair<double,uint8_t>> proposed(static_cast<size_t>(count));
+    for (int i=0;i<count;++i) {
+        if (!std::isfinite(times[i]) || times[i] < 0 || times[i] > 86400 || voices[i] > 3 || (i && times[i] < times[i-1])) {
+            setLastError(EngineErrorCode::FormatMismatch,"Invalid click times"); return false;
+        }
+        proposed[static_cast<size_t>(i)]={times[i],voices[i]};
+    }
+    std::vector<ClickEvent> events(proposed.size());  // filled by applyClickScale under the lock, without allocating there
+    {
+        const juce::SpinLock::ScopedLockType lock(channelsLock);
+        userClickTimes.swap(proposed); clickTimeline.events.swap(events); applyClickScale();
+    }
+    setLastError(EngineErrorCode::None,""); return true;  // the previous lists are freed here, outside the lock (WT-06)
 }
 
 void AudioEngine::setClickGain(float gain)
@@ -1420,6 +1445,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
         const double positionSeconds=static_cast<double>(currentSamplePosition.load())/currentSampleRate;
         currentSampleRate = sampleRate;
         currentSamplePosition=static_cast<int64_t>(std::llround(positionSeconds*sampleRate));
+        applyClickScale();  // explicit click times are in samples of the current rate
         clickTimeline.reset(); guideTimeline.reset(); preroll.cancel();
         mixerSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
 

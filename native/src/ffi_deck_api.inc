@@ -146,6 +146,12 @@ WTRACKS_API bool WT(set_click_tempo_changes)(const double* starts, const double*
     return ENGINE ? ENGINE->setClickTempoChanges(starts, bpms, numerators, denominators, count) : false;
 }
 
+WTRACKS_API bool WT(set_click_times)(const double* times, const uint8_t* voices, int count)
+{
+    const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
+    return ENGINE ? ENGINE->setClickTimes(times, voices, count) : false;
+}
+
 WTRACKS_API bool WT(configure_preset_loops)(const double* starts, const double* ends, const int* repeats, int count)
 {
     const std::lock_guard<std::mutex> lock(engineLifetimeMutex);
