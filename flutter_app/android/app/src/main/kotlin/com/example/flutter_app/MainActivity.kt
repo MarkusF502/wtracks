@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.StatFs
 import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -63,6 +64,78 @@ class MainActivity : FlutterActivity() {
                     }
                 } else {
                     result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "wtracks/multitracks_audio")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "freeBytes") {
+                    val path = call.argument<String>("path")
+                    if (path.isNullOrBlank()) {
+                        result.error("ARGS", "path ausente", null)
+                    } else {
+                        try {
+                            result.success(StatFs(path).availableBytes)
+                        } catch (error: Exception) {
+                            result.error("STATFS", error.message, null)
+                        }
+                    }
+                    return@setMethodCallHandler
+                }
+                if (call.method != "m4aToWav") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                val input = call.argument<String>("input")
+                val output = call.argument<String>("output")
+                if (input.isNullOrBlank() || output.isNullOrBlank()) {
+                    result.error("ARGS", "input/output ausentes", null)
+                    return@setMethodCallHandler
+                }
+                thread(name = "wtracks-multitracks-decode") {
+                    try {
+                        MultiTracksAudioDecoder.decodeM4aToWav(File(input), File(output))
+                        Handler(Looper.getMainLooper()).post { result.success(null) }
+                    } catch (error: Exception) {
+                        Handler(Looper.getMainLooper()).post {
+                            result.error("AAC_DECODE", error.message, error.toString())
+                        }
+                    }
+                }
+            }
+
+        // Sessão MultiTracks: valores cifrados pelo Keystore, fora da thread da interface. A senha nunca passa por aqui.
+        val secureStore = MultiTracksSecureStore(applicationContext)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "wtracks/secure_store")
+            .setMethodCallHandler { call, result ->
+                val key = call.argument<String>("key")
+                if (key.isNullOrBlank()) {
+                    result.error("ARGS", "key ausente", null)
+                    return@setMethodCallHandler
+                }
+                val value = call.argument<String>("value")
+                thread(name = "wtracks-secure-store") {
+                    val main = Handler(Looper.getMainLooper())
+                    try {
+                        when (call.method) {
+                            "read" -> secureStore.read(key).let { main.post { result.success(it) } }
+                            "write" -> {
+                                if (value == null) {
+                                    main.post { result.error("ARGS", "value ausente", null) }
+                                } else {
+                                    secureStore.write(key, value)
+                                    main.post { result.success(null) }
+                                }
+                            }
+                            "delete" -> {
+                                secureStore.delete(key)
+                                main.post { result.success(null) }
+                            }
+                            else -> main.post { result.notImplemented() }
+                        }
+                    } catch (error: Exception) {
+                        main.post { result.error("SECURE_STORE", error.javaClass.simpleName, null) }
+                    }
                 }
             }
 
